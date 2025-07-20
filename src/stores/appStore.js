@@ -557,6 +557,92 @@ export const useAppStore = create(
           return { success: true, entriesGenerated: testData.length, monthsGenerated: Object.keys(monthlyData).length }
         },
 
+        // Import tracking data
+        importTrackingData: async (importData) => {
+          const { auth } = get()
+          if (!auth.isAuthenticated) {
+            throw new Error('User not authenticated')
+          }
+
+          console.log('Importing tracking data:', importData)
+
+          try {
+            // Validate import data structure
+            if (!importData.version || !importData.entries || !Array.isArray(importData.entries)) {
+              throw new Error('Invalid import file format')
+            }
+
+            // Validate and process entries
+            const validEntries = importData.entries.filter(entry => {
+              return entry.id && entry.timestamp && entry.type
+            })
+
+            if (validEntries.length === 0) {
+              throw new Error('No valid entries found in import file')
+            }
+
+            // Group entries by month
+            const monthlyData = {}
+            validEntries.forEach(entry => {
+              const month = entry.timestamp.slice(0, 7) // YYYY-MM
+              if (!monthlyData[month]) {
+                monthlyData[month] = {
+                  version: '1.0.0',
+                  month: month,
+                  file_part: 1,
+                  estimated_size_kb: 0,
+                  entries: [],
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }
+              }
+              monthlyData[month].entries.push(entry)
+            })
+
+            // Save each month's data
+            for (const [month, data] of Object.entries(monthlyData)) {
+              data.estimated_size_kb = Math.round(JSON.stringify(data).length / 1024)
+              
+              if (googleDriveService.isMockMode) {
+                // Save to localStorage in mock mode
+                localStorage.setItem(`mock_tracking_${month}`, JSON.stringify(data))
+              } else {
+                // Save to Google Drive
+                await googleDriveService.saveMonthlyTrackingFile(month, data)
+              }
+            }
+
+            // Update current tracking data if current month is in import
+            const currentMonth = new Date().toISOString().slice(0, 7)
+            const currentMonthData = monthlyData[currentMonth]
+            
+            if (currentMonthData) {
+              set(state => ({
+                trackingData: {
+                  ...state.trackingData,
+                  entries: currentMonthData.entries.filter(entry => !entry.is_deleted)
+                }
+              }))
+            }
+
+            console.log(`Successfully imported ${validEntries.length} entries across ${Object.keys(monthlyData).length} months`)
+            
+            return {
+              success: true,
+              entriesImported: validEntries.length,
+              monthsImported: Object.keys(monthlyData).length,
+              importMetadata: {
+                version: importData.version,
+                exportedAt: importData.exported_at,
+                totalEntries: importData.total_entries
+              }
+            }
+          } catch (error) {
+            console.error('Import failed:', error)
+            throw error
+          }
+        },
+
         // Tracking data actions
         loadCurrentMonthData: async () => {
           const { auth, config } = get()
@@ -1002,6 +1088,77 @@ export const useAppStore = create(
                 error: error.message
               }
             }))
+          }
+        },
+
+        // Export configuration
+        exportConfig: () => {
+          const { config } = get()
+          if (!config) {
+            throw new Error('No configuration to export')
+          }
+
+          const exportData = {
+            version: '1.0.0',
+            exported_at: new Date().toISOString(),
+            config: config
+          }
+
+          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `tracking-config-${new Date().toISOString().slice(0, 10)}.json`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+
+          return { success: true, configExported: true }
+        },
+
+        // Import configuration
+        importConfig: async (importData) => {
+          const { auth } = get()
+          if (!auth.isAuthenticated) {
+            throw new Error('User not authenticated')
+          }
+
+          try {
+            // Validate import data structure
+            if (!importData.version || !importData.config) {
+              throw new Error('Invalid configuration file format')
+            }
+
+            // Validate the configuration
+            const validation = validateConfig(importData.config)
+            if (validation.error) {
+              throw new Error(`Configuration validation failed: ${validation.error.message}`)
+            }
+
+            // Save the imported configuration
+            await googleDriveService.saveConfigFile(validation.data)
+
+            // Update local state
+            set({
+              config: validation.data,
+              configLoading: false,
+              configError: null
+            })
+
+            console.log('Configuration imported successfully')
+            
+            return {
+              success: true,
+              configImported: true,
+              importMetadata: {
+                version: importData.version,
+                exportedAt: importData.exported_at
+              }
+            }
+          } catch (error) {
+            console.error('Configuration import failed:', error)
+            throw error
           }
         }
       }),

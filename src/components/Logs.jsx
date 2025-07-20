@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 
 const Logs = () => {
-  const { trackingData, deleteEntry, restoreEntry, addNotification, generateTestData, loadAllHistoricalData } = useAppStore()
+  const { trackingData, deleteEntry, restoreEntry, addNotification, generateTestData, loadAllHistoricalData, importTrackingData } = useAppStore()
   
   // State for filtering and UI
   const [dateRange, setDateRange] = useState('last7days')
@@ -17,6 +17,13 @@ const Logs = () => {
   const [showDeleted, setShowDeleted] = useState(false)
   const [sortBy, setSortBy] = useState('timestamp')
   const [sortOrder, setSortOrder] = useState('desc')
+  const [exportFormat, setExportFormat] = useState('json')
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [exportScope, setExportScope] = useState('all')
+  const [importError, setImportError] = useState('')
+  const [isImporting, setIsImporting] = useState(false)
+  const [importSuccess, setImportSuccess] = useState('')
 
   // Load all historical data when component mounts
   useEffect(() => {
@@ -172,6 +179,171 @@ const Logs = () => {
     }
   }
 
+  // Export functions
+  const exportToJSON = (data) => {
+    const exportData = {
+      version: '1.0.0',
+      exported_at: new Date().toISOString(),
+      total_entries: data.length,
+      date_range: {
+        start: customStartDate || 'all',
+        end: customEndDate || 'all'
+      },
+      entries: data
+    }
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tracking-export-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const exportToCSV = (data) => {
+    if (data.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'Export failed',
+        message: 'No data to export.'
+      })
+      return
+    }
+
+    // Get all unique keys from all entries
+    const allKeys = new Set()
+    data.forEach(entry => {
+      Object.keys(entry).forEach(key => {
+        if (key !== 'notes' || typeof entry[key] === 'string') {
+          allKeys.add(key)
+        }
+      })
+    })
+
+    // Add note fields separately
+    allKeys.add('notes_observations')
+    allKeys.add('notes_reflections')
+    allKeys.add('notes_thankful_for')
+
+    const headers = Array.from(allKeys)
+    const csvRows = [headers.join(',')]
+
+    data.forEach(entry => {
+      const row = headers.map(header => {
+        let value = ''
+        
+        if (header.startsWith('notes_')) {
+          const noteField = header.replace('notes_', '')
+          value = entry.notes?.[noteField] || ''
+        } else if (header === 'notes') {
+          value = typeof entry.notes === 'string' ? entry.notes : ''
+        } else {
+          value = entry[header] || ''
+        }
+        
+        // Escape commas and quotes in CSV
+        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+          value = `"${value.replace(/"/g, '""')}"`
+        }
+        
+        return value
+      })
+      csvRows.push(row.join(','))
+    })
+
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tracking-export-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExport = () => {
+    try {
+      const dataToExport = exportScope === 'all' ? trackingData.entries : filteredEntries
+      
+      if (dataToExport.length === 0) {
+        addNotification({
+          type: 'error',
+          title: 'Export failed',
+          message: 'No data to export.'
+        })
+        return
+      }
+
+      if (exportFormat === 'json') {
+        exportToJSON(dataToExport)
+      } else if (exportFormat === 'csv') {
+        exportToCSV(dataToExport)
+      }
+
+      addNotification({
+        type: 'success',
+        title: 'Export successful',
+        message: `Exported ${dataToExport.length} entries as ${exportFormat.toUpperCase()}.`
+      })
+      
+      setShowExportModal(false)
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Export failed',
+        message: 'Failed to export data. Please try again.'
+      })
+    }
+  }
+
+  // Import functions
+  const handleImport = async (file) => {
+    try {
+      setImportError('')
+      setImportSuccess('')
+      setIsImporting(true)
+      
+      const text = await file.text()
+      const importData = JSON.parse(text)
+      
+      // Use the app store import function
+      const result = await importTrackingData(importData)
+      
+      const successMessage = `Successfully imported ${result.entriesImported} entries across ${result.monthsImported} months.`
+      
+      addNotification({
+        type: 'success',
+        title: 'Import successful',
+        message: successMessage
+      })
+      
+      // Set prominent success message
+      setImportSuccess(successMessage)
+      
+      // Reload historical data to show imported entries
+      await loadAllHistoricalData()
+      
+      setShowImportModal(false)
+    } catch (error) {
+      console.error('Import error:', error)
+      setImportError(error.message || 'Failed to import data. Please check the file format.')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      handleImport(file)
+    }
+  }
+
   // Render entry data in a readable format
   const renderEntryData = (entry) => {
     const dataItems = []
@@ -238,26 +410,70 @@ const Logs = () => {
             Back to Dashboard
           </Link>
           
-          <button
-            onClick={() => {
-              const result = generateTestData()
-              addNotification({
-                type: 'success',
-                title: 'Test Data Generated',
-                message: `Generated ${result.entriesGenerated} entries across ${result.monthsGenerated} months for testing date ranges.`
-              })
-            }}
-            className="btn-primary px-4 py-2 text-sm"
-            title="Generate 60 days of test data to test date range filtering"
-          >
-            🧪 Generate Test Data
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                setImportError('')
+                setImportSuccess('')
+                setShowImportModal(true)
+              }}
+              className="btn-secondary px-4 py-2 text-sm"
+              title="Import tracking data from a backup file"
+            >
+              📥 Import
+            </button>
+            
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="btn-primary px-4 py-2 text-sm"
+              title="Export tracking data for backup or analysis"
+            >
+              📤 Export
+            </button>
+            
+            <button
+              onClick={() => {
+                const result = generateTestData()
+                addNotification({
+                  type: 'success',
+                  title: 'Test Data Generated',
+                  message: `Generated ${result.entriesGenerated} entries across ${result.monthsGenerated} months for testing date ranges.`
+                })
+              }}
+              className="btn-secondary px-4 py-2 text-sm"
+              title="Generate 60 days of test data to test date range filtering"
+            >
+              🧪 Generate Test Data
+            </button>
+          </div>
         </div>
         <h1 className="wildflower-header text-4xl mb-4">📝 Tracking Logs</h1>
         <p className="text-gray-600 text-center">
           Review and manage your historical tracking data
         </p>
       </div>
+
+      {/* Success Banner */}
+      {importSuccess && (
+        <div className="mb-6 meadow-card bg-green-50 border-green-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="text-green-600 mr-3 text-xl">✅</div>
+              <div>
+                <h3 className="text-lg font-semibold text-green-800">Import Successful!</h3>
+                <p className="text-green-700">{importSuccess}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setImportSuccess('')}
+              className="text-green-600 hover:text-green-800"
+              title="Dismiss success message"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="meadow-card mb-6">
@@ -392,7 +608,7 @@ const Logs = () => {
       {/* Results Summary */}
       <div className="mb-4">
         <p className="text-gray-600">
-          Showing {filteredEntries.length} entry{filteredEntries.length !== 1 ? 's' : ''}
+          Showing {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
           {dateRange !== 'custom' && (
             <span> for {formatDateRange(dateRange)}</span>
           )}
@@ -493,6 +709,175 @@ const Logs = () => {
           })
         )}
       </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="meadow-card max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Export Data</h3>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Export Format
+                </label>
+                <select
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="json">JSON (Backup/Restore)</option>
+                  <option value="csv">CSV (Spreadsheet Analysis)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Data Scope
+                </label>
+                <select
+                  value={exportScope}
+                  onChange={(e) => setExportScope(e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="all">All Data</option>
+                  <option value="filtered">Current Filter Results</option>
+                </select>
+              </div>
+              
+              <div className="text-sm text-gray-600">
+                <p><strong>JSON:</strong> Complete backup with metadata</p>
+                <p><strong>CSV:</strong> Spreadsheet-friendly format for analysis</p>
+                <p><strong>All Data:</strong> Export everything in your account</p>
+                <p><strong>Filtered:</strong> Export only the currently filtered results</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="btn-secondary px-4 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExport}
+                className="btn-primary px-4 py-2"
+              >
+                Export
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="meadow-card max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Import Tracking Data</h3>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="importFile" className="block text-sm font-medium text-gray-700 mb-2">
+                  Select JSON File to Import
+                </label>
+                <input
+                  type="file"
+                  id="importFile"
+                  accept=".json"
+                  onChange={handleFileSelect}
+                  className="input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p className="mt-2 text-sm text-gray-600">
+                  Select a JSON file containing tracking data to import.
+                  The file should be a valid export from this application.
+                </p>
+              </div>
+              
+              {/* Error Display */}
+              {importError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="text-red-600 mr-3 mt-0.5">⚠️</div>
+                    <div>
+                      <h4 className="text-sm font-medium text-red-800 mb-1">Import Error</h4>
+                      <p className="text-sm text-red-700">{importError}</p>
+                      <p className="text-xs text-red-600 mt-2">
+                        Please check that your file is a valid JSON export from this application.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Loading State */}
+              {isImporting && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full mr-3"></div>
+                    <p className="text-sm text-blue-800">Importing data...</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Success Message */}
+              {importSuccess && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="text-green-600 mr-3 mt-0.5">✅</div>
+                    <div>
+                      <h4 className="text-sm font-medium text-green-800 mb-1">Import Successful</h4>
+                      <p className="text-sm text-green-700">{importSuccess}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                <p className="font-medium mb-2">Import Information:</p>
+                <p>• <strong>JSON Format:</strong> Only JSON export files from this app are supported</p>
+                <p>• <strong>Data Validation:</strong> Invalid entries will be automatically filtered out</p>
+                <p>• <strong>Existing Data:</strong> Imported entries will be added to your existing data</p>
+                <p>• <strong>Backup:</strong> Consider exporting your current data before importing</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="btn-secondary px-4 py-2"
+                disabled={isImporting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => document.getElementById('importFile').click()}
+                className="btn-primary px-4 py-2"
+                disabled={isImporting}
+              >
+                {isImporting ? 'Importing...' : 'Select File & Import'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
