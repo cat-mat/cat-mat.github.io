@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.svg'],
       manifest: {
         name: 'What Even With My Hot Self?!',
         short_name: 'Hot Self',
@@ -37,8 +37,13 @@ export default defineConfig({
           }
         ]
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+      injectManifest: {
+        swSrc: 'public/sw.js',
+        swDest: 'sw.js'
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module'
       }
     })
   ],

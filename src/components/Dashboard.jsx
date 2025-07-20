@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import TrackingForm from './TrackingForm.jsx'
 import LoadingSpinner from './LoadingSpinner.jsx'
 import { clsx } from 'clsx'
+import { useBannerContext } from './ServiceWorkerManager.jsx'
 
 const Dashboard = () => {
   const { 
@@ -30,6 +31,7 @@ const Dashboard = () => {
   const [configImportSuccess, setConfigImportSuccess] = useState('')
   const location = useLocation()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { bannerHeight } = useBannerContext()
 
   const { user } = auth
   const { currentView } = ui
@@ -165,8 +167,10 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 shadow-wildflower">
+              {/* Header */}
+        <header className="sticky top-0 z-40 bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 shadow-wildflower"
+          style={{ top: bannerHeight }}
+        >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -262,8 +266,8 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
+              {/* Main content */}
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
         {/* Date header */}
         <div className="mb-6 meadow-card">
           <h2 className="text-2xl font-bold text-gray-800 wildflower-text-shadow">
@@ -271,7 +275,7 @@ const Dashboard = () => {
           </h2>
           <p className="text-gray-600">
             {currentViewEntries.length > 0 
-              ? `${currentViewEntries.length} entry${currentViewEntries.length !== 1 ? 's' : ''} today`
+              ? `${currentViewEntries.length} ${currentViewEntries.length !== 1 ? 'entries' : 'entry'} today`
               : 'No entries yet today'
             }
           </p>
@@ -362,7 +366,7 @@ const Dashboard = () => {
               <h3 className="text-lg font-semibold text-gray-800">Today's Summary</h3>
             </div>
             <div className="section-content">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {['morning', 'quick', 'evening'].map((view) => {
                   const viewEntries = todaysEntries.filter(entry => entry.type === view)
                   return (

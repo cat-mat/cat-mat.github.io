@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAppStore } from './stores/appStore.js'
 import { format } from 'date-fns'
@@ -14,6 +14,8 @@ import Logs from './components/Logs.jsx'
 import LoadingSpinner from './components/LoadingSpinner.jsx'
 import OfflineIndicator from './components/OfflineIndicator.jsx'
 import ToastNotifications from './components/ToastNotifications.jsx'
+import ServiceWorkerManager from './components/ServiceWorkerManager.jsx'
+import PWAInstallPrompt from './components/PWAInstallPrompt.jsx'
 
 // Initialize Google API
 const initializeGoogleAPI = () => {
@@ -43,6 +45,8 @@ function App() {
     setOnlineStatus,
     addNotification
   } = useAppStore()
+
+  const sessionExpiredNotified = useRef(false)
 
   // Initialize Google API on mount
   useEffect(() => {
@@ -106,6 +110,14 @@ function App() {
 
   // Show authentication screen if not authenticated
   if (!auth.isAuthenticated) {
+    if (!sessionExpiredNotified.current && addNotification) {
+      addNotification({
+        type: 'warning',
+        title: 'Session expired',
+        message: 'Please log in again.'
+      })
+      sessionExpiredNotified.current = true
+    }
     return (
       <div className="min-h-screen wildflower-bg">
         <AuthScreen onSignIn={signIn} isLoading={auth.isLoading} error={auth.error} />
@@ -125,8 +137,10 @@ function App() {
   // Main app layout
   return (
     <div className="min-h-screen wildflower-bg">
+      <ServiceWorkerManager />
       <OfflineIndicator />
       <ToastNotifications />
+      <PWAInstallPrompt />
       
       <Routes>
         <Route path="/" element={<Dashboard />} />

@@ -1166,7 +1166,8 @@ export const useAppStore = create(
         name: 'hot-self-storage',
         storage: createJSONStorage(() => localStorage),
         partialize: (state) => ({
-          // Only persist non-sensitive data
+          // Persist auth state as well
+          auth: state.auth,
           config: state.config,
           trackingData: {
             entries: state.trackingData.entries,
