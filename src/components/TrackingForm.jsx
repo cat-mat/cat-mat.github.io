@@ -26,6 +26,13 @@ const TrackingForm = ({ viewType }) => {
 
   // Check for existing entry today
   useEffect(() => {
+    // For Quick Track, we don't look for existing entries - always create new ones
+    if (viewType === 'quick') {
+      setExistingEntry(null)
+      setFormData({})
+      return
+    }
+
     const today = new Date().toISOString().split('T')[0]
     const existing = trackingData.entries.find(entry => {
       // Ensure timestamp is a string before calling startsWith
@@ -34,12 +41,22 @@ const TrackingForm = ({ viewType }) => {
         : entry.timestamp?.toISOString?.() || String(entry.timestamp || '')
       return timestamp.startsWith(today) && entry.type === viewType
     })
+    
+    console.log('Found existing entry:', existing)
     setExistingEntry(existing)
     
     if (existing) {
-      setFormData(existing)
+      // Load all the data from the existing entry, including notes
+      const entryData = {
+        ...existing,
+        notes: existing.notes || {}
+      }
+      console.log('Loading form data from existing entry:', entryData)
+      console.log('Form data keys:', Object.keys(entryData))
+      setFormData(entryData)
     } else {
       // Clear form data completely when no existing entry
+      console.log('No existing entry found, clearing form')
       setFormData({})
     }
   }, [viewType, trackingData.entries])
@@ -141,8 +158,19 @@ const TrackingForm = ({ viewType }) => {
 
   const renderScaleButtons = (item) => {
     const { scale, good } = item
-    const value = formData[item.id]
+    // Use existingEntry data directly if formData is empty
+    const value = formData[item.id] !== undefined ? formData[item.id] : (existingEntry?.[item.id])
     const displayType = config?.display_options?.item_display_type || 'text'
+
+    // Debug logging for pre-population
+    console.log(`Rendering ${item.id}:`, { 
+      value, 
+      formDataValue: formData[item.id], 
+      existingEntryValue: existingEntry?.[item.id],
+      itemId: item.id,
+      formDataKeys: Object.keys(formData),
+      hasValue: formData.hasOwnProperty(item.id)
+    })
 
     // Create responsive grid classes based on scale
     const gridCols = {
@@ -191,7 +219,8 @@ const TrackingForm = ({ viewType }) => {
   }
 
   const renderMultiSelect = (item) => {
-    const values = formData[item.id] || []
+    // Use existingEntry data directly if formData is empty
+    const values = formData[item.id] !== undefined ? formData[item.id] : (existingEntry?.[item.id] || [])
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -229,7 +258,8 @@ const TrackingForm = ({ viewType }) => {
   }
 
   const renderNumberInput = (item) => {
-    const value = formData[item.id] || ''
+    // Use existingEntry data directly if formData is empty
+    const value = formData[item.id] !== undefined ? formData[item.id] : (existingEntry?.[item.id] || '')
 
     return (
       <div className="flex items-center space-x-4">
@@ -252,7 +282,8 @@ const TrackingForm = ({ viewType }) => {
   const renderNotesSection = () => {
     if (viewType !== 'evening') return null
 
-    const notes = formData.notes || {}
+    // Use existingEntry data directly if formData is empty
+    const notes = formData.notes !== undefined ? formData.notes : (existingEntry?.notes || {})
     const isCollapsed = collapsedSections['notes']
 
     return (
@@ -468,8 +499,33 @@ const TrackingForm = ({ viewType }) => {
     )
   }
 
+  // Debug: Log current formData state
+  console.log('Current formData state:', formData)
+  console.log('Existing entry:', existingEntry)
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form 
+      key={`${viewType}-${existingEntry?.id || 'new'}`}
+      onSubmit={handleSubmit} 
+      className="space-y-8"
+    >
+      {/* Pre-populated indicator */}
+      {existingEntry && viewType !== 'quick' && (
+        <div className="meadow-card bg-blue-50 border-blue-200">
+          <div className="flex items-center">
+            <div className="text-blue-600 mr-3">📝</div>
+            <div>
+              <p className="text-sm font-medium text-blue-800">
+                Editing existing {viewType} entry
+              </p>
+              <p className="text-xs text-blue-600">
+                Submitted at {format(new Date(existingEntry.timestamp), 'h:mm a')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Body section */}
       {renderSection('body')}
 
@@ -495,7 +551,7 @@ const TrackingForm = ({ viewType }) => {
               Saving...
             </div>
           ) : (
-            existingEntry ? 'Update Entry' : 'Save Entry'
+            viewType === 'quick' ? 'Add Quick Entry' : (existingEntry ? 'Update Entry' : 'Save Entry')
           )}
         </button>
       </div>
@@ -503,4 +559,4 @@ const TrackingForm = ({ viewType }) => {
   )
 }
 
-export default TrackingForm 
+export default TrackingForm

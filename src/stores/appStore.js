@@ -434,6 +434,129 @@ export const useAppStore = create(
           }
         },
 
+        // Generate test data for date range testing
+        generateTestData: () => {
+          console.log('Generating test data for date range testing...')
+          
+          const testData = []
+          const now = new Date()
+          
+          // Generate data for a wider range: 30 days in the past to 30 days in the future
+          for (let i = -30; i <= 30; i++) {
+            const date = new Date(now)
+            date.setDate(date.getDate() + i)
+            
+            const dateStr = date.toISOString().slice(0, 10)
+            const timestamp = date.toISOString()
+            
+            // Generate morning entry (if before 10 AM)
+            if (date.getHours() < 10) {
+              testData.push({
+                id: `test_morning_${dateStr}`,
+                timestamp: timestamp,
+                type: 'morning',
+                sync_status: 'synced',
+                timezone: 'America/Los_Angeles',
+                energy_level: Math.floor(Math.random() * 5) + 1,
+                sleep_feeling: Math.floor(Math.random() * 3) + 1,
+                mood: Math.floor(Math.random() * 3) + 1,
+                wearables_sleep_score: Math.floor(Math.random() * 40) + 60, // 60-100
+                wearables_body_battery: Math.floor(Math.random() * 40) + 60, // 60-100
+                is_deleted: false,
+                created_at: timestamp,
+                updated_at: timestamp
+              })
+            }
+            
+            // Generate evening entry (if after 7 PM)
+            if (date.getHours() >= 19) {
+              testData.push({
+                id: `test_evening_${dateStr}`,
+                timestamp: timestamp,
+                type: 'evening',
+                sync_status: 'synced',
+                timezone: 'America/Los_Angeles',
+                energy_level: Math.floor(Math.random() * 5) + 1,
+                mood: Math.floor(Math.random() * 3) + 1,
+                overall_sentiment: Math.floor(Math.random() * 5) + 1,
+                stress_level: Math.floor(Math.random() * 5) + 1,
+                notes: {
+                  observations: `Test observation for ${dateStr}`,
+                  reflections: `Test reflection for ${dateStr}`,
+                  thankful_for: `Test gratitude for ${dateStr}`
+                },
+                is_deleted: false,
+                created_at: timestamp,
+                updated_at: timestamp
+              })
+            }
+            
+            // Generate 1-3 quick entries during the day
+            const quickCount = Math.floor(Math.random() * 3) + 1
+            for (let j = 0; j < quickCount; j++) {
+              const quickTime = new Date(date)
+              quickTime.setHours(10 + Math.floor(Math.random() * 9)) // 10 AM - 7 PM
+              quickTime.setMinutes(Math.floor(Math.random() * 60))
+              
+              testData.push({
+                id: `test_quick_${dateStr}_${j}`,
+                timestamp: quickTime.toISOString(),
+                type: 'quick',
+                sync_status: 'synced',
+                timezone: 'America/Los_Angeles',
+                energy_level: Math.floor(Math.random() * 5) + 1,
+                headache: Math.floor(Math.random() * 4) + 1,
+                hot_flashes: Math.floor(Math.random() * 4) + 1,
+                anxiety: Math.floor(Math.random() * 5) + 1,
+                brain_fog: Math.floor(Math.random() * 3) + 1,
+                is_deleted: false,
+                created_at: quickTime.toISOString(),
+                updated_at: quickTime.toISOString()
+              })
+            }
+          }
+          
+          // Group data by month and save to localStorage
+          const monthlyData = {}
+          testData.forEach(entry => {
+            const month = entry.timestamp.slice(0, 7) // YYYY-MM
+            if (!monthlyData[month]) {
+              monthlyData[month] = {
+                version: '1.0.0',
+                month: month,
+                file_part: 1,
+                estimated_size_kb: 0,
+                entries: [],
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
+            }
+            monthlyData[month].entries.push(entry)
+          })
+          
+          // Save each month's data
+          Object.entries(monthlyData).forEach(([month, data]) => {
+            data.estimated_size_kb = Math.round(JSON.stringify(data).length / 1024)
+            localStorage.setItem(`mock_tracking_${month}`, JSON.stringify(data))
+          })
+          
+          // Update current tracking data
+          const currentMonth = now.toISOString().slice(0, 7)
+          const currentMonthData = monthlyData[currentMonth] || { entries: [] }
+          
+          set(state => ({
+            trackingData: {
+              ...state.trackingData,
+              entries: currentMonthData.entries
+            }
+          }))
+          
+          console.log(`Generated ${testData.length} test entries across ${Object.keys(monthlyData).length} months`)
+          console.log('Test data saved to localStorage. You can now test date range filtering!')
+          
+          return { success: true, entriesGenerated: testData.length, monthsGenerated: Object.keys(monthlyData).length }
+        },
+
         // Tracking data actions
         loadCurrentMonthData: async () => {
           const { auth, config } = get()
@@ -826,6 +949,60 @@ export const useAppStore = create(
         getEntriesByType: (type) => {
           const { trackingData } = get()
           return trackingData.entries.filter(entry => entry.type === type)
+        },
+
+        // Load all historical data for logs view
+        loadAllHistoricalData: async () => {
+          const { auth } = get()
+          if (!auth.isAuthenticated) return
+
+          set(state => ({
+            trackingData: {
+              ...state.trackingData,
+              isLoading: true,
+              error: null
+            }
+          }))
+
+          try {
+            // Get list of all monthly files
+            const monthlyFiles = await googleDriveService.listMonthlyFiles()
+            let allEntries = []
+
+            // Load data from each monthly file
+            for (const file of monthlyFiles) {
+              const month = file.name.match(/tracking-my-hot-self_(\d{4}-\d{2})/)?.[1]
+              if (month) {
+                const monthlyData = await googleDriveService.getMonthlyTrackingFile(month)
+                if (monthlyData && monthlyData.entries) {
+                  allEntries = allEntries.concat(monthlyData.entries)
+                }
+              }
+            }
+
+            // Sort by timestamp (newest first)
+            allEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+
+            set(state => ({
+              trackingData: {
+                ...state.trackingData,
+                entries: allEntries,
+                isLoading: false,
+                error: null
+              }
+            }))
+
+            console.log(`Loaded ${allEntries.length} historical entries`)
+          } catch (error) {
+            console.error('Failed to load historical data:', error)
+            set(state => ({
+              trackingData: {
+                ...state.trackingData,
+                isLoading: false,
+                error: error.message
+              }
+            }))
+          }
         }
       }),
       {

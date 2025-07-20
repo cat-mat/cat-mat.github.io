@@ -194,7 +194,7 @@ const Dashboard = () => {
                   <p className="text-sm text-gray-600">
                     {currentView === 'morning' && 'Start your day by tracking sleep and energy'}
                     {currentView === 'evening' && 'End your day with reflection and sentiment'}
-                    {currentView === 'quick' && 'Check in throughout the day as needed'}
+                    {currentView === 'quick' && 'Add timestamped entries throughout the day'}
                   </p>
                 </div>
               </div>

@@ -2,10 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { TRACKING_ITEMS, getDisplayValue, getItemColor } from '../constants/trackingItems'
 import { format, parseISO, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
+import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 
 const Logs = () => {
-  const { trackingData, deleteEntry, restoreEntry, addNotification } = useAppStore()
+  const { trackingData, deleteEntry, restoreEntry, addNotification, generateTestData, loadAllHistoricalData } = useAppStore()
   
   // State for filtering and UI
   const [dateRange, setDateRange] = useState('last7days')
@@ -16,6 +17,11 @@ const Logs = () => {
   const [showDeleted, setShowDeleted] = useState(false)
   const [sortBy, setSortBy] = useState('timestamp')
   const [sortOrder, setSortOrder] = useState('desc')
+
+  // Load all historical data when component mounts
+  useEffect(() => {
+    loadAllHistoricalData()
+  }, [loadAllHistoricalData])
 
   // Get date range based on selection
   const getDateRange = () => {
@@ -64,6 +70,33 @@ const Logs = () => {
               note && note.toLowerCase().includes(searchTerm.toLowerCase())
             )
           }
+          // Search through item names and display values
+          if (key !== 'id' && key !== 'timestamp' && key !== 'type' && 
+              key !== 'sync_status' && key !== 'is_deleted' && key !== 'created_at' && 
+              key !== 'updated_at' && value !== undefined && value !== null && value !== '') {
+            
+            const item = TRACKING_ITEMS[key]
+            if (item) {
+              // Search through item name
+              if (item.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+                return true
+              }
+              
+              // Search through display value
+              let displayValue = value
+              if (Array.isArray(value)) {
+                displayValue = value.map(v => item.optionLabels?.[v] || v.replace(/_/g, ' ')).join(', ')
+              } else if (typeof value === 'number' && item.scale) {
+                displayValue = getDisplayValue(item, value, 'text')
+              }
+              
+              if (displayValue.toString().toLowerCase().includes(searchTerm.toLowerCase())) {
+                return true
+              }
+            }
+          }
+          
+          // Also search through raw values
           return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase())
         })
       const matchesDeleted = showDeleted ? true : !entry.is_deleted
@@ -178,10 +211,48 @@ const Logs = () => {
     return dataItems
   }
 
+  // Format date range for display
+  const formatDateRange = (range) => {
+    const mappings = {
+      'today': 'today',
+      'yesterday': 'yesterday', 
+      'last7days': 'last 7 days',
+      'last30days': 'last 30 days',
+      'thisWeek': 'this week',
+      'thisMonth': 'this month',
+      'custom': 'custom range'
+    }
+    return mappings[range] || range
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <Link 
+            to="/" 
+            className="btn-secondary px-4 py-2 text-sm flex items-center"
+          >
+            <span className="mr-2">←</span>
+            Back to Dashboard
+          </Link>
+          
+          <button
+            onClick={() => {
+              const result = generateTestData()
+              addNotification({
+                type: 'success',
+                title: 'Test Data Generated',
+                message: `Generated ${result.entriesGenerated} entries across ${result.monthsGenerated} months for testing date ranges.`
+              })
+            }}
+            className="btn-primary px-4 py-2 text-sm"
+            title="Generate 60 days of test data to test date range filtering"
+          >
+            🧪 Generate Test Data
+          </button>
+        </div>
         <h1 className="wildflower-header text-4xl mb-4">📝 Tracking Logs</h1>
         <p className="text-gray-600 text-center">
           Review and manage your historical tracking data
@@ -265,8 +336,9 @@ const Logs = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search entries..."
+              placeholder="Search by item name, value, or notes..."
               className="input"
+              title="Search through item names (e.g., 'Energy Level'), values (e.g., 'High'), or notes content"
             />
           </div>
         </div>
@@ -320,8 +392,10 @@ const Logs = () => {
       {/* Results Summary */}
       <div className="mb-4">
         <p className="text-gray-600">
-          Showing {filteredEntries.length} entry{filteredEntries.length !== 1 ? 's' : ''} 
-          {dateRange !== 'custom' && ` for ${dateRange.replace(/([A-Z])/g, ' $1').toLowerCase()}`}
+          Showing {filteredEntries.length} entry{filteredEntries.length !== 1 ? 's' : ''}
+          {dateRange !== 'custom' && (
+            <span> for {formatDateRange(dateRange)}</span>
+          )}
         </p>
       </div>
 

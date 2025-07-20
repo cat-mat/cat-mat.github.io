@@ -12,7 +12,7 @@ const AuthScreen = ({ onSignIn, isLoading, error }) => {
             What Even With My Hot Self?!
           </h1>
           <p className="text-sm text-gray-600">
-            Track your perimenopausal journey (and beyond) with humor
+            Tracking the perimenopausal journey (and beyond) with humor
           </p>
         </div>
 
