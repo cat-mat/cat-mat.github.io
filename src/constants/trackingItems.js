@@ -143,7 +143,7 @@ export const TRACKING_ITEMS = {
     morning: true,
     evening: true,
     quick: true,
-    textOptions: ['*Grunt*', 'Doin\' ok', 'Yaaas'],
+    textOptions: ['*Grunt*', 'Give me a minute', 'Yaaas'],
     faceEmojis: ['😖', '😬', '😎'],
     heartEmojis: ['❤️', '💛', '💚'],
     dotEmojis: ['🔴', '🟡', '🟢']
@@ -246,23 +246,7 @@ export const TRACKING_ITEMS = {
     dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
   },
   
-  // Morning Report Only
-  sleep_feeling: {
-    id: 'sleep_feeling',
-    name: 'Sleep Feeling',
-    category: 'body',
-    scale: 3,
-    good: 'high',
-    description: 'Good morning, sunshine! How\'d you sleep?',
-    morning: true,
-    evening: false,
-    quick: false,
-    textOptions: ['Go away', 'Not bad', 'Like a baby'],
-    faceEmojis: ['😩', '🥱', '😎'],
-    heartEmojis: ['❤️', '💛', '💚'],
-    dotEmojis: ['🔴', '🟡', '🟢']
-  },
-  
+  // Morning Report Only  
   wearables_sleep_score: {
     id: 'wearables_sleep_score',
     name: 'Wearable\'s Sleep Score',
@@ -289,6 +273,119 @@ export const TRACKING_ITEMS = {
     morning: true,
     evening: false,
     quick: false
+  },
+
+  // New tracking items
+  sleep_quality: {
+    id: 'sleep_quality',
+    name: 'Sleep Quality',
+    category: 'body',
+    scale: 5,
+    good: 'high',
+    description: 'Did you sleep like a baby or like a cat on a hot tin roof?',
+    morning: true,
+    evening: false,
+    quick: false,
+    textOptions: ['What is sleep?', 'Tossed and turned', 'Not bad', 'Pretty good', 'Like a log'],
+    faceEmojis: ['😵', '😴', '😐', '😊', '😴'],
+    heartEmojis: ['💙', '❤️', '🧡', '💛', '💚'],
+    dotEmojis: ['🔵', '🔴', '🟠', '🟡', '🟢']
+  },
+
+  hormone_symptoms: {
+    id: 'hormone_symptoms',
+    name: 'Hormone Symptoms',
+    category: 'body',
+    scale: 5,
+    good: 'low',
+    description: 'How much are your hormones making themselves known today?',
+    morning: false,
+    evening: true,
+    quick: true,
+    textOptions: ['Chill hormones', 'A little moody', 'Definitely hormonal', 'Very hormonal', 'Hormone hurricane'],
+    faceEmojis: ['😎', '😐', '😤', '😠', '😡'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+  },
+
+  diet_triggers: {
+    id: 'diet_triggers',
+    name: 'Diet Triggers',
+    category: 'body',
+    scale: 5,
+    good: 'low',
+    description: 'Something I ate made my body throw a tantrum!',
+    morning: false,
+    evening: true,
+    quick: true,
+    textOptions: ['No food drama', 'Slight grumble', 'Not happy', 'Definitely triggered', 'Food rebellion'],
+    faceEmojis: ['😎', '😐', '😕', '😣', '🤢'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+  },
+
+  exercise_impact: {
+    id: 'exercise_impact',
+    name: 'Exercise Impact',
+    category: 'body',
+    scale: 5,
+    good: 'high',
+    description: 'How did your body feel after that workout (or lack thereof)?',
+    morning: false,
+    evening: true,
+    quick: false,
+    textOptions: ['Couch potato', 'Light movement', 'Decent workout', 'Good sweat', 'Beast mode'],
+    faceEmojis: ['🛋️', '🚶‍♀️', '🏃‍♀️', '💪', '🏋️‍♀️'],
+    heartEmojis: ['💙', '💛', '🧡', '❤️', '💚'],
+    dotEmojis: ['🔵', '🟡', '🟠', '🔴', '🟢']
+  },
+
+  hydration: {
+    id: 'hydration',
+    name: 'Hydration',
+    category: 'body',
+    scale: 3,
+    good: 'high',
+    description: 'How well hydrated are you feeling? (Be honest!)',
+    morning: false,
+    evening: true,
+    quick: true,
+    textOptions: ['Desert dry', 'Could use more', 'Well hydrated'],
+    faceEmojis: ['🏜️', '💧', '🌊'],
+    heartEmojis: ['❤️', '💛', '💚'],
+    dotEmojis: ['🔴', '🟡', '🟢']
+  },
+
+  social_stamina: {
+    id: 'social_stamina',
+    name: 'Social Stamina',
+    category: 'mind',
+    scale: 5,
+    good: 'high',
+    description: 'How much social interaction can you handle today?',
+    morning: true,
+    evening: true,
+    quick: true,
+    textOptions: ['Hermit mode', 'Small talk only', 'Friends are okay', 'Party ready', 'Social butterfly'],
+    faceEmojis: ['🏠', '😐', '😊', '😄', '🦋'],
+    heartEmojis: ['💙', '💛', '🧡', '❤️', '💚'],
+    dotEmojis: ['🔵', '🟡', '🟠', '🔴', '🟢']
+  },
+
+  allergic_reactions: {
+    id: 'allergic_reactions',
+    name: 'Allergic Reactions',
+    category: 'body',
+    scale: 3,
+    good: 'low',
+    description: 'Experiencing any allergic reactions?',
+    morning: false,
+    evening: true,
+    quick: true,
+    textOptions: ['Feeling good', 'Some reactions', 'Bah, I\'m over it!'],
+    faceEmojis: ['😎', '😕', '😵'],
+    heartEmojis: ['💚', '💛', '❤️'],
+    dotEmojis: ['🟢', '🟡', '🔴']
   },
   
   // Evening Report Only

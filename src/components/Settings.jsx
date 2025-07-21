@@ -27,17 +27,22 @@ const Settings = () => {
     if (window.confirm('This will clear your current configuration and start fresh. Are you sure?')) {
       try {
         await clearCorruptedConfig()
-        addNotification({
-          type: 'success',
-          title: 'Configuration Cleared',
-          message: 'Configuration has been cleared and recreated successfully!'
-        })
+        // Small delay to prevent notification overlap
+        setTimeout(() => {
+          addNotification({
+            type: 'success',
+            title: 'Configuration Cleared',
+            message: 'Configuration has been cleared and recreated successfully!'
+          })
+        }, 100)
       } catch (error) {
-        addNotification({
-          type: 'error',
-          title: 'Clear Failed',
-          message: 'Failed to clear configuration'
-        })
+        setTimeout(() => {
+          addNotification({
+            type: 'error',
+            title: 'Clear Failed',
+            message: 'Failed to clear configuration'
+          })
+        }, 100)
       }
     }
   }
