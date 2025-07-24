@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/appStore.js'
 import { TRACKING_ITEMS, getDisplayValue, getItemColor } from '../constants/trackingItems.js'
 import { format, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval, parseISO, isWithinInterval } from 'date-fns'
 import { clsx } from 'clsx'
+import AppHeader from './AppHeader.jsx';
 
 const Insights = () => {
   const { trackingData, loadAllHistoricalData } = useAppStore()
@@ -11,6 +12,16 @@ const Insights = () => {
   const [selectedView, setSelectedView] = useState('all')
   const [selectedItem, setSelectedItem] = useState('energy_level')
   const [isLoading, setIsLoading] = useState(true)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { auth, signOut, addNotification } = useAppStore()
+
+  // For config modals and notifications
+  const [showConfigModal, setShowConfigModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false)
+  const [configImportError, setConfigImportError] = useState('')
+  const [isConfigImporting, setIsConfigImporting] = useState(false)
+  const [configImportSuccess, setConfigImportSuccess] = useState('')
 
   // Calculate 6-week date range (inclusive of current week)
   const getDateRange = () => {
@@ -620,6 +631,32 @@ const Insights = () => {
     )
   }
 
+  // Find the latest pill_pack_start_date value
+  const latestPillPackEntry = useMemo(() => {
+    const entries = trackingData.entries
+      .filter(e => e.pill_pack_start_date && !e.is_deleted)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    return entries.length > 0 ? entries[0] : null
+  }, [trackingData.entries])
+
+  // Helper to calculate time ago
+  const getTimeAgo = (dateStr) => {
+    if (!dateStr) return ''
+    // Accept both MM/DD/YYYY and ISO
+    let date
+    if (dateStr.includes('-')) {
+      date = new Date(dateStr)
+    } else {
+      const [mm, dd, yyyy] = dateStr.split('/')
+      date = new Date(`${yyyy}-${mm}-${dd}`)
+    }
+    const now = new Date()
+    const diffMs = now - date
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const diffWeeks = Math.floor(diffDays / 7)
+    return `(${diffWeeks} week${diffWeeks !== 1 ? 's' : ''} / ${diffDays} day${diffDays !== 1 ? 's' : ''} ago)`
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen wildflower-bg">
@@ -647,12 +684,23 @@ const Insights = () => {
 
   return (
     <div className="min-h-screen wildflower-bg">
+      <AppHeader
+        onExportConfig={null}
+        setShowImportModal={setShowImportModal}
+        setShowResetConfirmModal={setShowResetConfirmModal}
+        configImportError={configImportError}
+        configImportSuccess={configImportSuccess}
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center mb-8">
-          <Link to="/" className="text-primary-600 hover:text-primary-700 mr-4 transition-colors duration-200">
-            ← Back to Dashboard
+          <Link 
+            to="/" 
+            className="btn-secondary px-4 py-2 text-sm flex items-center"
+          >
+            <span className="mr-2">←</span>
+            Back to Dashboard
           </Link>
-          <h1 className="text-2xl font-bold text-gray-800 wildflower-text-shadow">Insights</h1>
+          <h1 className="text-2xl font-bold text-gray-800 wildflower-text-shadow ml-4">Insights</h1>
         </div>
 
         {/* Filters */}
@@ -719,6 +767,15 @@ const Insights = () => {
             <div className="text-sm text-gray-600">Average {selectedItemData?.name}</div>
           </div>
         </div>
+
+        {/* Pill Pack Start Date display */}
+        {latestPillPackEntry && (
+          <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+            <span className="font-semibold text-blue-700">Pill Pack Start Date:</span>{' '}
+            <span className="text-blue-900">{latestPillPackEntry.pill_pack_start_date}</span>{' '}
+            <span className="text-blue-500">{getTimeAgo(latestPillPackEntry.pill_pack_start_date)}</span>
+          </div>
+        )}
 
         {/* Trend Analysis */}
         {trends && (

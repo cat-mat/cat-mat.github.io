@@ -1,6 +1,110 @@
 // Tracking items configuration
 export const TRACKING_ITEMS = {
-  // Body Items
+  allergic_reactions: {
+    id: 'allergic_reactions',
+    name: 'Allergic Reactions',
+    category: 'body',
+    scale: 3,
+    good: 'low',
+    description: 'Experiencing any allergic reactions?',
+    morning: false,
+    evening: true,
+    quick: true,
+    textOptions: ['Feeling good', 'Some reactions', 'Bah, I\'m over it!'],
+    faceEmojis: ['😎', '😕', '😵'],
+    heartEmojis: ['💚', '💛', '❤️'],
+    dotEmojis: ['🟢', '🟡', '🔴']
+  },
+  anxiety: {
+    id: 'anxiety',
+    name: 'Anxiety',
+    category: 'mind',
+    scale: 5,
+    good: 'low',
+    description: 'Yeah, no, I\'m fine. Well, actually...',
+    morning: true,
+    evening: true,
+    quick: true,
+    textOptions: ['I\'m good', 'Maybe a little anxious', 'This is normal, right?', 'I\'m freaking out', 'OMG, leave me alone!'],
+    faceEmojis: ['😎', '😁', '😳', '😧', '😭'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+  },
+  bleeding_spotting: {
+    id: 'bleeding_spotting',
+    name: 'Bleeding/Spotting',
+    category: 'body',
+    scale: 3,
+    good: 'low',
+    description: 'Oh, hey, Flow... 🤨',
+    morning: true,
+    evening: false,
+    quick: false,
+    textOptions: ['None', 'Spotting', 'Bleeding'],
+    faceEmojis: ['😎', '😳', '😫'],
+    heartEmojis: ['💚', '💛', '❤️'],
+    dotEmojis: ['🟢', '🟡', '🔴']
+  },
+  brain_fog: {
+    id: 'brain_fog',
+    name: 'Brain Fog',
+    category: 'mind',
+    scale: 3,
+    good: 'low',
+    description: 'I was going to do something... I came in this room for a reason...',
+    morning: true,
+    evening: true,
+    quick: true,
+    textOptions: ['Clear as a bell', 'I\'ll remember it, hang on...', 'What\'s my name again?'],
+    faceEmojis: ['😎', '😳', '😫'],
+    heartEmojis: ['💚', '💛', '❤️'],
+    dotEmojis: ['🟢', '🟡', '🔴']
+  },
+  depression: {
+    id: 'depression',
+    name: 'Depression',
+    category: 'mind',
+    scale: 5,
+    good: 'low',
+    description: 'Feeling a little meh...',
+    morning: true,
+    evening: true,
+    quick: true,
+    textOptions: ['None', 'Minimal', 'Mild', 'Moderate', 'Severe'],
+    faceEmojis: ['😎', '😁', '😳', '😧', '😭'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+  },
+  diet_triggers: {
+    id: 'diet_triggers',
+    name: 'Diet Triggers',
+    category: 'body',
+    scale: 5,
+    good: 'low',
+    description: 'Something I ate made my body throw a tantrum!',
+    morning: false,
+    evening: false,
+    quick: true,
+    textOptions: ['No food drama', 'Slight grumble', 'Not happy', 'Definitely triggered', 'Food rebellion'],
+    faceEmojis: ['😎', '😐', '😕', '😣', '🤢'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+  },
+  eating_habits: {
+    id: 'eating_habits',
+    name: 'Eating Habits',
+    category: 'body',
+    scale: 5,
+    good: 'low',
+    description: 'Mmmm, fooooooood 🤤',
+    morning: false,
+    evening: true,
+    quick: false,
+    textOptions: ['Good enough', 'Could be better', 'Ask me tomorrow'],
+    faceEmojis: ['🥘', '🍕', '🎂'],
+    heartEmojis: ['💚', '💛', '❤️'],
+    dotEmojis: ['🟢', '🟡', '🔴']
+  },
   energy_level: {
     id: 'energy_level',
     name: 'Energy Level',
@@ -9,14 +113,28 @@ export const TRACKING_ITEMS = {
     good: 'high',
     description: 'I\'m ready to take on the world!',
     morning: true,
-    evening: true,
+    evening: false,
     quick: true,
     textOptions: ['Maybe tomorrow', 'Eh', 'Sure', 'Yeah!', 'Let\'s do this!'],
     faceEmojis: ['😭', '🫤', '😊', '😀', '😎'],
     heartEmojis: ['💙', '❤️', '🧡', '💛', '💚'],
     dotEmojis: ['🔵', '🔴', '🟠', '🟡', '🟢']
   },
-  
+  exercise_impact: {
+    id: 'exercise_impact',
+    name: 'Exercise Impact',
+    category: 'body',
+    scale: 5,
+    good: 'high',
+    description: 'How did your body feel after that workout (or lack thereof)?',
+    morning: false,
+    evening: false,
+    quick: true,
+    textOptions: ['Couch potato', 'Light movement', 'Decent workout', 'Good sweat', 'Beast mode'],
+    faceEmojis: ['🛋️', '🚶‍♀️', '🏃‍♀️', '💪', '🏋️‍♀️'],
+    heartEmojis: ['💙', '💛', '🧡', '❤️', '💚'],
+    dotEmojis: ['🔵', '🟡', '🟠', '🔴', '🟢']
+  },
   forehead_shine: {
     id: 'forehead_shine',
     name: 'Forehead Shine',
@@ -24,15 +142,14 @@ export const TRACKING_ITEMS = {
     scale: 3,
     good: 'low',
     description: 'How glossy is that forehead of yours?',
-    morning: true,
-    evening: true,
+    morning: false,
+    evening: false,
     quick: true,
     textOptions: ['Matte', 'Satin', 'Glossy'],
     faceEmojis: ['😎', '😊', '😲'],
     heartEmojis: ['💚', '💛', '❤️'],
     dotEmojis: ['🟢', '🟡', '🔴']
   },
-  
   headache: {
     id: 'headache',
     name: 'Headache',
@@ -40,15 +157,29 @@ export const TRACKING_ITEMS = {
     scale: 4,
     good: 'low',
     description: 'Bleh, is that a headache?',
-    morning: true,
-    evening: true,
+    morning: false,
+    evening: false,
     quick: true,
     textOptions: ['Nope', 'Not bad', 'Uuuugh', 'I\'m going to bed'],
     faceEmojis: ['😎', '😐', '😧', '😭'],
     heartEmojis: ['💚', '💛', '🧡', '❤️'],
     dotEmojis: ['🟢', '🟡', '🟠', '🔴']
   },
-  
+  hormone_symptoms: {
+    id: 'hormone_symptoms',
+    name: 'Hormone Symptoms',
+    category: 'body',
+    scale: 5,
+    good: 'low',
+    description: 'How much are your hormones making themselves known today?',
+    morning: false,
+    evening: false,
+    quick: true,
+    textOptions: ['Chill hormones', 'A little moody', 'Definitely hormonal', 'Very hormonal', 'Hormone hurricane'],
+    faceEmojis: ['😎', '😐', '😤', '😠', '😡'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+  },
   hot_flashes: {
     id: 'hot_flashes',
     name: 'Hot Flashes',
@@ -64,7 +195,36 @@ export const TRACKING_ITEMS = {
     heartEmojis: ['💚', '💛', '🧡', '❤️'],
     dotEmojis: ['🟢', '🟡', '🟠', '🔴']
   },
-  
+  hydration: {
+    id: 'hydration',
+    name: 'Hydration',
+    category: 'body',
+    scale: 3,
+    good: 'high',
+    description: 'How well hydrated are you feeling? (Be honest!)',
+    morning: false,
+    evening: true,
+    quick: true,
+    textOptions: ['Desert dry', 'Could use more', 'Well hydrated'],
+    faceEmojis: ['🏜️', '💧', '🌊'],
+    heartEmojis: ['❤️', '💛', '💚'],
+    dotEmojis: ['🔴', '🟡', '🟢']
+  },
+  irritability: {
+    id: 'irritability',
+    name: 'Irritability',
+    category: 'mind',
+    scale: 5,
+    good: 'low',
+    description: 'Argh! Why are they doing that thing again?',
+    morning: true,
+    evening: true,
+    quick: true,
+    textOptions: ['I\'m chill', 'I\'m neutral', 'I\'m a little annoyed', 'I\'m pissed', 'I\'m furious'],
+    faceEmojis: ['😎', '🙂', '😕', '😠', '😡'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+  },
   joint_pain: {
     id: 'joint_pain',
     name: 'Joint Pain',
@@ -100,120 +260,6 @@ export const TRACKING_ITEMS = {
       right_other: 'Right Other'
     }
   },
-  
-  nausea: {
-    id: 'nausea',
-    name: 'Nausea',
-    category: 'body',
-    scale: 3,
-    good: 'low',
-    description: 'I\'m nauseous, I\'m nauseous, I\'m nauseous',
-    morning: true,
-    evening: true,
-    quick: true,
-    textOptions: ['Nah, I\'m good', 'Maybe a little', 'Uh-oh...'],
-    faceEmojis: ['😎', '😖', '🤢'],
-    heartEmojis: ['💚', '💛', '❤️'],
-    dotEmojis: ['🟢', '🟡', '🔴']
-  },
-  
-  temperature_sensitivity: {
-    id: 'temperature_sensitivity',
-    name: 'Temperature Sensitivity',
-    category: 'body',
-    scale: 3,
-    good: 'low',
-    description: 'Yeesh, is the A/C set to 40° right now?!',
-    morning: true,
-    evening: true,
-    quick: true,
-    textOptions: ['What temperature swing?', 'Feeling normal', 'Gimme that blanket!'],
-    faceEmojis: ['😎', '😳', '😰'],
-    heartEmojis: ['💚', '💛', '❤️'],
-    dotEmojis: ['🟢', '🟡', '🔴']
-  },
-  
-  workout_recovery: {
-    id: 'workout_recovery',
-    name: 'Workout Recovery',
-    category: 'body',
-    scale: 3,
-    good: 'high',
-    description: 'Yeeaahh, feeling great after that workout!',
-    morning: true,
-    evening: true,
-    quick: true,
-    textOptions: ['*Grunt*', 'Give me a minute', 'Yaaas'],
-    faceEmojis: ['😖', '😬', '😎'],
-    heartEmojis: ['❤️', '💛', '💚'],
-    dotEmojis: ['🔴', '🟡', '🟢']
-  },
-  
-  // Mind Items
-  anxiety: {
-    id: 'anxiety',
-    name: 'Anxiety',
-    category: 'mind',
-    scale: 5,
-    good: 'low',
-    description: 'Yeah, no, I\'m fine. Well, actually...',
-    morning: true,
-    evening: true,
-    quick: true,
-    textOptions: ['I\'m good', 'Maybe a little anxious', 'This is normal, right?', 'I\'m freaking out', 'OMG, leave me alone!'],
-    faceEmojis: ['😎', '😁', '😳', '😧', '😭'],
-    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
-    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
-  },
-  
-  brain_fog: {
-    id: 'brain_fog',
-    name: 'Brain Fog',
-    category: 'mind',
-    scale: 3,
-    good: 'low',
-    description: 'I was going to do something... I came in this room for a reason...',
-    morning: true,
-    evening: true,
-    quick: true,
-    textOptions: ['Clear as a bell', 'I\'ll remember it, hang on...', 'What\'s my name again?'],
-    faceEmojis: ['😎', '😳', '😫'],
-    heartEmojis: ['💚', '💛', '❤️'],
-    dotEmojis: ['🟢', '🟡', '🔴']
-  },
-  
-  depression: {
-    id: 'depression',
-    name: 'Depression',
-    category: 'mind',
-    scale: 5,
-    good: 'low',
-    description: 'Feeling a little meh...',
-    morning: true,
-    evening: true,
-    quick: true,
-    textOptions: ['None', 'Minimal', 'Mild', 'Moderate', 'Severe'],
-    faceEmojis: ['😎', '😁', '😳', '😧', '😭'],
-    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
-    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
-  },
-  
-  irritability: {
-    id: 'irritability',
-    name: 'Irritability',
-    category: 'mind',
-    scale: 5,
-    good: 'low',
-    description: 'Argh! Why are they doing that thing again?',
-    morning: true,
-    evening: true,
-    quick: true,
-    textOptions: ['I\'m chill', 'I\'m neutral', 'I\'m a little annoyed', 'I\'m pissed', 'I\'m furious'],
-    faceEmojis: ['😎', '🙂', '😕', '😠', '😡'],
-    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
-    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
-  },
-  
   mood: {
     id: 'mood',
     name: 'Mood',
@@ -229,53 +275,47 @@ export const TRACKING_ITEMS = {
     heartEmojis: ['❤️', '💛', '💚'],
     dotEmojis: ['🔴', '🟡', '🟢']
   },
-  
-  stress_level: {
-    id: 'stress_level',
-    name: 'Stress Level',
-    category: 'mind',
-    scale: 5,
+  nausea: {
+    id: 'nausea',
+    name: 'Nausea',
+    category: 'body',
+    scale: 3,
     good: 'low',
-    description: 'Yikes, I have shoulder earrings right now!',
+    description: 'I\'m nauseous, I\'m nauseous, I\'m nauseous',
     morning: true,
     evening: true,
     quick: true,
-    textOptions: ['I\'m super chill', 'Not bad', 'Meh', 'A little tense', 'OMG, leave me alone!'],
-    faceEmojis: ['😎', '😁', '😳', '😧', '😭'],
-    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
-    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+    textOptions: ['Nah, I\'m good', 'Maybe a little', 'Uh-oh...'],
+    faceEmojis: ['😎', '😖', '🤢'],
+    heartEmojis: ['💚', '💛', '❤️'],
+    dotEmojis: ['🟢', '🟡', '🔴']
   },
-  
-  // Morning Report Only  
-  wearables_sleep_score: {
-    id: 'wearables_sleep_score',
-    name: 'Wearable\'s Sleep Score',
-    category: 'body',
-    type: 'number',
-    min: 0,
-    max: 100,
+  overall_sentiment: {
+    id: 'overall_sentiment',
+    name: 'Overall Sentiment',
+    category: 'mind',
+    scale: 5,
     good: 'high',
-    description: 'How did your wearable think you slept?',
+    description: 'Today was a ____ day',
+    morning: false,
+    evening: true,
+    quick: false,
+    textOptions: ['Bad', 'OK', 'Good', 'Great', 'Fantastic'],
+    faceEmojis: ['😭', '🫤', '😊', '😀', '😎'],
+    heartEmojis: ['💙', '❤️', '🧡', '💛', '💚'],
+    dotEmojis: ['🔵', '🔴', '🟠', '🟡', '🟢']
+  },
+  pill_pack_start_date: {
+    id: 'pill_pack_start_date',
+    name: 'Pill Pack Start Date',
+    category: 'body',
+    type: 'date',
+    format: 'MM/DD/YYYY',
+    description: 'What date did you start your pill pack?',
     morning: true,
     evening: false,
     quick: false
   },
-  
-  wearables_body_battery: {
-    id: 'wearables_body_battery',
-    name: 'Wearable\'s Body Battery',
-    category: 'body',
-    type: 'number',
-    min: 0,
-    max: 100,
-    good: 'high',
-    description: 'How does your wearable think you\'re doing?',
-    morning: true,
-    evening: false,
-    quick: false
-  },
-
-  // New tracking items
   sleep_quality: {
     id: 'sleep_quality',
     name: 'Sleep Quality',
@@ -291,71 +331,6 @@ export const TRACKING_ITEMS = {
     heartEmojis: ['💙', '❤️', '🧡', '💛', '💚'],
     dotEmojis: ['🔵', '🔴', '🟠', '🟡', '🟢']
   },
-
-  hormone_symptoms: {
-    id: 'hormone_symptoms',
-    name: 'Hormone Symptoms',
-    category: 'body',
-    scale: 5,
-    good: 'low',
-    description: 'How much are your hormones making themselves known today?',
-    morning: false,
-    evening: true,
-    quick: true,
-    textOptions: ['Chill hormones', 'A little moody', 'Definitely hormonal', 'Very hormonal', 'Hormone hurricane'],
-    faceEmojis: ['😎', '😐', '😤', '😠', '😡'],
-    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
-    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
-  },
-
-  diet_triggers: {
-    id: 'diet_triggers',
-    name: 'Diet Triggers',
-    category: 'body',
-    scale: 5,
-    good: 'low',
-    description: 'Something I ate made my body throw a tantrum!',
-    morning: false,
-    evening: true,
-    quick: true,
-    textOptions: ['No food drama', 'Slight grumble', 'Not happy', 'Definitely triggered', 'Food rebellion'],
-    faceEmojis: ['😎', '😐', '😕', '😣', '🤢'],
-    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
-    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
-  },
-
-  exercise_impact: {
-    id: 'exercise_impact',
-    name: 'Exercise Impact',
-    category: 'body',
-    scale: 5,
-    good: 'high',
-    description: 'How did your body feel after that workout (or lack thereof)?',
-    morning: false,
-    evening: true,
-    quick: false,
-    textOptions: ['Couch potato', 'Light movement', 'Decent workout', 'Good sweat', 'Beast mode'],
-    faceEmojis: ['🛋️', '🚶‍♀️', '🏃‍♀️', '💪', '🏋️‍♀️'],
-    heartEmojis: ['💙', '💛', '🧡', '❤️', '💚'],
-    dotEmojis: ['🔵', '🟡', '🟠', '🔴', '🟢']
-  },
-
-  hydration: {
-    id: 'hydration',
-    name: 'Hydration',
-    category: 'body',
-    scale: 3,
-    good: 'high',
-    description: 'How well hydrated are you feeling? (Be honest!)',
-    morning: false,
-    evening: true,
-    quick: true,
-    textOptions: ['Desert dry', 'Could use more', 'Well hydrated'],
-    faceEmojis: ['🏜️', '💧', '🌊'],
-    heartEmojis: ['❤️', '💛', '💚'],
-    dotEmojis: ['🔴', '🟡', '🟢']
-  },
-
   social_stamina: {
     id: 'social_stamina',
     name: 'Social Stamina',
@@ -371,38 +346,76 @@ export const TRACKING_ITEMS = {
     heartEmojis: ['💙', '💛', '🧡', '❤️', '💚'],
     dotEmojis: ['🔵', '🟡', '🟠', '🔴', '🟢']
   },
-
-  allergic_reactions: {
-    id: 'allergic_reactions',
-    name: 'Allergic Reactions',
+  stress_level: {
+    id: 'stress_level',
+    name: 'Stress Level',
+    category: 'mind',
+    scale: 5,
+    good: 'low',
+    description: 'Yikes, I have shoulder earrings right now!',
+    morning: true,
+    evening: true,
+    quick: true,
+    textOptions: ['I\'m super chill', 'Not bad', 'Meh', 'A little tense', 'OMG, leave me alone!'],
+    faceEmojis: ['😎', '😁', '😳', '😧', '😭'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+  },
+  temperature_sensitivity: {
+    id: 'temperature_sensitivity',
+    name: 'Temperature Sensitivity',
     category: 'body',
     scale: 3,
     good: 'low',
-    description: 'Experiencing any allergic reactions?',
+    description: 'Yeesh, is the A/C set to 40° right now?!',
     morning: false,
     evening: true,
     quick: true,
-    textOptions: ['Feeling good', 'Some reactions', 'Bah, I\'m over it!'],
-    faceEmojis: ['😎', '😕', '😵'],
+    textOptions: ['What temperature swing?', 'Feeling normal', 'Gimme that blanket!'],
+    faceEmojis: ['😎', '😳', '😰'],
     heartEmojis: ['💚', '💛', '❤️'],
     dotEmojis: ['🟢', '🟡', '🔴']
   },
-  
-  // Evening Report Only
-  overall_sentiment: {
-    id: 'overall_sentiment',
-    name: 'Overall Sentiment',
-    category: 'mind',
-    scale: 5,
+  wearables_body_battery: {
+    id: 'wearables_body_battery',
+    name: 'Wearable\'s Body Battery',
+    category: 'body',
+    type: 'number',
+    min: 0,
+    max: 100,
     good: 'high',
-    description: 'Today was a ____ day',
-    morning: false,
-    evening: true,
+    description: 'How does your wearable think you\'re doing?',
+    morning: true,
+    evening: false,
+    quick: false
+  },
+  wearables_sleep_score: {
+    id: 'wearables_sleep_score',
+    name: 'Wearable\'s Sleep Score',
+    category: 'body',
+    type: 'number',
+    min: 0,
+    max: 100,
+    good: 'high',
+    description: 'How did your wearable think you slept?',
+    morning: true,
+    evening: false,
+    quick: false
+  },
+  weird_dreams: {
+    id: 'weird_dreams',
+    name: 'Weird Dreams',
+    category: 'mind',
+    scale: 3,
+    good: 'low',
+    description: 'I had the weirdest dreams last night!',
+    morning: true,
+    evening: false,
     quick: false,
-    textOptions: ['Bad', 'OK', 'Good', 'Great', 'Fantastic'],
-    faceEmojis: ['😭', '🫤', '😊', '😀', '😎'],
-    heartEmojis: ['💙', '❤️', '🧡', '💛', '💚'],
-    dotEmojis: ['🔵', '🔴', '🟠', '🟡', '🟢']
+    textOptions: ['No dreams', 'No weird dreams', 'The weirdest dreams!'],
+    faceEmojis: ['😎', '😳', '😫'],
+    heartEmojis: ['💚', '💛', '❤️'],
+    dotEmojis: ['🟢', '🟡', '🔴']
   }
 }
 

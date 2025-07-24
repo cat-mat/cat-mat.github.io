@@ -31,8 +31,8 @@ const DisplayTypeSelector = () => {
   }
 
   return (
-    <div className="meadow-card p-4">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">Display Type</h3>
+    <div className="meadow-card p-4 border-2 border-primary-300 shadow-lg">
+      <h3 className="text-lg font-bold text-primary-700 mb-4">Display Type (Global)</h3>
       <div className="grid grid-cols-2 gap-3">
         {displayTypes.map((type) => (
           <button
@@ -53,7 +53,13 @@ const DisplayTypeSelector = () => {
           </button>
         ))}
       </div>
-      <p className="text-sm text-gray-600 mt-3">
+      <p className="text-sm text-gray-700 mt-3 font-medium">
+        This setting applies to <span className="text-primary-600 font-semibold">all tracking items</span> throughout the app.
+      </p>
+      <p className="text-xs text-gray-500 mt-1">
+        (You can add per-item display options in a future update!)
+      </p>
+      <p className="text-sm text-gray-600 mt-2">
         Current: {displayTypes.find(t => t.value === currentDisplayType)?.label}
       </p>
     </div>

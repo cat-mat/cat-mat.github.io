@@ -358,6 +358,15 @@ const TrackingForm = ({ viewType }) => {
   }
 
   const renderItem = (item) => {
+    // Date picker handler
+    const handleDateChange = (itemId, value) => {
+      setFormData(prev => ({
+        ...prev,
+        [itemId]: value
+      }))
+    }
+    // Use existingEntry data directly if formData is empty
+    const value = formData[item.id] !== undefined ? formData[item.id] : (existingEntry?.[item.id] || '')
     return (
       <div key={item.id} className="border border-white rounded-xl p-4 bg-gradient-to-br from-cream-400/30 to-cream-300/30 backdrop-blur-sm">
         <div className="space-y-3">
@@ -370,6 +379,15 @@ const TrackingForm = ({ viewType }) => {
             )}
           </div>
 
+          {item.type === 'date' && (
+            <input
+              type="date"
+              value={value}
+              onChange={e => handleDateChange(item.id, e.target.value)}
+              className="input w-48"
+              placeholder={item.format || 'YYYY-MM-DD'}
+            />
+          )}
           {item.type === 'multi-select' && renderMultiSelect(item)}
           {item.type === 'number' && renderNumberInput(item)}
           {!item.type && renderScaleButtons(item)}
