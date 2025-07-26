@@ -7,7 +7,7 @@ import { TRACKING_ITEMS, DEFAULT_VIEW_TIMES, SYNC_STATUS } from '../constants/tr
 
 // Default configuration
 const getDefaultConfig = (userEmail) => ({
-  version: '1.2.0',
+  version: '1.3.0',
   user_id: userEmail,
   onboarding: {
     completed: false,
@@ -46,14 +46,62 @@ const getDefaultConfig = (userEmail) => ({
     morning_report: {
       sections: {
         body: {
-          items: ['energy_level', 'sleep_feeling'],
-          sort_order: ['sleep_feeling', 'energy_level'],
+          items: [
+            // Alphabetized body items with morning: true
+            'bleeding_spotting',
+            'energy_level',
+            'forehead_shine',
+            'headache',
+            'hot_flashes',
+            'joint_pain',
+            'nausea',
+            'pill_pack_start_date',
+            'sleep_quality',
+            'temperature_sensitivity',
+            'wearables_body_battery',
+            'wearables_sleep_score',
+            'workout_recovery'
+          ],
+          sort_order: [
+            'bleeding_spotting',
+            'energy_level',
+            'forehead_shine',
+            'headache',
+            'hot_flashes',
+            'joint_pain',
+            'nausea',
+            'pill_pack_start_date',
+            'sleep_quality',
+            'temperature_sensitivity',
+            'wearables_body_battery',
+            'wearables_sleep_score',
+            'workout_recovery'
+          ],
           visible: true,
           collapsed: false
         },
         mind: {
-          items: ['mood'],
-          sort_order: ['mood'],
+          items: [
+            // Alphabetized mind items with morning: true
+            'anxiety',
+            'brain_fog',
+            'depression',
+            'irritability',
+            'mood',
+            'social_stamina',
+            'stress_level',
+            'weird_dreams'
+          ],
+          sort_order: [
+            'anxiety',
+            'brain_fog',
+            'depression',
+            'irritability',
+            'mood',
+            'social_stamina',
+            'stress_level',
+            'weird_dreams'
+          ],
           visible: true,
           collapsed: false
         }
@@ -63,14 +111,64 @@ const getDefaultConfig = (userEmail) => ({
     evening_report: {
       sections: {
         body: {
-          items: ['energy_level', 'irritability', 'mood'],
-          sort_order: ['energy_level', 'irritability', 'mood'],
+          items: [
+            // Alphabetized body items with evening: true
+            'allergic_reactions',
+            'diet_triggers',
+            'energy_level',
+            'exercise_impact',
+            'forehead_shine',
+            'headache',
+            'hormone_symptoms',
+            'hot_flashes',
+            'hydration',
+            'irritability',
+            'joint_pain',
+            'nausea',
+            'temperature_sensitivity',
+            'workout_recovery'
+          ],
+          sort_order: [
+            'allergic_reactions',
+            'diet_triggers',
+            'energy_level',
+            'exercise_impact',
+            'forehead_shine',
+            'headache',
+            'hormone_symptoms',
+            'hot_flashes',
+            'hydration',
+            'irritability',
+            'joint_pain',
+            'nausea',
+            'temperature_sensitivity',
+            'workout_recovery'
+          ],
           visible: true,
           collapsed: false
         },
         mind: {
-          items: ['mood', 'overall_sentiment', 'stress_level'],
-          sort_order: ['mood', 'overall_sentiment', 'stress_level'],
+          items: [
+            // Alphabetized mind items with evening: true
+            'anxiety',
+            'brain_fog',
+            'depression',
+            'irritability',
+            'mood',
+            'overall_sentiment',
+            'social_stamina',
+            'stress_level'
+          ],
+          sort_order: [
+            'anxiety',
+            'brain_fog',
+            'depression',
+            'irritability',
+            'mood',
+            'overall_sentiment',
+            'social_stamina',
+            'stress_level'
+          ],
           visible: true,
           collapsed: false
         }
@@ -79,14 +177,54 @@ const getDefaultConfig = (userEmail) => ({
     quick_track: {
       sections: {
         body: {
-          items: ['energy_level', 'forehead_shine', 'headache', 'hot_flashes', 'joint_pain', 'nausea', 'temperature_sensitivity', 'workout_recovery'],
-          sort_order: ['energy_level', 'forehead_shine', 'headache', 'hot_flashes', 'joint_pain', 'nausea', 'temperature_sensitivity', 'workout_recovery'],
+          items: [
+            // Alphabetized body items with quick: true
+            'allergic_reactions',
+            'energy_level',
+            'forehead_shine',
+            'headache',
+            'hot_flashes',
+            'hydration',
+            'joint_pain',
+            'nausea',
+            'temperature_sensitivity',
+            'workout_recovery'
+          ],
+          sort_order: [
+            'allergic_reactions',
+            'energy_level',
+            'forehead_shine',
+            'headache',
+            'hot_flashes',
+            'hydration',
+            'joint_pain',
+            'nausea',
+            'temperature_sensitivity',
+            'workout_recovery'
+          ],
           visible: true,
           collapsed: false
         },
         mind: {
-          items: ['anxiety', 'brain_fog', 'depression', 'irritability', 'mood', 'stress_level'],
-          sort_order: ['anxiety', 'brain_fog', 'depression', 'irritability', 'mood', 'stress_level'],
+          items: [
+            // Alphabetized mind items with quick: true
+            'anxiety',
+            'brain_fog',
+            'depression',
+            'irritability',
+            'mood',
+            'social_stamina',
+            'stress_level'
+          ],
+          sort_order: [
+            'anxiety',
+            'brain_fog',
+            'depression',
+            'irritability',
+            'mood',
+            'social_stamina',
+            'stress_level'
+          ],
           visible: true,
           collapsed: false
         }
@@ -338,8 +476,8 @@ export const useAppStore = create(
               morning_report: {
                 sections: {
                   body: {
-                    items: ['energy_level', 'sleep_feeling'],
-                    sort_order: ['sleep_feeling', 'energy_level'],
+                    items: ['energy_level', 'sleep_quality'],
+                    sort_order: ['sleep_quality', 'energy_level'],
                     visible: true,
                     collapsed: false
                   },
@@ -441,54 +579,86 @@ export const useAppStore = create(
           const testData = []
           const now = new Date()
           
-          // Generate data for a wider range: 30 days in the past to 30 days in the future
-          for (let i = -30; i <= 30; i++) {
+          // Helper to get items by type
+          const getItemsByType = (type) => {
+            return Object.values(TRACKING_ITEMS).filter(item => item[type])
+          }
+
+          // Helper to generate a random value for an item
+          const getRandomValue = (item) => {
+            if (item.type === 'multi-select') {
+              // Pick 1-3 random options
+              const options = item.options || []
+              const count = Math.floor(Math.random() * 3) + 1
+              return options.sort(() => 0.5 - Math.random()).slice(0, count)
+            } else if (item.type === 'number' && item.min !== undefined && item.max !== undefined) {
+              return Math.floor(Math.random() * (item.max - item.min + 1)) + item.min
+            } else if (item.type === 'date') {
+              // Generate a recent date string in MM/DD/YYYY format (within the last 60 days)
+              const daysAgo = Math.floor(Math.random() * 60)
+              const d = new Date()
+              d.setDate(d.getDate() - daysAgo)
+              const mm = String(d.getMonth() + 1).padStart(2, '0')
+              const dd = String(d.getDate()).padStart(2, '0')
+              const yyyy = d.getFullYear()
+              return `${mm}/${dd}/${yyyy}`
+            } else if (item.scale) {
+              return Math.floor(Math.random() * item.scale) + 1
+            } else {
+              return null
+            }
+          }
+
+          // Generate data for a wider range: 30 days in the past to 10 days in the future
+          for (let i = -60; i <= 10; i++) {
             const date = new Date(now)
             date.setDate(date.getDate() + i)
             
             const dateStr = date.toISOString().slice(0, 10)
             const timestamp = date.toISOString()
             
-            // Generate morning entry (if before 10 AM)
-            if (date.getHours() < 10) {
-              testData.push({
+            // Generate morning entry (randomly)
+            if (Math.random() < 0.4) { // 40% chance
+              const morningItems = getItemsByType('morning')
+              const entry = {
                 id: `test_morning_${dateStr}`,
                 timestamp: timestamp,
                 type: 'morning',
                 sync_status: 'synced',
                 timezone: 'America/Los_Angeles',
-                energy_level: Math.floor(Math.random() * 5) + 1,
-                sleep_feeling: Math.floor(Math.random() * 3) + 1,
-                mood: Math.floor(Math.random() * 3) + 1,
-                wearables_sleep_score: Math.floor(Math.random() * 40) + 60, // 60-100
-                wearables_body_battery: Math.floor(Math.random() * 40) + 60, // 60-100
                 is_deleted: false,
                 created_at: timestamp,
                 updated_at: timestamp
+              }
+              morningItems.forEach(item => {
+                entry[item.id] = getRandomValue(item)
               })
+              testData.push(entry)
             }
             
-            // Generate evening entry (if after 7 PM)
-            if (date.getHours() >= 19) {
-              testData.push({
+            // Generate evening entry (randomly)
+            if (Math.random() < 0.4) { // 40% chance
+              const eveningItems = getItemsByType('evening')
+              const entry = {
                 id: `test_evening_${dateStr}`,
                 timestamp: timestamp,
                 type: 'evening',
                 sync_status: 'synced',
                 timezone: 'America/Los_Angeles',
-                energy_level: Math.floor(Math.random() * 5) + 1,
-                mood: Math.floor(Math.random() * 3) + 1,
-                overall_sentiment: Math.floor(Math.random() * 5) + 1,
-                stress_level: Math.floor(Math.random() * 5) + 1,
-                notes: {
-                  observations: `Test observation for ${dateStr}`,
-                  reflections: `Test reflection for ${dateStr}`,
-                  thankful_for: `Test gratitude for ${dateStr}`
-                },
                 is_deleted: false,
                 created_at: timestamp,
                 updated_at: timestamp
+              }
+              eveningItems.forEach(item => {
+                entry[item.id] = getRandomValue(item)
               })
+              // Add notes for evening
+              entry.notes = {
+                observations: `Test observation for ${dateStr}`,
+                reflections: `Test reflection for ${dateStr}`,
+                thankful_for: `Test gratitude for ${dateStr}`
+              }
+              testData.push(entry)
             }
             
             // Generate 1-3 quick entries during the day
@@ -497,22 +667,21 @@ export const useAppStore = create(
               const quickTime = new Date(date)
               quickTime.setHours(10 + Math.floor(Math.random() * 9)) // 10 AM - 7 PM
               quickTime.setMinutes(Math.floor(Math.random() * 60))
-              
-              testData.push({
+              const quickItems = getItemsByType('quick')
+              const entry = {
                 id: `test_quick_${dateStr}_${j}`,
                 timestamp: quickTime.toISOString(),
                 type: 'quick',
                 sync_status: 'synced',
                 timezone: 'America/Los_Angeles',
-                energy_level: Math.floor(Math.random() * 5) + 1,
-                headache: Math.floor(Math.random() * 4) + 1,
-                hot_flashes: Math.floor(Math.random() * 4) + 1,
-                anxiety: Math.floor(Math.random() * 5) + 1,
-                brain_fog: Math.floor(Math.random() * 3) + 1,
                 is_deleted: false,
                 created_at: quickTime.toISOString(),
                 updated_at: quickTime.toISOString()
+              }
+              quickItems.forEach(item => {
+                entry[item.id] = getRandomValue(item)
               })
+              testData.push(entry)
             }
           }
           
@@ -970,10 +1139,25 @@ export const useAppStore = create(
           const id = Date.now().toString()
           const newNotification = { id, ...notification, timestamp: new Date().toISOString() }
           
+          // Check for duplicate notifications (same title and message within last 2 seconds)
+          const { ui } = get()
+          const recentNotifications = (ui.notifications || []).filter(n => 
+            Date.now() - new Date(n.timestamp).getTime() < 2000
+          )
+          
+          const isDuplicate = recentNotifications.some(n => 
+            n.title === notification.title && n.message === notification.message
+          )
+          
+          if (isDuplicate) {
+            console.log('Skipping duplicate notification:', notification.title)
+            return
+          }
+          
           set(state => ({
             ui: {
               ...state.ui,
-              notifications: [...(state.ui.notifications || []), newNotification]
+              notifications: [...(state.ui.notifications || []), newNotification].slice(-3) // Keep only last 3 notifications
             }
           }))
 
@@ -1166,7 +1350,8 @@ export const useAppStore = create(
         name: 'hot-self-storage',
         storage: createJSONStorage(() => localStorage),
         partialize: (state) => ({
-          // Only persist non-sensitive data
+          // Persist auth state as well
+          auth: state.auth,
           config: state.config,
           trackingData: {
             entries: state.trackingData.entries,

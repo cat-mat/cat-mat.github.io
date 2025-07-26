@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAppStore } from './stores/appStore.js'
 import { format } from 'date-fns'
@@ -14,6 +14,9 @@ import Logs from './components/Logs.jsx'
 import LoadingSpinner from './components/LoadingSpinner.jsx'
 import OfflineIndicator from './components/OfflineIndicator.jsx'
 import ToastNotifications from './components/ToastNotifications.jsx'
+import ServiceWorkerManager from './components/ServiceWorkerManager.jsx'
+import PWAInstallPrompt from './components/PWAInstallPrompt.jsx'
+import PrivacyPolicy from './components/PrivacyPolicy.jsx'
 
 // Initialize Google API
 const initializeGoogleAPI = () => {
@@ -43,6 +46,8 @@ function App() {
     setOnlineStatus,
     addNotification
   } = useAppStore()
+
+  const sessionExpiredNotified = useRef(false)
 
   // Initialize Google API on mount
   useEffect(() => {
@@ -104,35 +109,70 @@ function App() {
     )
   }
 
-  // Show authentication screen if not authenticated
-  if (!auth.isAuthenticated) {
-    return (
-      <div className="min-h-screen wildflower-bg">
-        <AuthScreen onSignIn={signIn} isLoading={auth.isLoading} error={auth.error} />
-      </div>
-    )
-  }
-
-  // Show onboarding if not completed
-  if (config && !config.onboarding.completed) {
-    return (
-      <div className="min-h-screen wildflower-bg">
-        <Onboarding />
-      </div>
-    )
-  }
-
-  // Main app layout
+  // Main app layout with conditional routing
   return (
     <div className="min-h-screen wildflower-bg">
+      <ServiceWorkerManager />
       <OfflineIndicator />
       <ToastNotifications />
+      <PWAInstallPrompt />
       
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/insights" element={<Insights />} />
-        <Route path="/logs" element={<Logs />} />
+        {/* Public routes - accessible without authentication */}
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        
+        {/* Protected routes - require authentication */}
+        <Route path="/" element={
+          !auth.isAuthenticated ? (
+            <div className="min-h-screen wildflower-bg">
+              {!sessionExpiredNotified.current && addNotification && (
+                (() => {
+                  addNotification({
+                    type: 'warning',
+                    title: 'Session expired',
+                    message: 'Please log in again.'
+                  })
+                  sessionExpiredNotified.current = true
+                  return null
+                })()
+              )}
+              <AuthScreen onSignIn={signIn} isLoading={auth.isLoading} error={auth.error} />
+            </div>
+          ) : config && !config.onboarding.completed ? (
+            <div className="min-h-screen wildflower-bg">
+              <Onboarding />
+            </div>
+          ) : (
+            <Dashboard />
+          )
+        } />
+        <Route path="/settings" element={
+          !auth.isAuthenticated ? (
+            <Navigate to="/" replace />
+          ) : config && !config.onboarding.completed ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Settings />
+          )
+        } />
+        <Route path="/insights" element={
+          !auth.isAuthenticated ? (
+            <Navigate to="/" replace />
+          ) : config && !config.onboarding.completed ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Insights />
+          )
+        } />
+        <Route path="/logs" element={
+          !auth.isAuthenticated ? (
+            <Navigate to="/" replace />
+          ) : config && !config.onboarding.completed ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Logs />
+          )
+        } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
