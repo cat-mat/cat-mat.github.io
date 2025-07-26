@@ -1,0 +1,59 @@
+{
+  "name": "What Even With My Hot Self?!",
+  "short_name": "Hot Self",
+  "description": "A body, mind, and emotional changes tracker for women in perimenopause and beyond",
+  "theme_color": "#f093fb",
+  "background_color": "#f093fb",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "categories": ["health", "lifestyle", "medical"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Morning Check-in",
+      "short_name": "Morning",
+      "description": "Start your day with a morning check-in",
+      "url": "/?view=morning",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
+          "sizes": "any"
+        }
+      ]
+    },
+    {
+      "name": "Quick Track",
+      "short_name": "Quick",
+      "description": "Quick check-in throughout the day",
+      "url": "/?view=quick",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
+          "sizes": "any"
+        }
+      ]
+    },
+    {
+      "name": "Evening Reflection",
+      "short_name": "Evening",
+      "description": "End your day with reflection",
+      "url": "/?view=evening",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
+          "sizes": "any"
+        }
+      ]
+    }
+  ]
+} 
