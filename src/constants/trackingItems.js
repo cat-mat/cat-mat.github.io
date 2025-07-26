@@ -1,3 +1,5 @@
+import { getEffectiveScale, is3PointScale } from '../utils/scaleConversion.js'
+
 // Tracking items configuration
 export const TRACKING_ITEMS = {
   allergic_reactions: {
@@ -154,16 +156,16 @@ export const TRACKING_ITEMS = {
     id: 'headache',
     name: 'Headache',
     category: 'body',
-    scale: 4,
+    scale: 3,
     good: 'low',
     description: 'Bleh, is that a headache?',
     morning: false,
     evening: false,
     quick: true,
-    textOptions: ['Nope', 'Not bad', 'Uuuugh', 'I\'m going to bed'],
-    faceEmojis: ['😎', '😐', '😧', '😭'],
-    heartEmojis: ['💚', '💛', '🧡', '❤️'],
-    dotEmojis: ['🟢', '🟡', '🟠', '🔴']
+    textOptions: ['Nope', 'Not too bad', 'I\'m going to bed'],
+    faceEmojis: ['😎', '😐', '😭'],
+    heartEmojis: ['💚', '💛', '❤️'],
+    dotEmojis: ['🟢', '🟡', '🔴']
   },
   hormone_symptoms: {
     id: 'hormone_symptoms',
@@ -184,16 +186,16 @@ export const TRACKING_ITEMS = {
     id: 'hot_flashes',
     name: 'Hot Flashes',
     category: 'body',
-    scale: 4,
+    scale: 5,
     good: 'low',
     description: 'Hot flashes? I\'m on fire!',
     morning: true,
     evening: true,
     quick: true,
-    textOptions: ['I\'m good', 'A bit warm', 'Kinda toasty', 'I AM THE SUN!'],
-    faceEmojis: ['😎', '😓', '🫠', '🥵'],
-    heartEmojis: ['💚', '💛', '🧡', '❤️'],
-    dotEmojis: ['🟢', '🟡', '🟠', '🔴']
+    textOptions: ['I\'m good', 'A bit warm', 'Kinda toasty', 'I need a fan, now!', 'I AM THE SUN!'],
+    faceEmojis: ['😎', '😓', '🫠', '🥵', '🔥'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
   },
   hydration: {
     id: 'hydration',
@@ -492,10 +494,22 @@ export const getDisplayValue = (item, value, displayType) => {
 export const getItemColor = (item, value) => {
   if (!value || item.type === 'multi-select') return 'gray'
   
-  const isGood = item.good === 'high' ? value >= 4 : value <= 2
-  const isBad = item.good === 'high' ? value <= 2 : value >= 4
+  // Use effective scale for color determination (5-point for 3-point items)
+  const effectiveScale = getEffectiveScale(item.scale)
+  const isGood = item.good === 'high' ? value >= (effectiveScale * 0.8) : value <= (effectiveScale * 0.4)
+  const isBad = item.good === 'high' ? value <= (effectiveScale * 0.4) : value >= (effectiveScale * 0.8)
   
   if (isGood) return 'success'
   if (isBad) return 'danger'
   return 'warning'
+}
+
+// Helper function to get effective scale for any item
+export const getItemEffectiveScale = (item) => {
+  return getEffectiveScale(item.scale)
+}
+
+// Helper function to check if item uses 3-point scale
+export const isItem3PointScale = (item) => {
+  return is3PointScale(item.scale)
 } 

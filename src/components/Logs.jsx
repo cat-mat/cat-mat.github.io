@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useAppStore } from '../stores/appStore'
-import { TRACKING_ITEMS, getDisplayValue, getItemColor } from '../constants/trackingItems'
+import { TRACKING_ITEMS, getDisplayValue, getItemColor, isItem3PointScale } from '../constants/trackingItems'
+import { denormalizeScaleValue } from '../utils/scaleConversion.js'
 import { format, parseISO, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
@@ -108,7 +109,12 @@ const Logs = () => {
               if (Array.isArray(value)) {
                 displayValue = value.map(v => item.optionLabels?.[v] || v.replace(/_/g, ' ')).join(', ')
               } else if (typeof value === 'number' && item.scale) {
-                displayValue = getDisplayValue(item, value, 'text')
+                // For 3-point scale items, convert stored 5-point value back to 3-point for display
+                let displayValueToUse = value
+                if (isItem3PointScale(item)) {
+                  displayValueToUse = denormalizeScaleValue(value, 3)
+                }
+                displayValue = getDisplayValue(item, displayValueToUse, 'text')
               }
               
               if (displayValue.toString().toLowerCase().includes(searchTerm.toLowerCase())) {
@@ -389,7 +395,12 @@ const Logs = () => {
           if (Array.isArray(value)) {
             displayValue = value.map(v => item.optionLabels?.[v] || v.replace(/_/g, ' ')).join(', ')
           } else if (typeof value === 'number' && item.scale) {
-            displayValue = getDisplayValue(item, value, 'text')
+            // For 3-point scale items, convert stored 5-point value back to 3-point for display
+            let displayValueToUse = value
+            if (isItem3PointScale(item)) {
+              displayValueToUse = denormalizeScaleValue(value, 3)
+            }
+            displayValue = getDisplayValue(item, displayValueToUse, 'text')
           }
           dataItems.push({
             label: item.name,

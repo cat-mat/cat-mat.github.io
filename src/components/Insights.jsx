@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppStore } from '../stores/appStore.js'
-import { TRACKING_ITEMS, getDisplayValue, getItemColor } from '../constants/trackingItems.js'
+import { TRACKING_ITEMS, getDisplayValue, getItemColor, getItemEffectiveScale } from '../constants/trackingItems.js'
 import { format, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval, parseISO, isWithinInterval } from 'date-fns'
 import { clsx } from 'clsx'
 import AppHeader from './AppHeader.jsx';
@@ -399,12 +399,13 @@ const Insights = () => {
     }
 
     // Value-based insights
-    if (item.good === 'high' && trends.averageValue < item.scale * 0.6) {
+    const effectiveScale = getItemEffectiveScale(item)
+    if (item.good === 'high' && trends.averageValue < effectiveScale * 0.6) {
       insights.push({
         type: 'suggestion',
         message: `Your average ${item.name.toLowerCase()} is on the lower side. Consider what factors might be contributing to this.`
       })
-    } else if (item.good === 'low' && trends.averageValue > item.scale * 0.6) {
+    } else if (item.good === 'low' && trends.averageValue > effectiveScale * 0.6) {
       insights.push({
         type: 'suggestion',
         message: `Your average ${item.name.toLowerCase()} is on the higher side. Consider what factors might be contributing to this.`
@@ -465,7 +466,7 @@ const Insights = () => {
                          {/* Y-axis labels */}
              {(() => {
                const item = TRACKING_ITEMS[selectedItem]
-               const maxScale = item?.scale || 5
+               const effectiveScale = getItemEffectiveScale(item) || 5
                const textOptions = item?.textOptions || []
                
                // Check if this is a wearable item (no text options)
@@ -474,7 +475,7 @@ const Insights = () => {
                if (isWearable) {
                  // For wearable items, show numeric values (0-100 for sleep score, body battery)
                  const startValue = item?.id === 'wearables_sleep_score' || item?.id === 'wearables_body_battery' ? 0 : 1
-                 const endValue = item?.id === 'wearables_sleep_score' || item?.id === 'wearables_body_battery' ? 100 : maxScale
+                 const endValue = item?.id === 'wearables_sleep_score' || item?.id === 'wearables_body_battery' ? 100 : effectiveScale
                  const step = (endValue - startValue) / 4 // Show 5 values total
                  
                  return Array.from({ length: 5 }, (_, i) => {
@@ -499,7 +500,7 @@ const Insights = () => {
                  })
                } else {
                  // For regular items, show text labels
-                 return Array.from({ length: maxScale }, (_, i) => {
+                 return Array.from({ length: effectiveScale }, (_, i) => {
                    const value = i + 1
                    // Adjust positioning to give more space at top and bottom for labels
                    const adjustedChartHeight = chartHeight - 40 // Reduce chart area to give more padding
@@ -639,6 +640,14 @@ const Insights = () => {
     return entries.length > 0 ? entries[0] : null
   }, [trackingData.entries])
 
+  // Find the latest entry for the selected tracking item
+  const latestSelectedItemEntry = useMemo(() => {
+    const entries = trackingData.entries
+      .filter(e => e[selectedItem] !== undefined && e[selectedItem] !== null && !e.is_deleted)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    return entries.length > 0 ? entries[0] : null
+  }, [trackingData.entries, selectedItem])
+
   // Helper to calculate time ago
   const getTimeAgo = (dateStr) => {
     if (!dateStr) return ''
@@ -761,21 +770,48 @@ const Insights = () => {
             <div className="text-sm text-gray-600">{selectedItemData?.name} Entries</div>
           </div>
           <div className="meadow-card p-6 text-center">
-            <div className="text-3xl font-bold text-accent-600 mb-2">
-              {trends?.averageValue ? `${trends.averageValue.toFixed(1)} out of ${selectedItemData?.scale || 5}` : 'N/A'}
-            </div>
+                      <div className="text-3xl font-bold text-accent-600 mb-2">
+            {trends?.averageValue ? `${trends.averageValue.toFixed(1)} out of ${getItemEffectiveScale(selectedItemData) || 5}` : 'N/A'}
+          </div>
             <div className="text-sm text-gray-600">Average {selectedItemData?.name}</div>
           </div>
         </div>
 
-        {/* Pill Pack Start Date display */}
-        {latestPillPackEntry && (
-          <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
-            <span className="font-semibold text-blue-700">Pill Pack Start Date:</span>{' '}
-            <span className="text-blue-900">{latestPillPackEntry.pill_pack_start_date}</span>{' '}
-            <span className="text-blue-500">{getTimeAgo(latestPillPackEntry.pill_pack_start_date)}</span>
-          </div>
-        )}
+        {/* Latest Entry Information */}
+        <div className="mb-4 space-y-2">
+          {/* Latest Selected Item Entry */}
+          {latestSelectedItemEntry && (
+            <div className="p-4 bg-green-50 border-l-4 border-green-400 rounded">
+              <span className="font-semibold text-green-700">Latest {selectedItemData?.name} Entry:</span>{' '}
+              <span className="text-green-900">{format(parseISO(latestSelectedItemEntry.timestamp), 'MMM d, yyyy')}</span>{' '}
+              <span className="text-green-500">{getTimeAgo(latestSelectedItemEntry.timestamp)}</span>
+            </div>
+          )}
+
+          {/* Pill Pack Start Date display */}
+          {latestPillPackEntry && (
+            <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+              <span className="font-semibold text-blue-700">Pill Pack Start Date:</span>{' '}
+                <span className="text-blue-900">{(() => {
+                try {
+                  // Handle different date formats like the getTimeAgo function
+                  let date
+                  if (latestPillPackEntry.pill_pack_start_date.includes('-')) {
+                    date = new Date(latestPillPackEntry.pill_pack_start_date)
+                  } else {
+                    const [mm, dd, yyyy] = latestPillPackEntry.pill_pack_start_date.split('/')
+                    date = new Date(`${yyyy}-${mm}-${dd}`)
+                  }
+                  return format(date, 'MMM d, yyyy')
+                } catch (error) {
+                  // Fallback to original format if parsing fails
+                  return latestPillPackEntry.pill_pack_start_date
+                }
+              })()}</span>{' '}
+              <span className="text-blue-500">{getTimeAgo(latestPillPackEntry.pill_pack_start_date)}</span>
+            </div>
+          )}
+        </div>
 
         {/* Trend Analysis */}
         {trends && (

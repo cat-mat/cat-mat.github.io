@@ -1,5 +1,6 @@
 import Joi from 'joi'
 import { TRACKING_ITEMS } from '../constants/trackingItems.js'
+import { normalizeScaleValue, denormalizeScaleValue } from './scaleConversion.js'
 
 // Base validation schemas
 const baseEntrySchema = Joi.object({
@@ -18,6 +19,17 @@ const scaleValidation = {
   3: Joi.number().integer().min(1).max(3),
   4: Joi.number().integer().min(1).max(4),
   5: Joi.number().integer().min(1).max(5)
+}
+
+// Custom validation for scale values that converts 3-point to 5-point internally
+const createScaleValidator = (scale) => {
+  return Joi.number().integer().min(1).max(scale).custom((value, helpers) => {
+    // For 3-point scales, convert to 5-point for storage
+    if (scale === 3) {
+      return normalizeScaleValue(value, 3)
+    }
+    return value
+  })
 }
 
 // Multi-select validation
@@ -48,14 +60,16 @@ export const entryValidationSchema = baseEntrySchema.keys({
   stress_level: scaleValidation[5].optional(),
   overall_sentiment: scaleValidation[5].optional(),
   
-  // 3-point scale items
-  forehead_shine: scaleValidation[3].optional(),
-  brain_fog: scaleValidation[3].optional(),
-  mood: scaleValidation[3].optional(),
-  nausea: scaleValidation[3].optional(),
-  sleep_feeling: scaleValidation[3].optional(),
-  temperature_sensitivity: scaleValidation[3].optional(),
-  workout_recovery: scaleValidation[3].optional(),
+  // 3-point scale items (converted to 5-point internally)
+  allergic_reactions: createScaleValidator(3).optional(),
+  bleeding_spotting: createScaleValidator(3).optional(),
+  brain_fog: createScaleValidator(3).optional(),
+  forehead_shine: createScaleValidator(3).optional(),
+  hydration: createScaleValidator(3).optional(),
+  mood: createScaleValidator(3).optional(),
+  nausea: createScaleValidator(3).optional(),
+  temperature_sensitivity: createScaleValidator(3).optional(),
+  weird_dreams: createScaleValidator(3).optional(),
   
   // 4-point scale items
   headache: scaleValidation[4].optional(),
@@ -364,14 +378,35 @@ export const migrations = {
       })
     }
     return data
+  },
+  '1.3.0': (data) => {
+    // Migrate 3-point scale values to 5-point scale for consistency
+    if (data.entries && Array.isArray(data.entries)) {
+      const threePointItems = [
+        'allergic_reactions', 'bleeding_spotting', 'brain_fog', 'forehead_shine',
+        'hydration', 'mood', 'nausea', 'temperature_sensitivity', 'weird_dreams'
+      ]
+      
+      data.entries.forEach(entry => {
+        threePointItems.forEach(itemId => {
+          if (entry[itemId] !== undefined && entry[itemId] !== null) {
+            // Only convert if the value is still in 3-point format (1, 2, 3)
+            if (entry[itemId] >= 1 && entry[itemId] <= 3) {
+              entry[itemId] = normalizeScaleValue(entry[itemId], 3)
+            }
+          }
+        })
+      })
+    }
+    return data
   }
 }
 
-export const migrateData = (data, targetVersion = '1.2.0') => {
+export const migrateData = (data, targetVersion = '1.3.0') => {
   let currentData = { ...data }
   const currentVersion = currentData.version || '1.0.0'
   
-  const versionOrder = ['1.0.0', '1.1.0', '1.2.0']
+  const versionOrder = ['1.0.0', '1.1.0', '1.2.0', '1.3.0']
   const currentIndex = versionOrder.indexOf(currentVersion)
   const targetIndex = versionOrder.indexOf(targetVersion)
   

@@ -7,7 +7,7 @@ import { TRACKING_ITEMS, DEFAULT_VIEW_TIMES, SYNC_STATUS } from '../constants/tr
 
 // Default configuration
 const getDefaultConfig = (userEmail) => ({
-  version: '1.2.0',
+  version: '1.3.0',
   user_id: userEmail,
   onboarding: {
     completed: false,

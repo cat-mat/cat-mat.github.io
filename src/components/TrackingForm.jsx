@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../stores/appStore.js'
-import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor } from '../constants/trackingItems.js'
+import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3PointScale } from '../constants/trackingItems.js'
+import { denormalizeScaleValue } from '../utils/scaleConversion.js'
 import { format } from 'date-fns'
 import { clsx } from 'clsx'
 
@@ -159,7 +160,13 @@ const TrackingForm = ({ viewType }) => {
   const renderScaleButtons = (item) => {
     const { scale, good } = item
     // Use existingEntry data directly if formData is empty
-    const value = formData[item.id] !== undefined ? formData[item.id] : (existingEntry?.[item.id])
+    let value = formData[item.id] !== undefined ? formData[item.id] : (existingEntry?.[item.id])
+    
+    // For 3-point scale items, convert stored 5-point value back to 3-point for display
+    if (isItem3PointScale(item) && value !== undefined) {
+      value = denormalizeScaleValue(value, 3)
+    }
+    
     const displayType = config?.display_options?.item_display_type || 'text'
 
     // Debug logging for pre-population
@@ -169,7 +176,8 @@ const TrackingForm = ({ viewType }) => {
       existingEntryValue: existingEntry?.[item.id],
       itemId: item.id,
       formDataKeys: Object.keys(formData),
-      hasValue: formData.hasOwnProperty(item.id)
+      hasValue: formData.hasOwnProperty(item.id),
+      is3PointScale: isItem3PointScale(item)
     })
 
     // Create responsive grid classes based on scale

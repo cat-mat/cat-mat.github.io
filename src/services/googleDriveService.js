@@ -6,7 +6,7 @@ class GoogleDriveService {
     this.discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
     
     // Force mock mode for development (no Google API credentials)
-    this.isMockMode = true // Always use mock mode for now
+    this.isMockMode = !import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID === 'mock-client-id'
     
     this.isInitialized = false
     this.authInstance = null

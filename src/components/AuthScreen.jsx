@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import LoadingSpinner from './LoadingSpinner.jsx'
 
 const AuthScreen = ({ onSignIn, isLoading, error }) => {
@@ -85,9 +86,9 @@ const AuthScreen = ({ onSignIn, isLoading, error }) => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
               By connecting, you agree to our{' '}
-              <button className="cornflower-link">
+              <Link to="/privacy" className="cornflower-link">
                 Privacy Policy
-              </button>
+              </Link>
             </p>
           </div>
         </div>
