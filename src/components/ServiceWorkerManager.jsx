@@ -181,10 +181,9 @@ const ServiceWorkerManager = () => {
       {(isOffline || updateAvailable) && (
         <div
           className={
-            'w-full relative z-50 text-white px-4 py-2 text-center text-sm flex items-center justify-center transition-all duration-300 ' +
+            'w-full relative z-50 text-white px-4 py-2 text-center text-sm flex items-center justify-center transition-all duration-300 banner-min-height ' +
             (isOffline ? 'bg-yellow-500' : 'bg-blue-500')
           }
-          style={{ minHeight: BANNER_HEIGHT }}
         >
           {isOffline && (
             <>

@@ -10,7 +10,7 @@ const Insights = () => {
   const { trackingData, loadAllHistoricalData } = useAppStore()
   const [selectedTimeframe, setSelectedTimeframe] = useState('6weeks')
   const [selectedView, setSelectedView] = useState('all')
-  const [selectedItem, setSelectedItem] = useState('energy_level')
+  const [selectedItem, setSelectedItem] = useState('hot_flashes')
   const [isLoading, setIsLoading] = useState(true)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { auth, signOut, addNotification } = useAppStore()
@@ -52,13 +52,21 @@ const Insights = () => {
 
     const { startDate, endDate } = getDateRange()
     
-    return trackingData.entries.filter(entry => {
+    const filtered = trackingData.entries.filter(entry => {
+      // Parse the entry timestamp and truncate to date only for comparison
       const entryDate = parseISO(entry.timestamp)
-      const isInRange = isWithinInterval(entryDate, { start: startDate, end: endDate })
+      const entryDateOnly = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate())
+      
+      // Compare dates only (not timestamps) to avoid time-of-day issues
+      const isInRange = entryDateOnly >= startDate && entryDateOnly <= endDate
       const matchesView = selectedView === 'all' || entry.type === selectedView
       return isInRange && matchesView
     })
-  }, [trackingData.entries, selectedView])
+
+
+
+    return filtered
+  }, [trackingData.entries, selectedView, selectedItem])
 
   // Get available tracking items for analysis
   const availableItems = useMemo(() => {
@@ -74,6 +82,7 @@ const Insights = () => {
     if (!filteredData.length) return null
 
     const item = TRACKING_ITEMS[itemId]
+    
     const itemData = filteredData
       .map(entry => ({
         value: entry[itemId],
@@ -456,12 +465,11 @@ const Insights = () => {
     return (
       <div className="space-y-4">
         {/* Scatter Plot */}
-        <div className="relative bg-gray-50 rounded-lg p-4" style={{ height: chartHeight + padding * 2 + 30 }}>
+        <div className="relative bg-gray-50 rounded-lg p-4 chart-container">
           <svg 
             width={chartWidth + padding * 2 + 80} 
             height={chartHeight + padding * 2 + 30}
-            className="absolute inset-0"
-            style={{ minWidth: '600px', left: '20px' }} // Increased width and shift for labels
+            className="absolute inset-0 chart-svg"
           >
                          {/* Y-axis labels */}
              {(() => {
@@ -491,8 +499,7 @@ const Insights = () => {
                        x={padding - 15} 
                        y={yPos + 4} 
                        textAnchor="end" 
-                       className="text-xs fill-gray-500"
-                       style={{ fontSize: '10px' }}
+                       className="text-xs fill-gray-500 chart-text-small"
                      >
                        {Math.round(value)}
                      </text>
@@ -515,8 +522,7 @@ const Insights = () => {
                            x={padding - 15} 
                            y={yPos + 4 + (wordIndex * (label.split(' ').length > 1 ? 12 : 0))} 
                            textAnchor="end" 
-                           className="text-xs fill-gray-500"
-                           style={{ fontSize: '10px' }}
+                           className="text-xs fill-gray-500 chart-text-small"
                          >
                            {word}
                          </text>

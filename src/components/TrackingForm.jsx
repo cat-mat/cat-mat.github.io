@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../stores/appStore.js'
 import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3PointScale } from '../constants/trackingItems.js'
-import { denormalizeScaleValue } from '../utils/scaleConversion.js'
+import { denormalizeScaleValue, normalizeScaleValue } from '../utils/scaleConversion.js'
 import { format } from 'date-fns'
 import { clsx } from 'clsx'
 
@@ -18,12 +18,7 @@ const TrackingForm = ({ viewType }) => {
                     (viewType === 'quick' ? config?.view_configurations?.quick_track : null)
   
   // Debug logging
-  console.log('TrackingForm debug:', {
-    viewType,
-    viewItems: viewItems.length,
-    viewConfig,
-    config: config?.view_configurations
-  })
+  // Debug logging removed for security
 
   // Check for existing entry today
   useEffect(() => {
@@ -43,7 +38,7 @@ const TrackingForm = ({ viewType }) => {
       return timestamp.startsWith(today) && entry.type === viewType
     })
     
-    console.log('Found existing entry:', existing)
+
     setExistingEntry(existing)
     
     if (existing) {
@@ -52,12 +47,11 @@ const TrackingForm = ({ viewType }) => {
         ...existing,
         notes: existing.notes || {}
       }
-      console.log('Loading form data from existing entry:', entryData)
-      console.log('Form data keys:', Object.keys(entryData))
+
       setFormData(entryData)
     } else {
       // Clear form data completely when no existing entry
-      console.log('No existing entry found, clearing form')
+
       setFormData({})
     }
   }, [viewType, trackingData.entries])
@@ -71,17 +65,24 @@ const TrackingForm = ({ viewType }) => {
 
   const handleScaleChange = (itemId, value) => {
     setFormData(prev => {
+      // Get the item to check if it's a 3-point scale
+      const item = TRACKING_ITEMS[itemId]
+      const is3Point = isItem3PointScale(item)
+      
+      // For 3-point scale items, convert to 5-point for storage
+      const storageValue = is3Point ? normalizeScaleValue(value, 3) : value
+      
       // If the same value is clicked again, unselect it (set to undefined)
-      if (prev[itemId] === value) {
+      if (prev[itemId] === storageValue) {
         const newData = { ...prev }
         delete newData[itemId] // Remove the item entirely
         return newData
       }
       
-      // Otherwise, set the new value
+      // Otherwise, set the new value (converted if needed)
       return {
         ...prev,
-        [itemId]: value
+        [itemId]: storageValue
       }
     })
   }
@@ -169,16 +170,7 @@ const TrackingForm = ({ viewType }) => {
     
     const displayType = config?.display_options?.item_display_type || 'text'
 
-    // Debug logging for pre-population
-    console.log(`Rendering ${item.id}:`, { 
-      value, 
-      formDataValue: formData[item.id], 
-      existingEntryValue: existingEntry?.[item.id],
-      itemId: item.id,
-      formDataKeys: Object.keys(formData),
-      hasValue: formData.hasOwnProperty(item.id),
-      is3PointScale: isItem3PointScale(item)
-    })
+
 
     // Create responsive grid classes based on scale
     const gridCols = {
@@ -188,13 +180,15 @@ const TrackingForm = ({ viewType }) => {
     }[scale] || 'grid-cols-5'
 
     return (
-      <div className={`grid ${gridCols} gap-2`}>
+      <div className={`grid ${gridCols} gap-1`}>
         {Array.from({ length: scale }, (_, i) => i + 1).map((scaleValue) => {
           // Explicitly check if the value exists and matches the scale value
           const isSelected = value !== undefined && value === scaleValue
           const colorClass = getItemColor(item, scaleValue)
           const displayValue = getDisplayValue(item, scaleValue, displayType)
           const textOption = item.textOptions ? item.textOptions[scaleValue - 1] : scaleValue
+          
+
           
           return (
             <button
@@ -376,14 +370,14 @@ const TrackingForm = ({ viewType }) => {
     // Use existingEntry data directly if formData is empty
     const value = formData[item.id] !== undefined ? formData[item.id] : (existingEntry?.[item.id] || '')
     return (
-      <div key={item.id} className="border border-white rounded-xl p-4 bg-gradient-to-br from-cream-400/30 to-cream-300/30 backdrop-blur-sm">
-        <div className="space-y-3">
+      <div key={item.id} className="border border-white rounded-xl p-1 bg-gradient-to-br from-cream-400/30 to-cream-300/30 backdrop-blur-sm">
+        <div className="space-y-2">
           <div>
             <label className="block text-sm font-medium text-gray-800 mb-2">
               {item.name}
             </label>
             {item.description && (
-              <p className="text-sm text-gray-600 mb-3">{item.description}</p>
+              <p className="text-sm text-gray-600 mb-2">{item.description}</p>
             )}
           </div>
 
@@ -446,7 +440,7 @@ const TrackingForm = ({ viewType }) => {
           </div>
         </div>
         {!isCollapsed && (
-          <div className="section-content space-y-6">
+          <div className="section-content space-y-4">
             {sortedItems.map(renderItem)}
           </div>
         )}
@@ -495,7 +489,7 @@ const TrackingForm = ({ viewType }) => {
           </div>
         </div>
         {!isCollapsed && (
-          <div className="section-content space-y-6">
+          <div className="section-content space-y-4">
             {wearableItems.map(renderItem)}
           </div>
         )}
@@ -525,9 +519,7 @@ const TrackingForm = ({ viewType }) => {
     )
   }
 
-  // Debug: Log current formData state
-  console.log('Current formData state:', formData)
-  console.log('Existing entry:', existingEntry)
+
 
   return (
     <form 

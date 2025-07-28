@@ -5,10 +5,17 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="A body, mind, and emotional changes tracker for women in perimenopause and beyond" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#e8f5e8" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Hot Self" />
+    
+    <!-- Android status bar color -->
+    <meta name="msapplication-navbutton-color" content="#e8f5e8" />
+    <meta name="msapplication-TileColor" content="#e8f5e8" />
+    
+             <!-- Content Security Policy -->
+         <meta http-equiv="Content-Security-Policy" content="script-src 'self' blob: data: https://apis.google.com https://www.gstatic.com https://accounts.google.com https://www.googleapis.com https://*.gstatic.com; object-src 'none'; base-uri 'self';">
 
     
     <!-- Google Fonts -->
@@ -21,8 +28,7 @@
     
     <title>What Even With My Hot Self?! 🔥</title>
     
-    <!-- Google API Client Library -->
-    <script src="https://apis.google.com/js/api.js"></script>
+    <!-- Google API Client Library will be loaded dynamically when needed -->
   </head>
   <body>
     <div id="root"></div>

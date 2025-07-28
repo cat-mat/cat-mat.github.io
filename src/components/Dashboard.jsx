@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import TrackingForm from './TrackingForm.jsx'
 import LoadingSpinner from './LoadingSpinner.jsx'
 import { clsx } from 'clsx'
-import { useBannerContext } from './ServiceWorkerManager.jsx'
+// Removed ServiceWorkerManager import - PWA functionality disabled
 import AppHeader from './AppHeader.jsx';
 
 const Dashboard = () => {
@@ -32,7 +32,7 @@ const Dashboard = () => {
   const [configImportSuccess, setConfigImportSuccess] = useState('')
   const location = useLocation()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { bannerHeight } = useBannerContext()
+  const bannerHeight = 0 // PWA functionality disabled
 
   const { user } = auth
   const { currentView } = ui

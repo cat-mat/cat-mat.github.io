@@ -15,6 +15,7 @@ const DisplayTypeSelector = () => {
 
   const handleDisplayTypeChange = async (displayType) => {
     try {
+      console.log('DisplayTypeSelector: Attempting to update display type to:', displayType)
       await updateDisplayType(displayType)
       addNotification({
         type: 'success',
@@ -22,10 +23,12 @@ const DisplayTypeSelector = () => {
         message: `Changed to ${displayType} display`
       })
     } catch (error) {
+      console.error('DisplayTypeSelector: Error updating display type:', error)
+      const errorMessage = error.message || 'Failed to update display type'
       addNotification({
         type: 'error',
         title: 'Update failed',
-        message: 'Failed to update display type'
+        message: errorMessage
       })
     }
   }

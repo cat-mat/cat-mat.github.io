@@ -6,7 +6,7 @@ import { format, parseISO, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import AppHeader from './AppHeader.jsx';
-import googleDriveService from '../services/googleDriveService.js';
+import { googleDriveService } from '../services/googleDriveService.js';
 
 const Logs = () => {
   const { trackingData, deleteEntry, restoreEntry, addNotification, generateTestData, loadAllHistoricalData, importTrackingData, auth, signOut } = useAppStore()
@@ -77,8 +77,12 @@ const Logs = () => {
     const { start, end } = getDateRange()
     
     let entries = trackingData.entries.filter(entry => {
+      // Parse the entry timestamp and truncate to date only for comparison
       const entryDate = new Date(entry.timestamp)
-      const isInDateRange = entryDate >= start && entryDate <= end
+      const entryDateOnly = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate())
+      
+      // Compare dates only (not timestamps) to avoid time-of-day issues
+      const isInDateRange = entryDateOnly >= start && entryDateOnly <= end
       const matchesView = selectedView === 'all' ? true : entry.type === selectedView
 
       // Debug statement

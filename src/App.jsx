@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAppStore } from './stores/appStore.js'
 import { format } from 'date-fns'
 import { DEFAULT_VIEW_TIMES } from './constants/trackingItems.js'
+import './styles/inline-styles.css'
 
 // Components
 import AuthScreen from './components/AuthScreen.jsx'
@@ -14,23 +15,16 @@ import Logs from './components/Logs.jsx'
 import LoadingSpinner from './components/LoadingSpinner.jsx'
 import OfflineIndicator from './components/OfflineIndicator.jsx'
 import ToastNotifications from './components/ToastNotifications.jsx'
-import ServiceWorkerManager from './components/ServiceWorkerManager.jsx'
-import PWAInstallPrompt from './components/PWAInstallPrompt.jsx'
 import PrivacyPolicy from './components/PrivacyPolicy.jsx'
 
 // Initialize Google API
 const initializeGoogleAPI = () => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     if (typeof gapi === 'undefined') {
-      const script = document.createElement('script')
-      script.src = 'https://apis.google.com/js/api.js'
-      script.onload = () => {
-        gapi.load('client:auth2', resolve)
-      }
-      document.head.appendChild(script)
-    } else {
-      gapi.load('client:auth2', resolve)
+      reject(new Error('Google API not loaded'))
+      return
     }
+    gapi.load('client:auth2', resolve)
   })
 }
 
@@ -44,15 +38,14 @@ function App() {
     loadConfig,
     setCurrentView,
     setOnlineStatus,
-    addNotification
+    addNotification,
+    resetAuthState
   } = useAppStore()
 
   const sessionExpiredNotified = useRef(false)
 
-  // Initialize Google API on mount
-  useEffect(() => {
-    initializeGoogleAPI()
-  }, [])
+  // Initialize Google API only when needed (lazy loading)
+  // Removed automatic initialization to prevent hanging
 
   // Set up network status listeners
   useEffect(() => {
@@ -112,10 +105,9 @@ function App() {
   // Main app layout with conditional routing
   return (
     <div className="min-h-screen wildflower-bg">
-      <ServiceWorkerManager />
-      <OfflineIndicator />
+      {/* Temporarily disabled OfflineIndicator to debug hot pink banner issue */}
+      {/* <OfflineIndicator /> */}
       <ToastNotifications />
-      <PWAInstallPrompt />
       
       <Routes>
         {/* Public routes - accessible without authentication */}
@@ -136,7 +128,12 @@ function App() {
                   return null
                 })()
               )}
-              <AuthScreen onSignIn={signIn} isLoading={auth.isLoading} error={auth.error} />
+              <AuthScreen 
+                onSignIn={signIn} 
+                isLoading={auth.isLoading} 
+                error={auth.error} 
+                onReset={resetAuthState}
+              />
             </div>
           ) : config && !config.onboarding.completed ? (
             <div className="min-h-screen wildflower-bg">
