@@ -953,10 +953,7 @@ export const useAppStore = create(
           const { auth, config, trackingData } = get()
           if (!auth.isAuthenticated || !config) return
 
-          console.log('🔍 AppStore Debug - addEntry called:', {
-            entryData,
-            currentView: get().ui.currentView
-          })
+
 
           // Check for existing entry for today and this view type (using local timezone)
           const today = new Date().toLocaleDateString('en-CA') // Returns YYYY-MM-DD in local timezone
@@ -971,16 +968,7 @@ export const useAppStore = create(
               return entryDate === today && entry.type === viewType && !entry.is_deleted
             })
 
-            console.log('🔍 AppStore Debug - Existing entries check:', {
-              today,
-              viewType,
-              existingEntriesCount: existingEntries.length,
-              existingEntries: existingEntries.map(entry => ({
-                id: entry.id,
-                timestamp: entry.timestamp,
-                type: entry.type
-              }))
-            })
+            
 
             // If there's an existing entry for morning/evening, update it instead of creating a new one
             if (existingEntries.length > 0) {
@@ -991,17 +979,13 @@ export const useAppStore = create(
                 return currentTime > latestTime ? current : latest
               })
 
-              console.log('🔍 AppStore Debug - Updating existing entry instead of creating new:', {
-                existingEntryId: mostRecentEntry.id,
-                existingEntryTimestamp: mostRecentEntry.timestamp
-              })
+
 
               // Update the existing entry
               return await get().updateEntry(mostRecentEntry.id, entryData)
             }
           } else {
             // For quick entries, always create new entries
-            console.log('🔍 AppStore Debug - Quick entry - creating new entry (multiple per day allowed)')
           }
 
           // Sanitize and validate entry for new entry
@@ -1017,11 +1001,7 @@ export const useAppStore = create(
 
           const entry = validation.data
 
-          console.log('🔍 AppStore Debug - Creating new entry:', {
-            entryId: entry.id,
-            entryType: entry.type,
-            entryTimestamp: entry.timestamp
-          })
+
 
           // Add to local state immediately
           set(state => ({
@@ -1073,10 +1053,7 @@ export const useAppStore = create(
             sync_status: SYNC_STATUS.pending
           }
 
-          console.log('🔍 AppStore Debug - updatedEntry:', {
-            weirdDreamsValue: updatedEntry.weird_dreams,
-            fullUpdatedEntry: JSON.stringify(updatedEntry, null, 2)
-          })
+
 
           // Validate updated entry
           const validation = validateEntry(updatedEntry)

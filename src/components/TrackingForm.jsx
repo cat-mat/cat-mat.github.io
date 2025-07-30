@@ -17,14 +17,7 @@ const TrackingForm = ({ viewType }) => {
   const viewConfig = config?.view_configurations?.[`${viewType}_report`] || 
                     (viewType === 'quick' ? config?.view_configurations?.quick_track : null)
   
-  // Debug logging for view configuration
-  console.log('🔍 TrackingForm Debug - View Configuration:', {
-    viewType,
-    viewItemsCount: viewItems.length,
-    viewConfig: viewConfig,
-    hasWeirdDreams: viewItems.some(item => item.id === 'weird_dreams'),
-    weirdDreamsItem: viewItems.find(item => item.id === 'weird_dreams')
-  })
+
 
   // Check for existing entry today
   useEffect(() => {
@@ -54,22 +47,7 @@ const TrackingForm = ({ viewType }) => {
         })
       : null
     
-    console.log('🔍 TrackingForm Debug - Existing Entry Check:', {
-      today,
-      viewType,
-      todaysEntriesCount: todaysEntries.length,
-      todaysEntries: todaysEntries.map(entry => ({
-        id: entry.id,
-        timestamp: entry.timestamp,
-        type: entry.type
-      })),
-      existingEntryFound: !!existing,
-      existingEntryData: existing ? {
-        id: existing.id,
-        timestamp: existing.timestamp,
-        type: existing.type
-      } : null
-    })
+
 
     setExistingEntry(existing)
     
@@ -80,18 +58,11 @@ const TrackingForm = ({ viewType }) => {
         notes: existing.notes || {}
       }
 
-      console.log('🔍 TrackingForm Debug - Loading Existing Entry:', {
-        entryData,
-        weirdDreamsValue: entryData.weird_dreams,
-        weirdDreamsType: typeof entryData.weird_dreams,
-        allEntryKeys: Object.keys(entryData),
-        fullEntryData: JSON.stringify(entryData, null, 2)
-      })
+
 
       setFormData(entryData)
     } else {
       // Clear form data completely when no existing entry
-      console.log('🔍 TrackingForm Debug - No existing entry, clearing form data')
       setFormData({})
     }
   }, [viewType, trackingData.entries])
@@ -104,46 +75,22 @@ const TrackingForm = ({ viewType }) => {
   }, [viewType, existingEntry])
 
   const handleScaleChange = (itemId, value) => {
-    console.log('🔍 TrackingForm Debug - Scale Change START:', {
-      itemId,
-      clickedValue: value,
-      clickedValueType: typeof value,
-      currentFormData: formData[itemId],
-      existingEntryValue: existingEntry?.[itemId]
-    })
+
 
     setFormData(prev => {
       // Get the item to check if it's a 3-point scale
       const item = TRACKING_ITEMS[itemId]
       const is3Point = isItem3PointScale(item)
       
-      console.log('🔍 TrackingForm Debug - Item Analysis:', {
-        itemId,
-        item,
-        is3Point,
-        itemScale: item?.scale
-      })
+
       
       // For 3-point scale items, convert to 5-point for storage
       const storageValue = is3Point ? normalizeScaleValue(value, 3) : value
       
-      console.log('🔍 TrackingForm Debug - Scale Conversion:', {
-        itemId,
-        originalValue: value,
-        originalValueType: typeof value,
-        is3Point,
-        storageValue,
-        storageValueType: typeof storageValue,
-        conversionFunction: is3Point ? 'normalizeScaleValue' : 'none'
-      })
+
       
       // If the same value is clicked again, unselect it (set to undefined)
       if (prev[itemId] === storageValue) {
-        console.log('🔍 TrackingForm Debug - Unselecting Item:', {
-          itemId,
-          currentValue: prev[itemId],
-          newValue: 'undefined (removed)'
-        })
         const newData = { ...prev }
         delete newData[itemId] // Remove the item entirely
         return newData
@@ -155,13 +102,7 @@ const TrackingForm = ({ viewType }) => {
         [itemId]: storageValue
       }
       
-      console.log('🔍 TrackingForm Debug - Updated Form Data:', {
-        itemId,
-        newValue: storageValue,
-        newValueType: typeof storageValue,
-        updatedFormData: newData,
-        formDataKeys: Object.keys(newData)
-      })
+
       
       return newData
     })
@@ -203,21 +144,10 @@ const TrackingForm = ({ viewType }) => {
     e.preventDefault()
     setIsSubmitting(true)
 
-    console.log('🔍 TrackingForm Debug - Submit Started:', {
-      viewType,
-      existingEntry: !!existingEntry,
-      formData,
-      weirdDreamsValue: formData.weird_dreams,
-      formDataKeys: Object.keys(formData),
-      fullFormData: JSON.stringify(formData, null, 2)
-    })
+
 
     try {
       if (existingEntry) {
-        console.log('🔍 TrackingForm Debug - Updating Entry:', {
-          entryId: existingEntry.id,
-          formData
-        })
         await updateEntry(existingEntry.id, formData)
         addNotification({
           type: 'success',
@@ -225,9 +155,6 @@ const TrackingForm = ({ viewType }) => {
           message: 'Your tracking entry has been updated successfully.'
         })
       } else {
-        console.log('🔍 TrackingForm Debug - Adding New Entry:', {
-          formData
-        })
         await addEntry(formData)
         addNotification({
           type: 'success',
@@ -265,22 +192,12 @@ const TrackingForm = ({ viewType }) => {
     // Use existingEntry data directly if formData is empty
     let value = formData[item.id] !== undefined ? formData[item.id] : (existingEntry?.[item.id])
     
-    console.log('🔍 TrackingForm Debug - Render Scale Buttons:', {
-      itemId: item.id,
-      originalValue: value,
-      is3Point: isItem3PointScale(item),
-      itemScale: item.scale
-    })
+
     
     // For 3-point scale items, convert stored 5-point value back to 3-point for display
     if (isItem3PointScale(item) && value !== undefined) {
       const displayValue = denormalizeScaleValue(value, 3)
-      console.log('🔍 TrackingForm Debug - Denormalizing for Display:', {
-        itemId: item.id,
-        storedValue: value,
-        displayValue: displayValue,
-        conversionFunction: 'denormalizeScaleValue'
-      })
+
       value = displayValue
     }
     

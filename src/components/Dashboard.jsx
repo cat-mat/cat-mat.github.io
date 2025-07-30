@@ -49,19 +49,7 @@ const Dashboard = () => {
   // Get current view entries
   const currentViewEntries = todaysEntries.filter(entry => entry.type === currentView)
   
-  // Debug logging for entry counts
-  console.log('🔍 Dashboard Debug - Entry counts:', {
-    today,
-    todaysEntriesCount: todaysEntries.length,
-    todaysEntries: todaysEntries.map(entry => ({
-      id: entry.id,
-      timestamp: entry.timestamp,
-      type: entry.type,
-      localDate: new Date(entry.timestamp).toLocaleDateString('en-CA')
-    })),
-    currentView,
-    currentViewEntriesCount: currentViewEntries.length
-  })
+
 
   const handleSignOut = async () => {
     try {

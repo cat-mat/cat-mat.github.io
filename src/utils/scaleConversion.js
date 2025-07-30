@@ -7,19 +7,9 @@
  * 1 -> 1, 2 -> 3, 3 -> 5
  */
 export const convert3To5Point = (value) => {
-  console.log('🔍 ScaleConversion Debug - convert3To5Point:', {
-    inputValue: value,
-    inputType: typeof value
-  })
-  
   if (value === 1) return 1
   if (value === 2) return 3
   if (value === 3) return 5
-  
-  console.log('🔍 ScaleConversion Debug - convert3To5Point fallback:', {
-    inputValue: value,
-    returning: value
-  })
   return value // Return as-is if not a 3-point value
 }
 
@@ -28,19 +18,9 @@ export const convert3To5Point = (value) => {
  * 1 -> 1, 2-4 -> 2, 5 -> 3
  */
 export const convert5To3Point = (value) => {
-  console.log('🔍 ScaleConversion Debug - convert5To3Point:', {
-    inputValue: value,
-    inputType: typeof value
-  })
-  
   if (value === 1) return 1
   if (value >= 2 && value <= 4) return 2
   if (value === 5) return 3
-  
-  console.log('🔍 ScaleConversion Debug - convert5To3Point fallback:', {
-    inputValue: value,
-    returning: value
-  })
   return value // Return as-is if not a 5-point value
 }
 
@@ -50,27 +30,9 @@ export const convert5To3Point = (value) => {
  * For other scales, returns the value as-is
  */
 export const normalizeScaleValue = (value, itemScale) => {
-  console.log('🔍 ScaleConversion Debug - normalizeScaleValue:', {
-    inputValue: value,
-    itemScale: itemScale,
-    inputType: typeof value
-  })
-  
   if (itemScale === 3) {
-    const result = convert3To5Point(value)
-    console.log('🔍 ScaleConversion Debug - normalizeScaleValue 3-point result:', {
-      inputValue: value,
-      itemScale: itemScale,
-      result: result
-    })
-    return result
+    return convert3To5Point(value)
   }
-  
-  console.log('🔍 ScaleConversion Debug - normalizeScaleValue non-3-point:', {
-    inputValue: value,
-    itemScale: itemScale,
-    returning: value
-  })
   return value
 }
 
@@ -80,27 +42,9 @@ export const normalizeScaleValue = (value, itemScale) => {
  * For other scales, returns the value as-is
  */
 export const denormalizeScaleValue = (value, itemScale) => {
-  console.log('🔍 ScaleConversion Debug - denormalizeScaleValue:', {
-    inputValue: value,
-    itemScale: itemScale,
-    inputType: typeof value
-  })
-  
   if (itemScale === 3) {
-    const result = convert5To3Point(value)
-    console.log('🔍 ScaleConversion Debug - denormalizeScaleValue 3-point result:', {
-      inputValue: value,
-      itemScale: itemScale,
-      result: result
-    })
-    return result
+    return convert5To3Point(value)
   }
-  
-  console.log('🔍 ScaleConversion Debug - denormalizeScaleValue non-3-point:', {
-    inputValue: value,
-    itemScale: itemScale,
-    returning: value
-  })
   return value
 }
 
