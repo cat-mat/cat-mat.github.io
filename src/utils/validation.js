@@ -23,13 +23,7 @@ const scaleValidation = {
 
 // Custom validation for scale values that converts 3-point to 5-point internally
 const createScaleValidator = (scale) => {
-  return Joi.number().integer().min(1).max(scale).custom((value, helpers) => {
-    // For 3-point scales, convert to 5-point for storage
-    if (scale === 3) {
-      return normalizeScaleValue(value, 3)
-    }
-    return value
-  })
+  return Joi.number().integer().min(1).max(scale === 3 ? 5 : scale)
 }
 
 // Multi-select validation
@@ -255,12 +249,26 @@ export const concurrencyHandling = {
 
 // Validation functions
 export const validateEntry = (entry) => {
+  console.log('🔍 Validation Debug - validateEntry input:', {
+    entry,
+    weirdDreamsValue: entry.weird_dreams,
+    weirdDreamsType: typeof entry.weird_dreams,
+    allEntryKeys: Object.keys(entry),
+    fullEntry: JSON.stringify(entry, null, 2)
+  })
+  
   const { error, value } = entryValidationSchema.validate(entry, { 
     abortEarly: false,
     allowUnknown: true 
   })
   
   if (error) {
+    console.error('🔍 Validation Debug - Validation failed:', {
+      errors: error.details.map(detail => ({
+        field: detail.path.join('.'),
+        message: detail.message
+      }))
+    })
     return {
       isValid: false,
       errors: error.details.map(detail => ({
@@ -269,6 +277,11 @@ export const validateEntry = (entry) => {
       }))
     }
   }
+  
+  console.log('🔍 Validation Debug - Validation successful:', {
+    validatedValue: value,
+    weirdDreamsValue: value.weird_dreams
+  })
   
   return { isValid: true, data: value }
 }

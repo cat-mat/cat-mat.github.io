@@ -38,18 +38,30 @@ const Dashboard = () => {
   const { currentView } = ui
   const { entries, isLoading } = trackingData
 
-  // Get today's entries
-  const today = format(new Date(), 'yyyy-MM-dd')
+  // Get today's entries (using local timezone, excluding deleted entries)
+  const today = new Date().toLocaleDateString('en-CA') // Returns YYYY-MM-DD in local timezone
   const todaysEntries = entries.filter(entry => {
-    // Ensure timestamp is a string before calling startsWith
-    const timestamp = typeof entry.timestamp === 'string' 
-      ? entry.timestamp 
-      : entry.timestamp?.toISOString?.() || String(entry.timestamp || '')
-    return timestamp.startsWith(today)
+    // Convert UTC timestamp to local date for comparison
+    const entryDate = new Date(entry.timestamp).toLocaleDateString('en-CA')
+    return entryDate === today && !entry.is_deleted
   })
 
   // Get current view entries
   const currentViewEntries = todaysEntries.filter(entry => entry.type === currentView)
+  
+  // Debug logging for entry counts
+  console.log('🔍 Dashboard Debug - Entry counts:', {
+    today,
+    todaysEntriesCount: todaysEntries.length,
+    todaysEntries: todaysEntries.map(entry => ({
+      id: entry.id,
+      timestamp: entry.timestamp,
+      type: entry.type,
+      localDate: new Date(entry.timestamp).toLocaleDateString('en-CA')
+    })),
+    currentView,
+    currentViewEntriesCount: currentViewEntries.length
+  })
 
   const handleSignOut = async () => {
     try {

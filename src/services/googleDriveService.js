@@ -5,7 +5,7 @@ import { DEFAULT_VIEW_TIMES } from '../constants/trackingItems.js'
 class GoogleDriveService {
   constructor() {
     this.clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'mock-client-id'
-    this.scope = 'https://www.googleapis.com/auth/drive.appdata'
+    this.scope = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.email'
     this.discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
     
     // Only allow mock mode in development and only if explicitly configured
@@ -18,10 +18,14 @@ class GoogleDriveService {
     this.isInitialized = false
     this.tokenClient = null
     this.accessToken = null
+    this.tokenExpiry = null
     this.requestQueue = []
     this.isProcessingQueue = false
     this.rateLimitDelay = 1000 // Start with 1 second delay
     this.maxRetries = 3
+    
+    // Try to restore token from localStorage on initialization
+    this.restoreTokenFromStorage()
   }
 
   // Load Google Identity Services (GIS) dynamically
@@ -122,7 +126,15 @@ class GoogleDriveService {
             return
           }
           this.accessToken = tokenResponse.access_token
-          console.log('Access token obtained successfully')
+          
+          // Calculate token expiry (Google tokens typically last 1 hour)
+          const expiryTime = new Date(Date.now() + 3600000) // 1 hour from now
+          this.tokenExpiry = expiryTime
+          
+          // Save token to localStorage for persistence
+          this.saveTokenToStorage(tokenResponse.access_token, expiryTime.getTime())
+          
+          console.log('Access token obtained and saved successfully')
         }
       })
 
@@ -231,8 +243,12 @@ class GoogleDriveService {
       }
 
       this.accessToken = null
+      this.tokenExpiry = null
       this.tokenClient = null
       this.isInitialized = false
+      
+      // Clear stored token
+      this.clearTokenFromStorage()
 
       console.log('Sign out successful')
       return { success: true }
@@ -242,9 +258,71 @@ class GoogleDriveService {
     }
   }
 
+  // Save token to localStorage
+  saveTokenToStorage(token, expiry) {
+    try {
+      localStorage.setItem('google_access_token', token)
+      localStorage.setItem('google_token_expiry', expiry.toString())
+      console.log('Token saved to localStorage')
+    } catch (error) {
+      console.error('Failed to save token to localStorage:', error)
+    }
+  }
+
+  // Restore token from localStorage
+  restoreTokenFromStorage() {
+    try {
+      const token = localStorage.getItem('google_access_token')
+      const expiry = localStorage.getItem('google_token_expiry')
+      
+      if (token && expiry) {
+        const expiryTime = new Date(parseInt(expiry))
+        const now = new Date()
+        
+        // Check if token is still valid (with 5 minute buffer)
+        if (expiryTime > new Date(now.getTime() + 5 * 60 * 1000)) {
+          this.accessToken = token
+          this.tokenExpiry = expiryTime
+          console.log('Token restored from localStorage')
+          return true
+        } else {
+          console.log('Stored token has expired, clearing localStorage')
+          this.clearTokenFromStorage()
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore token from localStorage:', error)
+    }
+    return false
+  }
+
+  // Clear token from localStorage
+  clearTokenFromStorage() {
+    try {
+      localStorage.removeItem('google_access_token')
+      localStorage.removeItem('google_token_expiry')
+      console.log('Token cleared from localStorage')
+    } catch (error) {
+      console.error('Failed to clear token from localStorage:', error)
+    }
+  }
+
   // Check if user is signed in
   isSignedIn() {
-    return this.isMockMode || (this.isInitialized && this.accessToken !== null)
+    return this.isMockMode || (this.isInitialized && this.accessToken !== null && this.isTokenValid())
+  }
+
+  // Check if current token is still valid
+  isTokenValid() {
+    if (!this.accessToken || !this.tokenExpiry) {
+      return false
+    }
+    
+    const now = new Date()
+    const expiryTime = new Date(this.tokenExpiry)
+    
+    // Token is valid if it expires more than 5 minutes from now
+    return expiryTime > new Date(now.getTime() + 5 * 60 * 1000)
   }
 
   // Get current user (for mock mode)
@@ -259,6 +337,15 @@ class GoogleDriveService {
   async executeRequest(requestFn) {
     if (this.isMockMode) {
       return this.mockRequest(requestFn)
+    }
+
+    // Check if we need to refresh authentication
+    if (!this.isTokenValid()) {
+      console.log('Token is invalid or expired, clearing authentication')
+      this.accessToken = null
+      this.tokenExpiry = null
+      this.clearTokenFromStorage()
+      throw new Error('Authentication expired. Please sign in again.')
     }
 
     if (!this.accessToken) {
@@ -727,7 +814,7 @@ class GoogleDriveService {
   // Get monthly tracking file
   async getMonthlyTrackingFile(month) {
     try {
-      const fileName = `tracking_${month}.json`
+      const fileName = `tracking-my-hot-self_${month}.json`
       const files = await this.listFiles(`name='${fileName}'`)
       
       if (files.files.length === 0) {
@@ -746,7 +833,7 @@ class GoogleDriveService {
   // Save monthly tracking file
   async saveMonthlyTrackingFile(month, data) {
     try {
-      const fileName = `tracking_${month}.json`
+      const fileName = `tracking-my-hot-self_${month}.json`
       const files = await this.listFiles(`name='${fileName}'`)
       
       if (files.files.length === 0) {
@@ -764,11 +851,11 @@ class GoogleDriveService {
   // List all monthly tracking files
   async listMonthlyFiles() {
     try {
-      const files = await this.listFiles("name contains 'tracking_' and name contains '.json'")
+      const files = await this.listFiles("name contains 'tracking-my-hot-self_' and name contains '.json'")
       return files.files.map(file => ({
         id: file.id,
         name: file.name,
-        month: file.name.replace('tracking_', '').replace('.json', ''),
+        month: file.name.replace('tracking-my-hot-self_', '').replace('.json', ''),
         modifiedTime: file.modifiedTime
       }))
     } catch (error) {
@@ -790,7 +877,7 @@ class GoogleDriveService {
       for (const entry of offlineEntries) {
         try {
           const month = new Date(entry.timestamp).toISOString().slice(0, 7) // YYYY-MM format
-          const fileName = `tracking_${month}.json`
+          const fileName = `tracking-my-hot-self_${month}.json`
           
           // Get existing data for this month
           let monthData

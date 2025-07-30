@@ -787,18 +787,33 @@ export const useAppStore = create(
             throw new Error('User not authenticated')
           }
 
-                      console.log('Importing tracking data...')
+          console.log('Importing tracking data...')
+          console.log('Import data structure:', {
+            hasVersion: !!importData.version,
+            hasEntries: !!importData.entries,
+            isEntriesArray: Array.isArray(importData.entries),
+            entriesLength: importData.entries?.length || 0,
+            version: importData.version,
+            exportedAt: importData.exported_at
+          })
 
           try {
             // Validate import data structure
             if (!importData.version || !importData.entries || !Array.isArray(importData.entries)) {
+              console.error('Invalid import structure:', importData)
               throw new Error('Invalid import file format')
             }
 
             // Validate and process entries
             const validEntries = importData.entries.filter(entry => {
-              return entry.id && entry.timestamp && entry.type
+              const isValid = entry.id && entry.timestamp && entry.type
+              if (!isValid) {
+                console.warn('Invalid entry found:', entry)
+              }
+              return isValid
             })
+
+            console.log(`Found ${validEntries.length} valid entries out of ${importData.entries.length} total entries`)
 
             if (validEntries.length === 0) {
               throw new Error('No valid entries found in import file')
@@ -822,16 +837,25 @@ export const useAppStore = create(
               monthlyData[month].entries.push(entry)
             })
 
+            console.log('Monthly data groups:', Object.keys(monthlyData).map(month => ({
+              month,
+              entryCount: monthlyData[month].entries.length
+            })))
+
             // Save each month's data
             for (const [month, data] of Object.entries(monthlyData)) {
               data.estimated_size_kb = Math.round(JSON.stringify(data).length / 1024)
               
+              console.log(`Saving month ${month} with ${data.entries.length} entries...`)
+              
               if (googleDriveService.isMockMode) {
                 // Save to localStorage in mock mode
                 localStorage.setItem(`mock_tracking_${month}`, JSON.stringify(data))
+                console.log(`Saved to localStorage: mock_tracking_${month}`)
               } else {
                 // Save to Google Drive
                 await googleDriveService.saveMonthlyTrackingFile(month, data)
+                console.log(`Saved to Google Drive: tracking-my-hot-self_${month}.json`)
               }
             }
 
@@ -840,10 +864,18 @@ export const useAppStore = create(
             const currentMonthData = monthlyData[currentMonth]
             
             if (currentMonthData) {
+              // Ensure all imported entries have synced status
+              const updatedEntries = currentMonthData.entries
+                .filter(entry => !entry.is_deleted)
+                .map(entry => ({
+                  ...entry,
+                  sync_status: SYNC_STATUS.synced
+                }))
+              
               set(state => ({
                 trackingData: {
                   ...state.trackingData,
-                  entries: currentMonthData.entries.filter(entry => !entry.is_deleted)
+                  entries: updatedEntries
                 }
               }))
             }
@@ -921,10 +953,61 @@ export const useAppStore = create(
           const { auth, config, trackingData } = get()
           if (!auth.isAuthenticated || !config) return
 
-          // Sanitize and validate entry
+          console.log('🔍 AppStore Debug - addEntry called:', {
+            entryData,
+            currentView: get().ui.currentView
+          })
+
+          // Check for existing entry for today and this view type (using local timezone)
+          const today = new Date().toLocaleDateString('en-CA') // Returns YYYY-MM-DD in local timezone
+          const viewType = get().ui.currentView
+          
+          // Only check for existing entries for morning/evening types (not quick entries)
+          // Quick entries should allow multiple entries per day
+          if (viewType === 'morning' || viewType === 'evening') {
+            const existingEntries = trackingData.entries.filter(entry => {
+              // Convert UTC timestamp to local date for comparison
+              const entryDate = new Date(entry.timestamp).toLocaleDateString('en-CA')
+              return entryDate === today && entry.type === viewType && !entry.is_deleted
+            })
+
+            console.log('🔍 AppStore Debug - Existing entries check:', {
+              today,
+              viewType,
+              existingEntriesCount: existingEntries.length,
+              existingEntries: existingEntries.map(entry => ({
+                id: entry.id,
+                timestamp: entry.timestamp,
+                type: entry.type
+              }))
+            })
+
+            // If there's an existing entry for morning/evening, update it instead of creating a new one
+            if (existingEntries.length > 0) {
+              // Get the most recent entry
+              const mostRecentEntry = existingEntries.reduce((latest, current) => {
+                const latestTime = new Date(latest.timestamp).getTime()
+                const currentTime = new Date(current.timestamp).getTime()
+                return currentTime > latestTime ? current : latest
+              })
+
+              console.log('🔍 AppStore Debug - Updating existing entry instead of creating new:', {
+                existingEntryId: mostRecentEntry.id,
+                existingEntryTimestamp: mostRecentEntry.timestamp
+              })
+
+              // Update the existing entry
+              return await get().updateEntry(mostRecentEntry.id, entryData)
+            }
+          } else {
+            // For quick entries, always create new entries
+            console.log('🔍 AppStore Debug - Quick entry - creating new entry (multiple per day allowed)')
+          }
+
+          // Sanitize and validate entry for new entry
           const sanitizedEntry = sanitizeEntry({
             ...entryData,
-            type: get().ui.currentView
+            type: viewType
           })
 
           const validation = validateEntry(sanitizedEntry)
@@ -933,6 +1016,12 @@ export const useAppStore = create(
           }
 
           const entry = validation.data
+
+          console.log('🔍 AppStore Debug - Creating new entry:', {
+            entryId: entry.id,
+            entryType: entry.type,
+            entryTimestamp: entry.timestamp
+          })
 
           // Add to local state immediately
           set(state => ({
@@ -969,12 +1058,25 @@ export const useAppStore = create(
           const entryIndex = trackingData.entries.findIndex(entry => entry.id === entryId)
           if (entryIndex === -1) return
 
+          console.log('🔍 AppStore Debug - updateEntry:', {
+            entryId,
+            existingEntry: trackingData.entries[entryIndex],
+            updates,
+            weirdDreamsInExisting: trackingData.entries[entryIndex]?.weird_dreams,
+            weirdDreamsInUpdates: updates.weird_dreams
+          })
+
           const updatedEntry = {
             ...trackingData.entries[entryIndex],
             ...updates,
             updated_at: new Date().toISOString(),
             sync_status: SYNC_STATUS.pending
           }
+
+          console.log('🔍 AppStore Debug - updatedEntry:', {
+            weirdDreamsValue: updatedEntry.weird_dreams,
+            fullUpdatedEntry: JSON.stringify(updatedEntry, null, 2)
+          })
 
           // Validate updated entry
           const validation = validateEntry(updatedEntry)
@@ -1307,16 +1409,22 @@ export const useAppStore = create(
             // Sort by timestamp (newest first)
             allEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 
+            // Clear any failed sync statuses since data was successfully loaded from Google Drive
+            const cleanedEntries = allEntries.map(entry => ({
+              ...entry,
+              sync_status: entry.sync_status === SYNC_STATUS.failed ? SYNC_STATUS.synced : entry.sync_status
+            }))
+
             set(state => ({
               trackingData: {
                 ...state.trackingData,
-                entries: allEntries,
+                entries: cleanedEntries,
                 isLoading: false,
                 error: null
               }
             }))
 
-            console.log(`Loaded ${allEntries.length} historical entries`)
+            console.log(`Loaded ${cleanedEntries.length} historical entries`)
           } catch (error) {
             console.error('Failed to load historical data:', error)
             set(state => ({

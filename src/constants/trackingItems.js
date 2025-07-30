@@ -96,7 +96,7 @@ export const TRACKING_ITEMS = {
     id: 'eating_habits',
     name: 'Eating Habits',
     category: 'body',
-    scale: 5,
+    scale: 3,
     good: 'low',
     description: 'Mmmm, fooooooood 🤤',
     morning: false,
@@ -414,7 +414,7 @@ export const TRACKING_ITEMS = {
     morning: true,
     evening: false,
     quick: false,
-    textOptions: ['No dreams', 'No weird dreams', 'The weirdest dreams!'],
+    textOptions: ['No dreams', 'Normal dreams', 'The weirdest dreams!'],
     faceEmojis: ['😎', '😳', '😫'],
     heartEmojis: ['💚', '💛', '❤️'],
     dotEmojis: ['🟢', '🟡', '🔴']
