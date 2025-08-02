@@ -5,6 +5,7 @@ import { denormalizeScaleValue } from '../utils/scaleConversion.js'
 import { format, parseISO, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
+import LZString from 'lz-string'
 import AppHeader from './AppHeader.jsx';
 import { googleDriveService } from '../services/googleDriveService.js';
 
@@ -216,7 +217,51 @@ const Logs = () => {
       entries: data
     }
     
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    // Try two compression approaches
+    const jsonString = JSON.stringify(exportData, null, 2)
+    const compressedData = LZString.compress(jsonString)
+    
+    // Approach 1: Compress just the data
+    const approach1 = {
+      version: '1.0.0',
+      compressed: true,
+      original_size: jsonString.length,
+      compressed_size: compressedData.length,
+      compression_ratio: ((1 - compressedData.length / jsonString.length) * 100).toFixed(1),
+      data: compressedData
+    }
+    const approach1Size = JSON.stringify(approach1, null, 2).length
+    
+    // Approach 2: Compress the entire export
+    const approach2 = LZString.compress(jsonString)
+    const approach2Size = approach2.length
+    
+    console.log('Compression Comparison:', {
+      originalSize: jsonString.length,
+      approach1Size: approach1Size,
+      approach2Size: approach2Size,
+      approach1Better: approach1Size < approach2Size,
+      bestCompression: Math.min(approach1Size, approach2Size)
+    })
+    
+    // Use the smaller approach
+    let finalExport
+    if (approach1Size <= approach2Size) {
+      finalExport = approach1
+      console.log('Using approach 1 (compressed data with metadata)')
+    } else {
+      finalExport = {
+        version: '1.0.0',
+        compressed: true,
+        data: approach2
+      }
+      console.log('Using approach 2 (compressed entire export)')
+    }
+    
+    const finalJsonString = JSON.stringify(finalExport, null, 2)
+    console.log('Final export size:', finalJsonString.length, 'bytes')
+    
+    const blob = new Blob([finalJsonString], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -335,8 +380,27 @@ const Logs = () => {
       const text = await file.text()
       const importData = JSON.parse(text)
       
+      // Handle compressed data
+      let dataToImport = importData
+      if (importData.compressed && importData.data) {
+        try {
+          // Decompress the data
+          const decompressedData = LZString.decompress(importData.data)
+          if (!decompressedData) {
+            throw new Error('Failed to decompress data')
+          }
+          
+          // Parse the decompressed JSON
+          dataToImport = JSON.parse(decompressedData)
+          
+          console.log(`Successfully decompressed data: ${importData.original_size} -> ${importData.compressed_size} bytes (${importData.compression_ratio}% compression)`)
+        } catch (decompressError) {
+          throw new Error(`Failed to decompress data: ${decompressError.message}`)
+        }
+      }
+      
       // Use the app store import function
-      const result = await importTrackingData(importData)
+      const result = await importTrackingData(dataToImport)
       
       const successMessage = `Successfully imported ${result.entriesImported} entries across ${result.monthsImported} months.`
       

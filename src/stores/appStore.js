@@ -4,6 +4,7 @@ import { subscribeWithSelector } from 'zustand/middleware'
 import { googleDriveService } from '../services/googleDriveService.js'
 import { validateEntry, validateConfig, sanitizeEntry, migrateData } from '../utils/validation.js'
 import { TRACKING_ITEMS, DEFAULT_VIEW_TIMES, SYNC_STATUS } from '../constants/trackingItems.js'
+import LZString from 'lz-string'
 
 // Default configuration
 const getDefaultConfig = (userEmail) => ({
@@ -105,8 +106,7 @@ const getDefaultConfig = (userEmail) => ({
           visible: true,
           collapsed: false
         }
-      },
-      wearables: ['wearables_sleep_score', 'wearables_body_battery']
+      }
     },
     evening_report: {
       sections: {
@@ -181,6 +181,7 @@ const getDefaultConfig = (userEmail) => ({
             // Alphabetized body items with quick: true
             'allergic_reactions',
             'energy_level',
+            'exercise_impact',
             'forehead_shine',
             'headache',
             'hot_flashes',
@@ -193,6 +194,7 @@ const getDefaultConfig = (userEmail) => ({
           sort_order: [
             'allergic_reactions',
             'energy_level',
+            'exercise_impact',
             'forehead_shine',
             'headache',
             'hot_flashes',
@@ -1427,7 +1429,21 @@ export const useAppStore = create(
             config: config
           }
 
+          // Compress the JSON data
           const jsonString = JSON.stringify(exportData, null, 2)
+          const compressedData = LZString.compress(jsonString)
+          
+          // Create a compressed export with metadata
+          const compressedExport = {
+            version: '1.0.0',
+            compressed: true,
+            original_size: jsonString.length,
+            compressed_size: compressedData.length,
+            compression_ratio: ((1 - compressedData.length / jsonString.length) * 100).toFixed(1),
+            data: compressedData
+          }
+
+          const finalJsonString = JSON.stringify(compressedExport, null, 2)
           const fileName = `tracking-config-${new Date().toISOString().slice(0, 10)}.json`
 
           // Mobile-friendly export
@@ -1438,9 +1454,9 @@ export const useAppStore = create(
             
             // For mobile devices, copy to clipboard and show instructions
             if (navigator.clipboard && window.isSecureContext) {
-              navigator.clipboard.writeText(jsonString).then(() => {
+              navigator.clipboard.writeText(finalJsonString).then(() => {
                 console.log('Configuration copied to clipboard successfully')
-                console.log('Copied data length:', jsonString.length)
+                console.log('Copied data length:', finalJsonString.length)
                 // Show a notification that it was copied
                 if (typeof window !== 'undefined' && window.showExportNotification) {
                   window.showExportNotification('Configuration copied to clipboard! You can paste it into a text file.')
@@ -1450,7 +1466,7 @@ export const useAppStore = create(
                 console.log('Falling back to textarea method...')
                 // Fallback: create a temporary textarea for copying
                 const textarea = document.createElement('textarea')
-                textarea.value = jsonString
+                textarea.value = finalJsonString
                 textarea.style.position = 'fixed'
                 textarea.style.left = '-999999px'
                 textarea.style.top = '-999999px'
@@ -1460,10 +1476,10 @@ export const useAppStore = create(
                 try {
                   document.execCommand('copy')
                   console.log('Configuration copied using execCommand')
-                  alert(`Configuration copied to clipboard! You can paste it into a text file.\n\nIf pasting doesn't work, the data is also shown below:\n\n${jsonString}`)
+                  alert(`Configuration copied to clipboard! You can paste it into a text file.\n\nIf pasting doesn't work, the data is also shown below:\n\n${finalJsonString}`)
                 } catch (execErr) {
                   console.error('execCommand failed:', execErr)
-                  alert(`Configuration exported! Copy this data and save it as ${fileName}:\n\n${jsonString}`)
+                  alert(`Configuration exported! Copy this data and save it as ${fileName}:\n\n${finalJsonString}`)
                 } finally {
                   document.body.removeChild(textarea)
                 }
@@ -1471,11 +1487,11 @@ export const useAppStore = create(
             } else {
               console.log('Clipboard API not available, using alert fallback...')
               // Fallback for older browsers
-              alert(`Configuration exported! Copy this data and save it as ${fileName}:\n\n${jsonString}`)
+              alert(`Configuration exported! Copy this data and save it as ${fileName}:\n\n${finalJsonString}`)
             }
           } else {
             // Desktop download
-            const blob = new Blob([jsonString], { type: 'application/json' })
+            const blob = new Blob([finalJsonString], { type: 'application/json' })
             const url = URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href = url
@@ -1497,13 +1513,32 @@ export const useAppStore = create(
           }
 
           try {
+            // Handle compressed data
+            let dataToImport = importData
+            if (importData.compressed && importData.data) {
+              try {
+                // Decompress the data
+                const decompressedData = LZString.decompress(importData.data)
+                if (!decompressedData) {
+                  throw new Error('Failed to decompress data')
+                }
+                
+                // Parse the decompressed JSON
+                dataToImport = JSON.parse(decompressedData)
+                
+                console.log(`Successfully decompressed config: ${importData.original_size} -> ${importData.compressed_size} bytes (${importData.compression_ratio}% compression)`)
+              } catch (decompressError) {
+                throw new Error(`Failed to decompress data: ${decompressError.message}`)
+              }
+            }
+
             // Validate import data structure
-            if (!importData.version || !importData.config) {
+            if (!dataToImport.version || !dataToImport.config) {
               throw new Error('Invalid configuration file format')
             }
 
             // Validate the configuration
-            const validation = validateConfig(importData.config)
+            const validation = validateConfig(dataToImport.config)
             if (validation.error) {
               throw new Error(`Configuration validation failed: ${validation.error.message}`)
             }
@@ -1524,8 +1559,8 @@ export const useAppStore = create(
               success: true,
               configImported: true,
               importMetadata: {
-                version: importData.version,
-                exportedAt: importData.exported_at
+                version: dataToImport.version,
+                exportedAt: dataToImport.exported_at
               }
             }
           } catch (error) {

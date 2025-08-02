@@ -360,35 +360,6 @@ const Settings = () => {
           {/* Display Type Settings */}
           <DisplayTypeSelector />
 
-          {/* Force Update Configuration */}
-          <div className="meadow-card p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Update View Configuration</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Force update the view configuration with the latest items and settings.
-            </p>
-            <button
-              onClick={handleForceUpdateConfig}
-              className="sunset-button px-6 py-3 mr-3"
-            >
-              🔄 Update Configuration
-            </button>
-          </div>
-
-          {/* Clear Corrupted Configuration */}
-          <div className="meadow-card p-6 border-l-4 border-danger-500">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">⚠️ Fix Configuration Issues</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              If you're experiencing configuration errors, this will clear the corrupted configuration and start fresh.
-            </p>
-            <button
-              onClick={handleClearCorruptedConfig}
-              className="btn-danger px-6 py-3"
-            >
-              🗑️ Clear & Recreate Configuration
-            </button>
-          </div>
-
-
 
           {/* Config Actions */}
           <div className="meadow-card p-6">
@@ -438,6 +409,36 @@ const Settings = () => {
               </button>
             </div>
           </div>
+
+          {/* Force Update Configuration */}
+          <div className="meadow-card p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Update View Configuration</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Force update the view configuration with the latest items and settings.
+            </p>
+            <button
+              onClick={handleForceUpdateConfig}
+              className="sunset-button px-6 py-3 mr-3"
+            >
+              🔄 Update Configuration
+            </button>
+          </div>
+
+          {/* Clear Corrupted Configuration */}
+          <div className="meadow-card p-6 border-l-4 border-danger-500">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">⚠️ Fix Configuration Issues</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              If you're experiencing configuration errors, this will clear the corrupted configuration and start fresh.
+            </p>
+            <button
+              onClick={handleClearCorruptedConfig}
+              className="btn-danger px-6 py-3"
+            >
+              🗑️ Clear & Recreate Configuration
+            </button>
+          </div>
+
+
         </div>
       </div>
     </div>

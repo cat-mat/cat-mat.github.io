@@ -258,7 +258,7 @@ const TrackingForm = ({ viewType }) => {
     const values = formData[item.id] !== undefined ? formData[item.id] : (existingEntry?.[item.id] || [])
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {item.options.map((option) => {
           const isSelected = values.includes(option)
           const label = item.optionLabels?.[option] || option.replace(/_/g, ' ')

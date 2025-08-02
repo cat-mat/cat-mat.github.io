@@ -58,11 +58,13 @@ export const entryValidationSchema = baseEntrySchema.keys({
   allergic_reactions: createScaleValidator(3).optional(),
   bleeding_spotting: createScaleValidator(3).optional(),
   brain_fog: createScaleValidator(3).optional(),
+  exercise_impact: createScaleValidator(3).optional(),
   forehead_shine: createScaleValidator(3).optional(),
   hydration: createScaleValidator(3).optional(),
   mood: createScaleValidator(3).optional(),
   nausea: createScaleValidator(3).optional(),
   temperature_sensitivity: createScaleValidator(3).optional(),
+  workout_recovery: createScaleValidator(3).optional(),
   weird_dreams: createScaleValidator(3).optional(),
   
   // 4-point scale items

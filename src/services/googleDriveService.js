@@ -1,6 +1,7 @@
 // Google Drive Service for perimenopause tracking app
 // Updated to use Google Identity Services (GIS) instead of deprecated gapi
 import { DEFAULT_VIEW_TIMES } from '../constants/trackingItems.js'
+import { compressData, decompressData, shouldCompress } from '../utils/compression.js'
 
 class GoogleDriveService {
   constructor() {
@@ -325,6 +326,84 @@ class GoogleDriveService {
     return expiryTime > new Date(now.getTime() + 5 * 60 * 1000)
   }
 
+  // Refresh the access token
+  async refreshToken() {
+    if (!this.tokenClient) {
+      throw new Error('Token client not initialized')
+    }
+
+    console.log('Attempting to refresh access token...')
+    
+    return new Promise((resolve, reject) => {
+      // Add timeout to prevent hanging
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Token refresh timeout'))
+      }, 60000) // 1 minute timeout
+
+      try {
+        // Request a new access token
+        this.tokenClient.requestAccessToken({
+          prompt: 'none' // Don't show consent screen if user is already signed in
+        })
+
+        // Poll for new token
+        const checkToken = () => {
+          if (this.accessToken && this.isTokenValid()) {
+            clearTimeout(timeoutId)
+            console.log('Token refreshed successfully')
+            resolve()
+          } else {
+            setTimeout(checkToken, 100)
+          }
+        }
+        checkToken()
+
+      } catch (error) {
+        clearTimeout(timeoutId)
+        reject(error)
+      }
+    })
+  }
+
+  // Force re-authentication (for when refresh fails)
+  async forceReAuthentication() {
+    console.log('Forcing re-authentication...')
+    
+    // Clear current token
+    this.accessToken = null
+    this.tokenExpiry = null
+    this.clearTokenFromStorage()
+    
+    // Request new token with consent
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Re-authentication timeout'))
+      }, 120000) // 2 minutes timeout
+
+      try {
+        this.tokenClient.requestAccessToken({
+          prompt: 'consent' // Show consent screen
+        })
+
+        // Poll for new token
+        const checkToken = () => {
+          if (this.accessToken && this.isTokenValid()) {
+            clearTimeout(timeoutId)
+            console.log('Re-authentication successful')
+            resolve()
+          } else {
+            setTimeout(checkToken, 100)
+          }
+        }
+        checkToken()
+
+      } catch (error) {
+        clearTimeout(timeoutId)
+        reject(error)
+      }
+    })
+  }
+
   // Get current user (for mock mode)
   getCurrentUser() {
     if (this.isMockMode) {
@@ -341,11 +420,16 @@ class GoogleDriveService {
 
     // Check if we need to refresh authentication
     if (!this.isTokenValid()) {
-      console.log('Token is invalid or expired, clearing authentication')
-      this.accessToken = null
-      this.tokenExpiry = null
-      this.clearTokenFromStorage()
-      throw new Error('Authentication expired. Please sign in again.')
+      console.log('Token is invalid or expired, attempting to refresh...')
+      try {
+        await this.refreshToken()
+      } catch (error) {
+        console.log('Token refresh failed, clearing authentication')
+        this.accessToken = null
+        this.tokenExpiry = null
+        this.clearTokenFromStorage()
+        throw new Error('Authentication expired. Please sign in again.')
+      }
     }
 
     if (!this.accessToken) {
@@ -381,8 +465,29 @@ class GoogleDriveService {
       } catch (error) {
         console.error('Request failed:', error)
         
+        // Check if it's an authentication error
+        if (error.message && error.message.includes('Authentication expired')) {
+          console.log('Authentication error detected, attempting token refresh...')
+          try {
+            await this.refreshToken()
+            // Put the request back in the queue to retry with new token
+            this.requestQueue.unshift({ requestFn, resolve, reject })
+            break
+          } catch (refreshError) {
+            console.error('Token refresh failed, attempting force re-authentication...')
+            try {
+              await this.forceReAuthentication()
+              // Put the request back in the queue to retry with new token
+              this.requestQueue.unshift({ requestFn, resolve, reject })
+              break
+            } catch (reauthError) {
+              console.error('Force re-authentication failed:', reauthError)
+              reject(error) // Return original error
+            }
+          }
+        }
         // Check if it's a rate limit error
-        if (error.status === 429 || (error.message && error.message.includes('quota'))) {
+        else if (error.status === 429 || (error.message && error.message.includes('quota'))) {
           // Increase delay and retry
           this.rateLimitDelay = Math.min(this.rateLimitDelay * 2, 10000)
           console.log(`Rate limited, increasing delay to ${this.rateLimitDelay}ms`)
@@ -391,8 +496,9 @@ class GoogleDriveService {
           this.requestQueue.unshift({ requestFn, resolve, reject })
           break
         }
-
-        reject(error)
+        else {
+          reject(error)
+        }
       }
     }
 
@@ -823,7 +929,14 @@ class GoogleDriveService {
       }
 
       const fileId = files.files[0].id
-      return await this.getFile(fileId)
+      const fileData = await this.getFile(fileId)
+      
+      // Decompress data if it was compressed
+      if (fileData && typeof fileData === 'object' && fileData.compressed !== undefined) {
+        return decompressData(fileData)
+      }
+      
+      return fileData
     } catch (error) {
       console.error(`Error getting tracking file for ${month}:`, error)
       throw error
@@ -834,14 +947,23 @@ class GoogleDriveService {
   async saveMonthlyTrackingFile(month, data) {
     try {
       const fileName = `tracking-my-hot-self_${month}.json`
+      
+      // Compress data if it's large
+      const compressedData = compressData(data)
+      const content = JSON.stringify(compressedData, null, 2)
+      
       const files = await this.listFiles(`name='${fileName}'`)
       
       if (files.files.length === 0) {
-        return await this.createFile(fileName, data)
+        const result = await this.createFile(fileName, content)
+        console.log(`Created monthly tracking file: ${fileName}${compressedData.compressed ? ` (compressed: ${compressedData.compressionRatio}% smaller)` : ''}`)
+        return result
       }
 
       const fileId = files.files[0].id
-      return await this.updateFile(fileId, data)
+      const result = await this.updateFile(fileId, content)
+      console.log(`Updated monthly tracking file: ${fileName}${compressedData.compressed ? ` (compressed: ${compressedData.compressionRatio}% smaller)` : ''}`)
+      return result
     } catch (error) {
       console.error(`Error saving tracking file for ${month}:`, error)
       throw error

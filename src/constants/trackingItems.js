@@ -28,7 +28,7 @@ export const TRACKING_ITEMS = {
     evening: true,
     quick: true,
     textOptions: ['I\'m good', 'Maybe a little anxious', 'This is normal, right?', 'I\'m freaking out', 'OMG, leave me alone!'],
-    faceEmojis: ['😎', '😁', '😳', '😧', '😭'],
+    faceEmojis: ['😎', '😊', '😳', '😧', '😭'],
     heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
     dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
   },
@@ -73,7 +73,7 @@ export const TRACKING_ITEMS = {
     evening: true,
     quick: true,
     textOptions: ['None', 'Minimal', 'Mild', 'Moderate', 'Severe'],
-    faceEmojis: ['😎', '😁', '😳', '😧', '😭'],
+    faceEmojis: ['😎', '😊', '😳', '😧', '😭'],
     heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
     dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
   },
@@ -134,8 +134,8 @@ export const TRACKING_ITEMS = {
     quick: true,
     textOptions: ['Couch potato', 'Light movement', 'Decent workout', 'Good sweat', 'Beast mode'],
     faceEmojis: ['🛋️', '🚶‍♀️', '🏃‍♀️', '💪', '🏋️‍♀️'],
-    heartEmojis: ['💙', '💛', '🧡', '❤️', '💚'],
-    dotEmojis: ['🔵', '🟡', '🟠', '🔴', '🟢']
+    heartEmojis: ['💙', '❤️', '🧡', '💛', '💚'],
+    dotEmojis: ['🔵', '🔴', '🟠', '🟡', '🟢']
   },
   forehead_shine: {
     id: 'forehead_shine',
@@ -272,8 +272,8 @@ export const TRACKING_ITEMS = {
     morning: true,
     evening: true,
     quick: true,
-    textOptions: ['Shut up', 'Yeah, not really', 'Yaaas, queen!'],
-    faceEmojis: ['😡', '😐', '😎'],
+    textOptions: ['Shut up', 'I\'m fine', 'Yaaas, queen!'],
+    faceEmojis: ['😡', '🙂', '😎'],
     heartEmojis: ['❤️', '💛', '💚'],
     dotEmojis: ['🔴', '🟡', '🟢']
   },
@@ -329,7 +329,7 @@ export const TRACKING_ITEMS = {
     evening: false,
     quick: false,
     textOptions: ['What is sleep?', 'Tossed and turned', 'Not bad', 'Pretty good', 'Like a log'],
-    faceEmojis: ['😵', '😴', '😐', '😊', '😴'],
+    faceEmojis: ['😵', '😧', '😐', '😊', '😴'],
     heartEmojis: ['💙', '❤️', '🧡', '💛', '💚'],
     dotEmojis: ['🔵', '🔴', '🟠', '🟡', '🟢']
   },
@@ -359,7 +359,7 @@ export const TRACKING_ITEMS = {
     evening: true,
     quick: true,
     textOptions: ['I\'m super chill', 'Not bad', 'Meh', 'A little tense', 'OMG, leave me alone!'],
-    faceEmojis: ['😎', '😁', '😳', '😧', '😭'],
+    faceEmojis: ['😎', '😊', '😳', '😧', '😭'],
     heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
     dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
   },
@@ -374,9 +374,24 @@ export const TRACKING_ITEMS = {
     evening: true,
     quick: true,
     textOptions: ['What temperature swing?', 'Feeling normal', 'Gimme that blanket!'],
-    faceEmojis: ['😎', '😳', '😰'],
+    faceEmojis: ['😎', '😊', '😰'],
     heartEmojis: ['💚', '💛', '❤️'],
     dotEmojis: ['🟢', '🟡', '🔴']
+  },
+  workout_recovery: {
+    id: 'workout_recovery',
+    name: 'Workout Recovery',
+    category: 'body',
+    scale: 3,
+    good: 'high',
+    description: 'How are you feeling after that workout?',
+    morning: true,
+    evening: true,
+    quick: true,
+    textOptions: ['Everything hurts', 'A little sore', 'Feeling great!'],
+    faceEmojis: ['😭', '😊', '💪'],
+    heartEmojis: ['❤️', '💛', '💚'],
+    dotEmojis: ['🔴', '🟡', '🟢']
   },
   wearables_body_battery: {
     id: 'wearables_body_battery',
@@ -415,7 +430,7 @@ export const TRACKING_ITEMS = {
     evening: false,
     quick: false,
     textOptions: ['No dreams', 'Normal dreams', 'The weirdest dreams!'],
-    faceEmojis: ['😎', '😳', '😫'],
+    faceEmojis: ['😎', '😊', '😫'],
     heartEmojis: ['💚', '💛', '❤️'],
     dotEmojis: ['🟢', '🟡', '🔴']
   }
