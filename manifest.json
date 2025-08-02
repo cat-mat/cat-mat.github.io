@@ -1,0 +1,108 @@
+{
+  "name": "What Even With My Hot Self?!",
+  "short_name": "Hot Self",
+  "description": "A body, mind, and emotional changes tracker for women in perimenopause and beyond",
+  "theme_color": "#f093fb",
+  "background_color": "#f093fb",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "categories": ["health", "lifestyle", "medical"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%23f093fb' rx='24'/><text x='96' y='120' font-size='120' text-anchor='middle' fill='white'>🔥</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%23f093fb' rx='64'/><text x='256' y='320' font-size='320' text-anchor='middle' fill='white'>🔥</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'><rect width='72' height='72' fill='%23f093fb' rx='12'/><text x='36' y='48' font-size='36' text-anchor='middle' fill='white'>🔥</text></svg>",
+      "sizes": "72x72",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' fill='%23f093fb' rx='16'/><text x='48' y='64' font-size='48' text-anchor='middle' fill='white'>🔥</text></svg>",
+      "sizes": "96x96",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' fill='%23f093fb' rx='20'/><text x='64' y='84' font-size='64' text-anchor='middle' fill='white'>🔥</text></svg>",
+      "sizes": "128x128",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 144 144'><rect width='144' height='144' fill='%23f093fb' rx='24'/><text x='72' y='96' font-size='72' text-anchor='middle' fill='white'>🔥</text></svg>",
+      "sizes": "144x144",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 152 152'><rect width='152' height='152' fill='%23f093fb' rx='24'/><text x='76' y='100' font-size='76' text-anchor='middle' fill='white'>🔥</text></svg>",
+      "sizes": "152x152",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 384'><rect width='384' height='384' fill='%23f093fb' rx='48'/><text x='192' y='240' font-size='192' text-anchor='middle' fill='white'>🔥</text></svg>",
+      "sizes": "384x384",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Morning Check-in",
+      "short_name": "Morning",
+      "description": "Start your day with a morning check-in",
+      "url": "/?view=morning",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
+          "sizes": "any"
+        }
+      ]
+    },
+    {
+      "name": "Quick Track",
+      "short_name": "Quick",
+      "description": "Quick check-in throughout the day",
+      "url": "/?view=quick",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
+          "sizes": "any"
+        }
+      ]
+    },
+    {
+      "name": "Evening Reflection",
+      "short_name": "Evening",
+      "description": "End your day with reflection",
+      "url": "/?view=evening",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
+          "sizes": "any"
+        }
+      ]
+    }
+  ]
+} 
