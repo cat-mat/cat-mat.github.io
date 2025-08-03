@@ -19,15 +19,15 @@ const AppHeader = ({
 
   return (
     <header
-      className="sticky top-0 z-40 bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 shadow-wildflower"
-      style={{ top: bannerHeight }}
+      className="sticky top-0 z-40 bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 shadow-wildflower header-dynamic-top"
+      style={{ '--banner-height': `${bannerHeight}px` }}
     >
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
             <div className="text-2xl mr-3 animate-bloom">🐦‍🔥 ❤️‍🔥</div>
-            <h1 className="text-xl font-bold text-white wildflower-text-shadow">
+            <h1 className="text-lg font-bold text-white wildflower-text-shadow">
               What Even With My Hot Self?!
             </h1>
           </div>

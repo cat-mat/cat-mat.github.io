@@ -1,0 +1,49 @@
+/* Production Hardening: Replacing inline styles with CSS classes */
+
+/* Service Worker Manager Banner */
+.banner-min-height {
+  min-height: 40px; /* BANNER_HEIGHT constant */
+}
+
+/* App Header Dynamic Positioning */
+.header-dynamic-top {
+  /* This will be set via CSS custom properties */
+  top: var(--banner-height, 0px);
+}
+
+/* Insights Chart Container */
+.chart-container {
+  height: 350px; /* chartHeight + padding * 2 + 30 = 240 + 120 + 30 = 390px */
+}
+
+.chart-svg {
+  min-width: 600px;
+  left: 20px;
+}
+
+.chart-text-small {
+  font-size: 10px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chart-container {
+    height: 300px;
+  }
+  
+  .chart-svg {
+    min-width: 400px;
+    left: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-container {
+    height: 250px;
+  }
+  
+  .chart-svg {
+    min-width: 300px;
+    left: 5px;
+  }
+} 

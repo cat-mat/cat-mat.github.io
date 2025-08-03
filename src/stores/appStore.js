@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { subscribeWithSelector } from 'zustand/middleware'
-import googleDriveService from '../services/googleDriveService.js'
+import { googleDriveService } from '../services/googleDriveService.js'
 import { validateEntry, validateConfig, sanitizeEntry, migrateData } from '../utils/validation.js'
 import { TRACKING_ITEMS, DEFAULT_VIEW_TIMES, SYNC_STATUS } from '../constants/trackingItems.js'
+import LZString from 'lz-string'
 
 // Default configuration
 const getDefaultConfig = (userEmail) => ({
@@ -105,8 +106,7 @@ const getDefaultConfig = (userEmail) => ({
           visible: true,
           collapsed: false
         }
-      },
-      wearables: ['wearables_sleep_score', 'wearables_body_battery']
+      }
     },
     evening_report: {
       sections: {
@@ -181,6 +181,7 @@ const getDefaultConfig = (userEmail) => ({
             // Alphabetized body items with quick: true
             'allergic_reactions',
             'energy_level',
+            'exercise_impact',
             'forehead_shine',
             'headache',
             'hot_flashes',
@@ -193,6 +194,7 @@ const getDefaultConfig = (userEmail) => ({
           sort_order: [
             'allergic_reactions',
             'energy_level',
+            'exercise_impact',
             'forehead_shine',
             'headache',
             'hot_flashes',
@@ -289,7 +291,13 @@ export const useAppStore = create(
           }))
 
           try {
-            const result = await googleDriveService.signIn()
+                         // Add timeout to prevent hanging - increased for authentication flow
+             const signInPromise = googleDriveService.signIn()
+             const timeoutPromise = new Promise((_, reject) => {
+               setTimeout(() => reject(new Error('Connection timeout - please try again. The authentication process may take a few minutes.')), 125000) // 2 minutes + 5 seconds
+             })
+
+            const result = await Promise.race([signInPromise, timeoutPromise])
             
             if (result.success) {
               set(state => ({
@@ -312,15 +320,28 @@ export const useAppStore = create(
                 }
               }))
             }
-          } catch (error) {
-            set(state => ({
-              auth: {
-                ...state.auth,
-                isLoading: false,
-                error: error.message
-              }
-            }))
-          }
+                     } catch (error) {
+             console.error('Sign in error:', error)
+             set(state => ({
+               auth: {
+                 ...state.auth,
+                 isLoading: false,
+                 error: error.message || 'Google Drive connection failed. Please check your internet connection and try again.'
+               }
+             }))
+           }
+        },
+
+        // Manual reset function
+        resetAuthState: () => {
+          set(state => ({
+            auth: {
+              isAuthenticated: false,
+              user: null,
+              isLoading: false,
+              error: null
+            }
+          }))
         },
 
         signOut: async () => {
@@ -352,7 +373,7 @@ export const useAppStore = create(
           const { auth } = get()
           if (!auth.isAuthenticated) return
 
-          console.log('Loading config for user:', auth.user.email)
+          console.log('Loading config for user...')
 
           set(state => ({
             configLoading: true,
@@ -360,16 +381,15 @@ export const useAppStore = create(
           }))
 
           try {
-            let config = await googleDriveService.getConfigFile()
-            console.log('Retrieved config:', config)
+            let config = await googleDriveService.getConfigFile(auth.user.email)
+            console.log('Retrieved config successfully')
             
-            if (!config) {
-              // Create default config for new user
-              config = getDefaultConfig(auth.user.email)
-              console.log('Created default config:', config)
-              await googleDriveService.saveConfigFile(config)
-            } else {
-              // Migrate config if needed
+            // Let the Google Drive service handle all config creation and migration
+            // The getConfigFile method will create a proper config if none exists
+            // and migrate any old configs automatically
+            
+            if (config) {
+              // Migrate config if needed (for any additional migrations)
               config = migrateData(config)
             }
 
@@ -379,7 +399,7 @@ export const useAppStore = create(
               throw new Error(`Invalid configuration: ${validation.errors.map(e => e.message).join(', ')}`)
             }
 
-            console.log('Setting config:', validation.data)
+            console.log('Setting config successfully')
 
             set({
               config: validation.data,
@@ -418,7 +438,9 @@ export const useAppStore = create(
 
           // Save to Google Drive
           try {
+            console.log('Saving config to Google Drive...')
             await googleDriveService.saveConfigFile(validation.data)
+            console.log('Config saved successfully')
           } catch (error) {
             console.error('Failed to save config:', error)
             // Revert changes on save failure
@@ -429,10 +451,38 @@ export const useAppStore = create(
 
         // Helper function to update display type
         updateDisplayType: async (displayType) => {
-          const { config } = get()
-          if (!config) return
+          const { config, auth } = get()
+          
+          // Enhanced authentication check
+          if (!auth.isAuthenticated) {
+            console.error('User not authenticated for display type update')
+            throw new Error('Please sign in to update settings')
+          }
+
+          // Verify Google Drive connection is still active
+          try {
+            const isSignedIn = await googleDriveService.isSignedIn()
+            if (!isSignedIn) {
+              console.error('Google Drive connection lost, re-authentication needed')
+              throw new Error('Connection lost. Please sign in again.')
+            }
+          } catch (error) {
+            console.error('Failed to verify Google Drive connection:', error)
+            throw new Error('Connection verification failed. Please sign in again.')
+          }
+
+          if (!config) {
+            console.error('No config available for display type update')
+            throw new Error('Configuration not available')
+          }
+
+          // Check if config version is compatible
+          if (config.version && config.version !== '1.3.0') {
+            console.warn('Config version mismatch, may need refresh:', config.version)
+          }
 
           console.log('Updating display type to:', displayType)
+          console.log('Current config display_options:', config.display_options)
 
           const updatedConfig = {
             ...config,
@@ -443,21 +493,27 @@ export const useAppStore = create(
             updated_at: new Date().toISOString()
           }
 
+          console.log('Updated config display_options:', updatedConfig.display_options)
+
           // Validate updated config
           const validation = validateConfig(updatedConfig)
           if (!validation.isValid) {
+            console.error('Config validation failed:', validation.errors)
             throw new Error(`Invalid configuration: ${validation.errors.map(e => e.message).join(', ')}`)
           }
 
+          console.log('Config validation passed, updating local state')
           set({ config: validation.data })
 
           // Save to Google Drive
           try {
+            console.log('Saving to Google Drive...')
             await googleDriveService.saveConfigFile(validation.data)
-            console.log('Display type updated successfully')
+            console.log('Display type updated successfully in Google Drive')
           } catch (error) {
-            console.error('Failed to save display type:', error)
+            console.error('Failed to save display type to Google Drive:', error)
             // Revert changes on save failure
+            console.log('Reverting local config changes due to save failure')
             set({ config })
             throw error
           }
@@ -733,18 +789,33 @@ export const useAppStore = create(
             throw new Error('User not authenticated')
           }
 
-          console.log('Importing tracking data:', importData)
+          console.log('Importing tracking data...')
+          console.log('Import data structure:', {
+            hasVersion: !!importData.version,
+            hasEntries: !!importData.entries,
+            isEntriesArray: Array.isArray(importData.entries),
+            entriesLength: importData.entries?.length || 0,
+            version: importData.version,
+            exportedAt: importData.exported_at
+          })
 
           try {
             // Validate import data structure
             if (!importData.version || !importData.entries || !Array.isArray(importData.entries)) {
+              console.error('Invalid import structure:', importData)
               throw new Error('Invalid import file format')
             }
 
             // Validate and process entries
             const validEntries = importData.entries.filter(entry => {
-              return entry.id && entry.timestamp && entry.type
+              const isValid = entry.id && entry.timestamp && entry.type
+              if (!isValid) {
+                console.warn('Invalid entry found:', entry)
+              }
+              return isValid
             })
+
+            console.log(`Found ${validEntries.length} valid entries out of ${importData.entries.length} total entries`)
 
             if (validEntries.length === 0) {
               throw new Error('No valid entries found in import file')
@@ -768,16 +839,25 @@ export const useAppStore = create(
               monthlyData[month].entries.push(entry)
             })
 
+            console.log('Monthly data groups:', Object.keys(monthlyData).map(month => ({
+              month,
+              entryCount: monthlyData[month].entries.length
+            })))
+
             // Save each month's data
             for (const [month, data] of Object.entries(monthlyData)) {
               data.estimated_size_kb = Math.round(JSON.stringify(data).length / 1024)
               
+              console.log(`Saving month ${month} with ${data.entries.length} entries...`)
+              
               if (googleDriveService.isMockMode) {
                 // Save to localStorage in mock mode
                 localStorage.setItem(`mock_tracking_${month}`, JSON.stringify(data))
+                console.log(`Saved to localStorage: mock_tracking_${month}`)
               } else {
                 // Save to Google Drive
                 await googleDriveService.saveMonthlyTrackingFile(month, data)
+                console.log(`Saved to Google Drive: tracking-my-hot-self_${month}.json`)
               }
             }
 
@@ -786,10 +866,18 @@ export const useAppStore = create(
             const currentMonthData = monthlyData[currentMonth]
             
             if (currentMonthData) {
+              // Ensure all imported entries have synced status
+              const updatedEntries = currentMonthData.entries
+                .filter(entry => !entry.is_deleted)
+                .map(entry => ({
+                  ...entry,
+                  sync_status: SYNC_STATUS.synced
+                }))
+              
               set(state => ({
                 trackingData: {
                   ...state.trackingData,
-                  entries: currentMonthData.entries.filter(entry => !entry.is_deleted)
+                  entries: updatedEntries
                 }
               }))
             }
@@ -867,10 +955,45 @@ export const useAppStore = create(
           const { auth, config, trackingData } = get()
           if (!auth.isAuthenticated || !config) return
 
-          // Sanitize and validate entry
+
+
+          // Check for existing entry for today and this view type (using local timezone)
+          const today = new Date().toLocaleDateString('en-CA') // Returns YYYY-MM-DD in local timezone
+          const viewType = get().ui.currentView
+          
+          // Only check for existing entries for morning/evening types (not quick entries)
+          // Quick entries should allow multiple entries per day
+          if (viewType === 'morning' || viewType === 'evening') {
+            const existingEntries = trackingData.entries.filter(entry => {
+              // Convert UTC timestamp to local date for comparison
+              const entryDate = new Date(entry.timestamp).toLocaleDateString('en-CA')
+              return entryDate === today && entry.type === viewType && !entry.is_deleted
+            })
+
+            
+
+            // If there's an existing entry for morning/evening, update it instead of creating a new one
+            if (existingEntries.length > 0) {
+              // Get the most recent entry
+              const mostRecentEntry = existingEntries.reduce((latest, current) => {
+                const latestTime = new Date(latest.timestamp).getTime()
+                const currentTime = new Date(current.timestamp).getTime()
+                return currentTime > latestTime ? current : latest
+              })
+
+
+
+              // Update the existing entry
+              return await get().updateEntry(mostRecentEntry.id, entryData)
+            }
+          } else {
+            // For quick entries, always create new entries
+          }
+
+          // Sanitize and validate entry for new entry
           const sanitizedEntry = sanitizeEntry({
             ...entryData,
-            type: get().ui.currentView
+            type: viewType
           })
 
           const validation = validateEntry(sanitizedEntry)
@@ -879,6 +1002,8 @@ export const useAppStore = create(
           }
 
           const entry = validation.data
+
+
 
           // Add to local state immediately
           set(state => ({
@@ -915,12 +1040,22 @@ export const useAppStore = create(
           const entryIndex = trackingData.entries.findIndex(entry => entry.id === entryId)
           if (entryIndex === -1) return
 
+          console.log('🔍 AppStore Debug - updateEntry:', {
+            entryId,
+            existingEntry: trackingData.entries[entryIndex],
+            updates,
+            weirdDreamsInExisting: trackingData.entries[entryIndex]?.weird_dreams,
+            weirdDreamsInUpdates: updates.weird_dreams
+          })
+
           const updatedEntry = {
             ...trackingData.entries[entryIndex],
             ...updates,
             updated_at: new Date().toISOString(),
             sync_status: SYNC_STATUS.pending
           }
+
+
 
           // Validate updated entry
           const validation = validateEntry(updatedEntry)
@@ -1253,16 +1388,22 @@ export const useAppStore = create(
             // Sort by timestamp (newest first)
             allEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 
+            // Clear any failed sync statuses since data was successfully loaded from Google Drive
+            const cleanedEntries = allEntries.map(entry => ({
+              ...entry,
+              sync_status: entry.sync_status === SYNC_STATUS.failed ? SYNC_STATUS.synced : entry.sync_status
+            }))
+
             set(state => ({
               trackingData: {
                 ...state.trackingData,
-                entries: allEntries,
+                entries: cleanedEntries,
                 isLoading: false,
                 error: null
               }
             }))
 
-            console.log(`Loaded ${allEntries.length} historical entries`)
+            console.log(`Loaded ${cleanedEntries.length} historical entries`)
           } catch (error) {
             console.error('Failed to load historical data:', error)
             set(state => ({
@@ -1288,15 +1429,78 @@ export const useAppStore = create(
             config: config
           }
 
-          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = `tracking-config-${new Date().toISOString().slice(0, 10)}.json`
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          URL.revokeObjectURL(url)
+          // Compress the JSON data
+          const jsonString = JSON.stringify(exportData, null, 2)
+          const compressedData = LZString.compress(jsonString)
+          
+          // Create a compressed export with metadata
+          const compressedExport = {
+            version: '1.0.0',
+            compressed: true,
+            original_size: jsonString.length,
+            compressed_size: compressedData.length,
+            compression_ratio: ((1 - compressedData.length / jsonString.length) * 100).toFixed(1),
+            data: compressedData
+          }
+
+          const finalJsonString = JSON.stringify(compressedExport, null, 2)
+          const fileName = `tracking-config-${new Date().toISOString().slice(0, 10)}.json`
+
+          // Mobile-friendly export
+          if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            console.log('Mobile device detected, attempting clipboard copy...')
+            console.log('Clipboard API available:', !!navigator.clipboard)
+            console.log('Secure context:', window.isSecureContext)
+            
+            // For mobile devices, copy to clipboard and show instructions
+            if (navigator.clipboard && window.isSecureContext) {
+              navigator.clipboard.writeText(finalJsonString).then(() => {
+                console.log('Configuration copied to clipboard successfully')
+                console.log('Copied data length:', finalJsonString.length)
+                // Show a notification that it was copied
+                if (typeof window !== 'undefined' && window.showExportNotification) {
+                  window.showExportNotification('Configuration copied to clipboard! You can paste it into a text file.')
+                }
+              }).catch(err => {
+                console.error('Failed to copy to clipboard:', err)
+                console.log('Falling back to textarea method...')
+                // Fallback: create a temporary textarea for copying
+                const textarea = document.createElement('textarea')
+                textarea.value = finalJsonString
+                textarea.style.position = 'fixed'
+                textarea.style.left = '-999999px'
+                textarea.style.top = '-999999px'
+                document.body.appendChild(textarea)
+                textarea.focus()
+                textarea.select()
+                try {
+                  document.execCommand('copy')
+                  console.log('Configuration copied using execCommand')
+                  alert(`Configuration copied to clipboard! You can paste it into a text file.\n\nIf pasting doesn't work, the data is also shown below:\n\n${finalJsonString}`)
+                } catch (execErr) {
+                  console.error('execCommand failed:', execErr)
+                  alert(`Configuration exported! Copy this data and save it as ${fileName}:\n\n${finalJsonString}`)
+                } finally {
+                  document.body.removeChild(textarea)
+                }
+              })
+            } else {
+              console.log('Clipboard API not available, using alert fallback...')
+              // Fallback for older browsers
+              alert(`Configuration exported! Copy this data and save it as ${fileName}:\n\n${finalJsonString}`)
+            }
+          } else {
+            // Desktop download
+            const blob = new Blob([finalJsonString], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = fileName
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+          }
 
           return { success: true, configExported: true }
         },
@@ -1309,13 +1513,32 @@ export const useAppStore = create(
           }
 
           try {
+            // Handle compressed data
+            let dataToImport = importData
+            if (importData.compressed && importData.data) {
+              try {
+                // Decompress the data
+                const decompressedData = LZString.decompress(importData.data)
+                if (!decompressedData) {
+                  throw new Error('Failed to decompress data')
+                }
+                
+                // Parse the decompressed JSON
+                dataToImport = JSON.parse(decompressedData)
+                
+                console.log(`Successfully decompressed config: ${importData.original_size} -> ${importData.compressed_size} bytes (${importData.compression_ratio}% compression)`)
+              } catch (decompressError) {
+                throw new Error(`Failed to decompress data: ${decompressError.message}`)
+              }
+            }
+
             // Validate import data structure
-            if (!importData.version || !importData.config) {
+            if (!dataToImport.version || !dataToImport.config) {
               throw new Error('Invalid configuration file format')
             }
 
             // Validate the configuration
-            const validation = validateConfig(importData.config)
+            const validation = validateConfig(dataToImport.config)
             if (validation.error) {
               throw new Error(`Configuration validation failed: ${validation.error.message}`)
             }
@@ -1336,8 +1559,8 @@ export const useAppStore = create(
               success: true,
               configImported: true,
               importMetadata: {
-                version: importData.version,
-                exportedAt: importData.exported_at
+                version: dataToImport.version,
+                exportedAt: dataToImport.exported_at
               }
             }
           } catch (error) {

@@ -57,7 +57,7 @@
   }
   
   .scale-button {
-    @apply py-3 px-2 text-center border border-gray-200 rounded-lg transition-all duration-300 hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-400 bg-cream-500 hover:shadow-soft;
+    @apply py-3 px-0.5 text-center border border-gray-200 rounded-lg transition-all duration-300 hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-400 bg-cream-500 hover:shadow-soft;
   }
   
   .scale-button.selected {
@@ -85,7 +85,7 @@
   }
   
   .section-content {
-    @apply p-4 space-y-4;
+    @apply p-2 space-y-4;
   }
   
   .item-row {

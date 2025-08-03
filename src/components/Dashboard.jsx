@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import TrackingForm from './TrackingForm.jsx'
 import LoadingSpinner from './LoadingSpinner.jsx'
 import { clsx } from 'clsx'
-import { useBannerContext } from './ServiceWorkerManager.jsx'
+// Removed ServiceWorkerManager import - PWA functionality disabled
 import AppHeader from './AppHeader.jsx';
 
 const Dashboard = () => {
@@ -32,24 +32,24 @@ const Dashboard = () => {
   const [configImportSuccess, setConfigImportSuccess] = useState('')
   const location = useLocation()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { bannerHeight } = useBannerContext()
+  const bannerHeight = 0 // PWA functionality disabled
 
   const { user } = auth
   const { currentView } = ui
   const { entries, isLoading } = trackingData
 
-  // Get today's entries
-  const today = format(new Date(), 'yyyy-MM-dd')
+  // Get today's entries (using local timezone, excluding deleted entries)
+  const today = new Date().toLocaleDateString('en-CA') // Returns YYYY-MM-DD in local timezone
   const todaysEntries = entries.filter(entry => {
-    // Ensure timestamp is a string before calling startsWith
-    const timestamp = typeof entry.timestamp === 'string' 
-      ? entry.timestamp 
-      : entry.timestamp?.toISOString?.() || String(entry.timestamp || '')
-    return timestamp.startsWith(today)
+    // Convert UTC timestamp to local date for comparison
+    const entryDate = new Date(entry.timestamp).toLocaleDateString('en-CA')
+    return entryDate === today && !entry.is_deleted
   })
 
   // Get current view entries
   const currentViewEntries = todaysEntries.filter(entry => entry.type === currentView)
+  
+
 
   const handleSignOut = async () => {
     try {

@@ -2,7 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import LoadingSpinner from './LoadingSpinner.jsx'
 
-const AuthScreen = ({ onSignIn, isLoading, error }) => {
+const AuthScreen = ({ onSignIn, isLoading, error, onReset }) => {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 wildflower-bg">
       <div className="max-w-md w-full">
@@ -74,6 +74,44 @@ const AuthScreen = ({ onSignIn, isLoading, error }) => {
               </div>
             )}
           </button>
+          
+          {isLoading && (
+            <p className="text-sm text-gray-600 mt-2 text-center">
+              This may take a few minutes. Please complete the Google sign-in process in the popup window.
+            </p>
+          )}
+
+          {/* Reset buttons when stuck */}
+          {isLoading && (
+            <div className="mt-3 space-y-2">
+              <button
+                onClick={() => {
+                  console.log('Soft reset clicked')
+                  onReset && onReset()
+                }}
+                className="w-full bg-yellow-100 hover:bg-yellow-200 text-yellow-700 py-2 px-4 rounded-lg text-sm font-medium transition-colors border border-yellow-300"
+              >
+                🔄 Soft Reset
+              </button>
+              <button
+                onClick={() => {
+                  console.log('Hard reset clicked - clearing cache and forcing refresh')
+                  // Clear all caches and force refresh
+                  if ('caches' in window) {
+                    caches.keys().then(names => {
+                      names.forEach(name => caches.delete(name))
+                    })
+                  }
+                  localStorage.clear()
+                  sessionStorage.clear()
+                  window.location.href = window.location.href + '?t=' + Date.now()
+                }}
+                className="w-full bg-red-100 hover:bg-red-200 text-red-700 py-2 px-4 rounded-lg text-sm font-medium transition-colors border border-red-300"
+              >
+                🔄 Force Refresh (Clear Cache)
+              </button>
+            </div>
+          )}
 
           {/* Error message */}
           {error && (

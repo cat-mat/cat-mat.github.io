@@ -18,11 +18,23 @@ const ServiceWorkerManager = () => {
   }, [])
 
   const registerServiceWorker = async () => {
+    // Skip service worker registration in certain environments
+    if (import.meta.env.DEV && import.meta.env.VITE_MOCK_GOOGLE_DRIVE === 'true') {
+      console.log('[SW] Skipping service worker registration in mock mode')
+      return
+    }
+    
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/'
-        })
+        // Try multiple paths for service worker registration
+        const basePath = window.location.pathname.replace(/\/$/, '')
+        const possiblePaths = [
+          '/sw.js',
+          `${basePath}/sw.js`,
+          '/cat-mat.github.io-1/sw.js'
+        ]
+        
+        const registration = await tryRegisterServiceWorker(possiblePaths)
 
         setSwRegistration(registration)
         console.log('Service Worker registered successfully:', registration)
@@ -68,16 +80,63 @@ const ServiceWorkerManager = () => {
         }
 
       } catch (error) {
-        console.error('Service Worker registration failed:', error)
-        addNotification({
-          type: 'error',
-          title: 'PWA Setup Failed',
-          message: 'Unable to enable offline functionality.'
-        })
+        console.warn('Service Worker registration failed:', error.message)
+        
+        // Only show notification for actual errors, not 404s or network issues
+        if (!error.message.includes('404') && 
+            !error.message.includes('Failed to fetch') && 
+            !error.message.includes('NetworkError')) {
+          addNotification({
+            type: 'warning',
+            title: 'Offline Features Limited',
+            message: 'Some offline features may not be available.'
+          })
+        }
       }
     } else {
       console.log('Service Worker not supported')
     }
+  }
+
+  // Helper function to determine the correct service worker path
+  const getServiceWorkerPath = () => {
+    // Check if we're in development
+    if (import.meta.env.DEV) {
+      return '/sw.js'
+    }
+    
+    // For production, try different paths based on deployment
+    const basePath = window.location.pathname.replace(/\/$/, '')
+    
+    // Return the most likely path based on current location
+    if (window.location.hostname === 'cat-mat.github.io') {
+      return '/cat-mat.github.io-1/sw.js'
+    }
+    
+    // For other deployments, try the base path
+    if (basePath && basePath !== '/') {
+      return `${basePath}/sw.js`
+    }
+    
+    return '/sw.js'
+  }
+
+  // Try to register service worker with fallback paths
+  const tryRegisterServiceWorker = async (paths) => {
+    for (const path of paths) {
+      try {
+        console.log(`[SW] Trying to register service worker at: ${path}`)
+        const registration = await navigator.serviceWorker.register(path, {
+          scope: '/'
+        })
+        console.log(`[SW] Successfully registered at: ${path}`)
+        return registration
+      } catch (error) {
+        console.warn(`[SW] Failed to register at ${path}:`, error.message)
+        // Continue to next path
+      }
+    }
+    throw new Error('Service worker registration failed for all attempted paths')
   }
 
   const setupNetworkListeners = () => {
@@ -117,103 +176,132 @@ const ServiceWorkerManager = () => {
 
   const updateApp = () => {
     console.log('[ServiceWorker] Update requested')
-    console.log('[ServiceWorker] Registration:', swRegistration)
-    console.log('[ServiceWorker] Waiting worker:', swRegistration?.waiting)
     
     if (swRegistration && swRegistration.waiting) {
-      console.log('[ServiceWorker] Sending SKIP_WAITING message')
-      // Send message to service worker to skip waiting
+      // Send message to waiting service worker to skip waiting
       swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' })
       
-      // Reload the page when the new service worker takes over
+      // Listen for the controller change
       const handleControllerChange = () => {
-        console.log('[ServiceWorker] Controller changed, reloading page')
         window.location.reload()
       }
-      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange, { once: true })
-    } else {
-      console.log('[ServiceWorker] No waiting worker, forcing reload')
-      // Fallback: force reload if no waiting service worker
-      window.location.reload()
+      
+      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange)
+      
+      // Cleanup listener after reload
+      setTimeout(() => {
+        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
+      }, 1000)
     }
   }
 
   const handleBackgroundSync = () => {
-    // This will be handled by the app store's sync functionality
-    console.log('Background sync requested')
+    // Trigger data sync in the app store
+    const { syncOfflineEntries } = useAppStore.getState()
+    if (syncOfflineEntries) {
+      syncOfflineEntries()
+    }
   }
 
   const requestNotificationPermission = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
+    if (!('Notification' in window)) {
+      console.warn('Notifications not supported in this browser')
+      return false
+    }
+
+    if (Notification.permission === 'granted') {
+      return true
+    }
+
+    if (Notification.permission === 'denied') {
+      console.warn('Notification permission denied')
+      addNotification({
+        type: 'warning',
+        title: 'Notifications Disabled',
+        message: 'Please enable notifications in your browser settings.'
+      })
+      return false
+    }
+
+    try {
       const permission = await Notification.requestPermission()
       if (permission === 'granted') {
         addNotification({
           type: 'success',
           title: 'Notifications Enabled',
-          message: 'You\'ll receive gentle reminders to check in with yourself.'
+          message: 'You\'ll now receive helpful reminders and insights.'
         })
+        return true
+      } else {
+        console.warn('Notification permission denied')
+        return false
       }
+    } catch (error) {
+      console.error('Error requesting notification permission:', error)
+      return false
     }
   }
 
-  // Request notification permission on first visit
-  useEffect(() => {
-    if (localStorage.getItem('notification-permission-requested') !== 'true') {
-      setTimeout(() => {
-        requestNotificationPermission()
-        localStorage.setItem('notification-permission-requested', 'true')
-      }, 5000) // Wait 5 seconds before asking
+  const showNotification = async (title, options = {}) => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+      console.warn('Notifications not enabled')
+      return false
     }
-    // Listen for manual show event
-    const handleShowNotification = () => {
-      requestNotificationPermission()
-      localStorage.setItem('notification-permission-requested', 'true')
-    }
-    window.addEventListener('show-notification-permission', handleShowNotification)
-    return () => {
-      window.removeEventListener('show-notification-permission', handleShowNotification)
-    }
-  }, [])
 
-  // Provide banner context to children
+    try {
+      const notification = new Notification(title, {
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        tag: 'tracking-app',
+        requireInteraction: false,
+        ...options
+      })
+
+      // Handle notification click
+      notification.onclick = () => {
+        window.focus()
+        notification.close()
+      }
+
+      // Auto-close after 5 seconds
+      setTimeout(() => {
+        notification.close()
+      }, 5000)
+
+      return true
+    } catch (error) {
+      console.error('Error showing notification:', error)
+      return false
+    }
+  }
+
+  // Banner context value
+  const bannerContextValue = {
+    bannerHeight: bannerVisible ? BANNER_HEIGHT : 0,
+    bannerVisible
+  }
+
   return (
-    <BannerContext.Provider value={{ bannerHeight: bannerVisible ? BANNER_HEIGHT : 0, bannerVisible }}>
-      {(isOffline || updateAvailable) && (
-        <div
-          className={
-            'w-full relative z-50 text-white px-4 py-2 text-center text-sm flex items-center justify-center transition-all duration-300 ' +
-            (isOffline ? 'bg-yellow-500' : 'bg-blue-500')
-          }
-          style={{ minHeight: BANNER_HEIGHT }}
+    <BannerContext.Provider value={bannerContextValue}>
+      {/* Banner for offline/update messages */}
+      {bannerVisible && (
+        <div 
+          className="fixed top-0 left-0 right-0 bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-sm text-yellow-800 z-50"
+          style={{ height: BANNER_HEIGHT }}
         >
-          {isOffline && (
-            <>
-              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              You're offline - Data will sync when connected
-            </>
-          )}
-          {updateAvailable && !isOffline && (
-            <>
-              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-              </svg>
-              Update available - 
-              <button 
-                onClick={() => updateApp()}
-                className="ml-2 underline hover:no-underline"
-              >
-                Click to update
-              </button>
-            </>
-          )}
+          <div className="flex items-center justify-between">
+            <span>⚠️ You're offline. Changes will sync when you reconnect.</span>
+            <button 
+              onClick={() => setBannerVisible(false)}
+              className="text-yellow-600 hover:text-yellow-800"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
     </BannerContext.Provider>
   )
 }
-
-export const useBannerContext = () => useContext(BannerContext)
 
 export default ServiceWorkerManager 

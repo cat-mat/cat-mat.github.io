@@ -3,17 +3,16 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  base: process.env.NODE_ENV === 'production' ? '/cat-mat.github.io-1/' : '/',
+  base: '/',
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
       manifest: {
         name: 'What Even With My Hot Self?!',
         short_name: 'Hot Self',
-        description: 'A body, mind, and emotional changes tracker for women in perimenopause and beyond',
-        theme_color: '#ffffff',
+        description: 'Track your perimenopause journey with personalized insights',
+        theme_color: '#f093fb',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
@@ -21,42 +20,30 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
+            src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔥</text></svg>',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any'
           }
         ]
-      },
-      injectManifest: {
-        swSrc: 'public/sw.js',
-        swDest: 'sw.js'
-      },
-      devOptions: {
-        enabled: true,
-        type: 'module'
       }
     })
   ],
   define: {
     'process.env.VITE_GOOGLE_CLIENT_ID': JSON.stringify(process.env.VITE_GOOGLE_CLIENT_ID),
     'process.env.VITE_ENVIRONMENT': JSON.stringify(process.env.VITE_ENVIRONMENT || 'development'),
-    'process.env.VITE_MOCK_GOOGLE_DRIVE': JSON.stringify(process.env.VITE_MOCK_GOOGLE_DRIVE || 'false'),
-    'process.env.VITE_CLAUDE_API_KEY': JSON.stringify(process.env.VITE_CLAUDE_API_KEY)
+    'process.env.VITE_MOCK_GOOGLE_DRIVE': JSON.stringify(process.env.VITE_MOCK_GOOGLE_DRIVE || 'false')
   },
   build: {
     outDir: 'dist',
     sourcemap: process.env.VITE_ENVIRONMENT === 'development',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: process.env.VITE_ENVIRONMENT === 'production',
+        drop_debugger: process.env.VITE_ENVIRONMENT === 'production'
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks: {
@@ -70,6 +57,23 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true
+    open: true,
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
+    }
+  },
+  preview: {
+    port: 4173,
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
+    }
   }
 }) 

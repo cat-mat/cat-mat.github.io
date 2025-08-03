@@ -157,15 +157,15 @@ const Settings = () => {
             <span className="text-xs text-gray-600 capitalize">{reportType}</span>
           </label>
           {checked && (
-            <span className="ml-1">
+            <span className="ml-1 inline-flex">
               <button
-                className="px-3 text-xs text-gray-500 hover:text-primary-600 disabled:opacity-30"
+                className="px-1 text-xs text-gray-500 hover:text-primary-600 disabled:opacity-30"
                 onClick={() => handleMove(item.id, reportType, 'up')}
                 disabled={arrIdx <= 0}
                 title="Move up"
               >▲</button>
               <button
-                className="px-3 text-xs text-gray-500 hover:text-primary-600 disabled:opacity-30"
+                className="px-1 text-xs text-gray-500 hover:text-primary-600 disabled:opacity-30"
                 onClick={() => handleMove(item.id, reportType, 'down')}
                 disabled={arrIdx === (checkedIds.length - 1)}
                 title="Move down"
@@ -218,25 +218,7 @@ const Settings = () => {
     }
   }
 
-  // Manual triggers for PWA install and notification prompt
-  const handleShowInstallPrompt = () => {
-    localStorage.removeItem('pwa-prompt-dismissed')
-    window.dispatchEvent(new Event('show-pwa-install-prompt'))
-    addNotification({
-      type: 'info',
-      title: 'Install Prompt',
-      message: 'If install is available, you should see the prompt now.'
-    })
-  }
-  const handleResetNotificationPrompt = () => {
-    localStorage.removeItem('notification-permission-requested')
-    window.dispatchEvent(new Event('show-notification-permission'))
-    addNotification({
-      type: 'info',
-      title: 'Notification Prompt',
-      message: 'You will be prompted for notification permission again.'
-    })
-  }
+  // PWA functionality removed - app works as regular web app
 
   return (
     <div className="min-h-screen wildflower-bg">
@@ -378,6 +360,56 @@ const Settings = () => {
           {/* Display Type Settings */}
           <DisplayTypeSelector />
 
+
+          {/* Config Actions */}
+          <div className="meadow-card p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Configuration Actions</h3>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  // Export config logic
+                  if (typeof window !== 'undefined' && window.exportConfig) {
+                    window.exportConfig();
+                  }
+                  if (typeof exportConfig === 'function') {
+                    exportConfig();
+                  }
+                  
+                  // Mobile-friendly notification
+                  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                  if (isMobile) {
+                    addNotification({
+                      type: 'success',
+                      title: 'Configuration copied!',
+                      message: 'Your config has been copied to clipboard. Paste it into a text file to save it.'
+                    });
+                  } else {
+                    addNotification({
+                      type: 'success',
+                      title: 'Configuration exported',
+                      message: 'Your configuration has been exported successfully.'
+                    });
+                  }
+                }}
+                className="btn-primary px-4 py-2 text-sm"
+              >
+                📤 Export Config
+              </button>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="btn-secondary px-4 py-2 text-sm"
+              >
+                📥 Import Config
+              </button>
+              <button
+                onClick={() => setShowResetConfirmModal(true)}
+                className="btn-secondary px-4 py-2 text-sm text-red-600 border-red-400 hover:bg-red-50"
+              >
+                🔄 Reset Config
+              </button>
+            </div>
+          </div>
+
           {/* Force Update Configuration */}
           <div className="meadow-card p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Update View Configuration</h3>
@@ -406,83 +438,7 @@ const Settings = () => {
             </button>
           </div>
 
-          {/* PWA Status */}
-          <div className="meadow-card p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">📱 Progressive Web App</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Service Worker:</span>
-                <span className="text-sm font-medium text-green-600">✓ Active</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Offline Support:</span>
-                <span className="text-sm font-medium text-green-600">✓ Enabled</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Installation:</span>
-                <span className="text-sm font-medium text-blue-600">Available</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Background Sync:</span>
-                <span className="text-sm font-medium text-green-600">✓ Ready</span>
-              </div>
-            </div>
-            <div className="flex space-x-2 mt-4">
-              <button
-                onClick={handleShowInstallPrompt}
-                className="btn-primary px-4 py-2 text-sm"
-              >
-                Show Install Prompt
-              </button>
-              <button
-                onClick={handleResetNotificationPrompt}
-                className="btn-secondary px-4 py-2 text-sm"
-              >
-                Reset Notification Prompt
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-3">
-              Your app works offline and can be installed on your device for quick access.
-            </p>
-          </div>
 
-          {/* Config Actions */}
-          <div className="meadow-card p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Configuration Actions</h3>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  // Export config logic
-                  if (typeof window !== 'undefined' && window.exportConfig) {
-                    window.exportConfig();
-                  }
-                  if (typeof exportConfig === 'function') {
-                    exportConfig();
-                  }
-                  addNotification({
-                    type: 'success',
-                    title: 'Configuration exported',
-                    message: 'Your configuration has been exported successfully.'
-                  });
-                }}
-                className="btn-primary px-4 py-2 text-sm"
-              >
-                📤 Export Config
-              </button>
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="btn-secondary px-4 py-2 text-sm"
-              >
-                📥 Import Config
-              </button>
-              <button
-                onClick={() => setShowResetConfirmModal(true)}
-                className="btn-secondary px-4 py-2 text-sm text-red-600 border-red-400 hover:bg-red-50"
-              >
-                🔄 Reset Config
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

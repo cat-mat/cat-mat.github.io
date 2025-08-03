@@ -23,13 +23,7 @@ const scaleValidation = {
 
 // Custom validation for scale values that converts 3-point to 5-point internally
 const createScaleValidator = (scale) => {
-  return Joi.number().integer().min(1).max(scale).custom((value, helpers) => {
-    // For 3-point scales, convert to 5-point for storage
-    if (scale === 3) {
-      return normalizeScaleValue(value, 3)
-    }
-    return value
-  })
+  return Joi.number().integer().min(1).max(scale === 3 ? 5 : scale)
 }
 
 // Multi-select validation
@@ -64,11 +58,13 @@ export const entryValidationSchema = baseEntrySchema.keys({
   allergic_reactions: createScaleValidator(3).optional(),
   bleeding_spotting: createScaleValidator(3).optional(),
   brain_fog: createScaleValidator(3).optional(),
+  exercise_impact: createScaleValidator(3).optional(),
   forehead_shine: createScaleValidator(3).optional(),
   hydration: createScaleValidator(3).optional(),
   mood: createScaleValidator(3).optional(),
   nausea: createScaleValidator(3).optional(),
   temperature_sensitivity: createScaleValidator(3).optional(),
+  workout_recovery: createScaleValidator(3).optional(),
   weird_dreams: createScaleValidator(3).optional(),
   
   // 4-point scale items
