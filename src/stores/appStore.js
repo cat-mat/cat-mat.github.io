@@ -344,52 +344,6 @@ export const useAppStore = create(
           }))
         },
 
-        // Handle authentication errors and attempt re-authentication
-        handleAuthError: async (error) => {
-          console.log('Handling authentication error:', error.message)
-          
-          // If it's an authentication expired error, try to re-authenticate
-          if (error.message.includes('Authentication expired') || 
-              error.message.includes('Please sign in again') ||
-              error.message.includes('Connection lost')) {
-            
-            console.log('Attempting automatic re-authentication...')
-            
-            try {
-              // Try to re-authenticate silently first
-              await googleDriveService.forceReAuthentication()
-              
-              // If successful, update auth state
-              const userInfo = await googleDriveService.getUserInfo()
-              set(state => ({
-                auth: {
-                  isAuthenticated: true,
-                  user: userInfo,
-                  isLoading: false,
-                  error: null
-                }
-              }))
-              
-              console.log('Automatic re-authentication successful')
-              return true
-            } catch (reauthError) {
-              console.log('Automatic re-authentication failed:', reauthError)
-              // Clear auth state and require manual sign in
-              set(state => ({
-                auth: {
-                  isAuthenticated: false,
-                  user: null,
-                  isLoading: false,
-                  error: 'Session expired. Please sign in again.'
-                }
-              }))
-              return false
-            }
-          }
-          
-          return false
-        },
-
         signOut: async () => {
           try {
             await googleDriveService.signOut()
@@ -457,18 +411,6 @@ export const useAppStore = create(
             get().loadCurrentMonthData()
           } catch (error) {
             console.error('Config loading error:', error)
-            
-            // Try to handle authentication errors automatically
-            const { handleAuthError } = get()
-            const authHandled = await handleAuthError(error)
-            
-            if (authHandled) {
-              // Re-authentication was successful, retry loading config
-              console.log('Re-authentication successful, retrying config load...')
-              get().loadConfig()
-              return
-            }
-            
             set(state => ({
               configLoading: false,
               configError: error.message
@@ -501,19 +443,6 @@ export const useAppStore = create(
             console.log('Config saved successfully')
           } catch (error) {
             console.error('Failed to save config:', error)
-            
-            // Try to handle authentication errors automatically
-            const { handleAuthError } = get()
-            const authHandled = await handleAuthError(error)
-            
-            if (authHandled) {
-              // Re-authentication was successful, retry saving
-              console.log('Re-authentication successful, retrying save...')
-              await googleDriveService.saveConfigFile(validation.data)
-              console.log('Config saved successfully after re-authentication')
-              return
-            }
-            
             // Revert changes on save failure
             set({ config })
             throw error
@@ -583,19 +512,6 @@ export const useAppStore = create(
             console.log('Display type updated successfully in Google Drive')
           } catch (error) {
             console.error('Failed to save display type to Google Drive:', error)
-            
-            // Try to handle authentication errors automatically
-            const { handleAuthError } = get()
-            const authHandled = await handleAuthError(error)
-            
-            if (authHandled) {
-              // Re-authentication was successful, retry saving
-              console.log('Re-authentication successful, retrying save...')
-              await googleDriveService.saveConfigFile(validation.data)
-              console.log('Display type updated successfully in Google Drive after re-authentication')
-              return
-            }
-            
             // Revert changes on save failure
             console.log('Reverting local config changes due to save failure')
             set({ config })
@@ -680,19 +596,6 @@ export const useAppStore = create(
             console.log('View configuration updated successfully')
           } catch (error) {
             console.error('Failed to save view configuration:', error)
-            
-            // Try to handle authentication errors automatically
-            const { handleAuthError } = get()
-            const authHandled = await handleAuthError(error)
-            
-            if (authHandled) {
-              // Re-authentication was successful, retry saving
-              console.log('Re-authentication successful, retrying save...')
-              await googleDriveService.saveConfigFile(validation.data)
-              console.log('View configuration updated successfully after re-authentication')
-              return
-            }
-            
             // Revert changes on save failure
             set({ config })
             throw error
@@ -953,25 +856,8 @@ export const useAppStore = create(
                 console.log(`Saved to localStorage: mock_tracking_${month}`)
               } else {
                 // Save to Google Drive
-                try {
-                  await googleDriveService.saveMonthlyTrackingFile(month, data)
-                  console.log(`Saved to Google Drive: tracking-my-hot-self_${month}.json`)
-                } catch (error) {
-                  console.error(`Failed to save month ${month} to Google Drive:`, error)
-                  
-                  // Try to handle authentication errors automatically
-                  const { handleAuthError } = get()
-                  const authHandled = await handleAuthError(error)
-                  
-                  if (authHandled) {
-                    // Re-authentication was successful, retry saving
-                    console.log('Re-authentication successful, retrying save...')
-                    await googleDriveService.saveMonthlyTrackingFile(month, data)
-                    console.log(`Saved to Google Drive after re-authentication: tracking-my-hot-self_${month}.json`)
-                  } else {
-                    throw error
-                  }
-                }
+                await googleDriveService.saveMonthlyTrackingFile(month, data)
+                console.log(`Saved to Google Drive: tracking-my-hot-self_${month}.json`)
               }
             }
 
@@ -1055,19 +941,6 @@ export const useAppStore = create(
               }))
             }
           } catch (error) {
-            console.error('Error loading current month data:', error)
-            
-            // Try to handle authentication errors automatically
-            const { handleAuthError } = get()
-            const authHandled = await handleAuthError(error)
-            
-            if (authHandled) {
-              // Re-authentication was successful, retry loading data
-              console.log('Re-authentication successful, retrying data load...')
-              get().loadCurrentMonthData()
-              return
-            }
-            
             set(state => ({
               trackingData: {
                 ...state.trackingData,
@@ -1335,18 +1208,6 @@ export const useAppStore = create(
             }))
 
           } catch (error) {
-            console.error('Error syncing entry:', error)
-            
-            // Try to handle authentication errors automatically
-            const { handleAuthError } = get()
-            const authHandled = await handleAuthError(error)
-            
-            if (authHandled) {
-              // Re-authentication was successful, retry syncing
-              console.log('Re-authentication successful, retrying sync...')
-              return await get().syncEntry(entry)
-            }
-            
             // Mark entry as failed
             const newEntries = trackingData.entries.map(e => 
               e.id === entry.id ? { ...e, sync_status: SYNC_STATUS.failed } : e
@@ -1392,18 +1253,6 @@ export const useAppStore = create(
               }))
             }
           } catch (error) {
-            console.error('Error syncing offline entries:', error)
-            
-            // Try to handle authentication errors automatically
-            const { handleAuthError } = get()
-            const authHandled = await handleAuthError(error)
-            
-            if (authHandled) {
-              // Re-authentication was successful, retry syncing
-              console.log('Re-authentication successful, retrying offline sync...')
-              return await get().syncOfflineEntries()
-            }
-            
             set(state => ({
               sync: {
                 ...state.sync,
@@ -1557,18 +1406,6 @@ export const useAppStore = create(
             console.log(`Loaded ${cleanedEntries.length} historical entries`)
           } catch (error) {
             console.error('Failed to load historical data:', error)
-            
-            // Try to handle authentication errors automatically
-            const { handleAuthError } = get()
-            const authHandled = await handleAuthError(error)
-            
-            if (authHandled) {
-              // Re-authentication was successful, retry loading data
-              console.log('Re-authentication successful, retrying historical data load...')
-              get().loadAllHistoricalData()
-              return
-            }
-            
             set(state => ({
               trackingData: {
                 ...state.trackingData,
@@ -1707,24 +1544,7 @@ export const useAppStore = create(
             }
 
             // Save the imported configuration
-            try {
-              await googleDriveService.saveConfigFile(validation.data)
-            } catch (error) {
-              console.error('Failed to save imported config to Google Drive:', error)
-              
-              // Try to handle authentication errors automatically
-              const { handleAuthError } = get()
-              const authHandled = await handleAuthError(error)
-              
-              if (authHandled) {
-                // Re-authentication was successful, retry saving
-                console.log('Re-authentication successful, retrying save...')
-                await googleDriveService.saveConfigFile(validation.data)
-                console.log('Imported config saved successfully after re-authentication')
-              } else {
-                throw error
-              }
-            }
+            await googleDriveService.saveConfigFile(validation.data)
 
             // Update local state
             set({

@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import TrackingForm from './TrackingForm.jsx'
 import LoadingSpinner from './LoadingSpinner.jsx'
 import { clsx } from 'clsx'
-// Service worker is handled automatically by Vite PWA plugin
+// Removed ServiceWorkerManager import - PWA functionality disabled
 import AppHeader from './AppHeader.jsx';
 
 const Dashboard = () => {

@@ -10,18 +10,7 @@ window.__reactRouterFutureFlags = {
   v7_relativeSplatPath: true
 }
 
-// Manual service worker registration
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .then((registration) => {
-        console.log('Service Worker registered successfully:', registration)
-      })
-      .catch((error) => {
-        console.log('Service Worker registration failed:', error)
-      })
-  })
-}
+// Service worker registration is now handled by ServiceWorkerManager component
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

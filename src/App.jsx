@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAppStore } from './stores/appStore.js'
 import { format } from 'date-fns'
 import { DEFAULT_VIEW_TIMES } from './constants/trackingItems.js'
-import { googleDriveService } from './services/googleDriveService.js'
 import './styles/inline-styles.css'
 
 // Components
@@ -17,6 +16,17 @@ import LoadingSpinner from './components/LoadingSpinner.jsx'
 import OfflineIndicator from './components/OfflineIndicator.jsx'
 import ToastNotifications from './components/ToastNotifications.jsx'
 import PrivacyPolicy from './components/PrivacyPolicy.jsx'
+
+// Initialize Google API
+const initializeGoogleAPI = () => {
+  return new Promise((resolve, reject) => {
+    if (typeof gapi === 'undefined') {
+      reject(new Error('Google API not loaded'))
+      return
+    }
+    gapi.load('client:auth2', resolve)
+  })
+}
 
 function App() {
   const {
@@ -33,7 +43,6 @@ function App() {
   } = useAppStore()
 
   const sessionExpiredNotified = useRef(false)
-  const [googleDriveReady, setGoogleDriveReady] = useState(false)
 
   // Initialize Google API only when needed (lazy loading)
   // Removed automatic initialization to prevent hanging
@@ -51,24 +60,6 @@ function App() {
       window.removeEventListener('offline', handleOffline)
     }
   }, [setOnlineStatus])
-
-  // Check Google Drive readiness when authenticated
-  useEffect(() => {
-    if (auth.isAuthenticated && !googleDriveReady) {
-      const checkGoogleDriveReady = async () => {
-        try {
-          const isReady = await googleDriveService.isSignedIn()
-          setGoogleDriveReady(isReady)
-        } catch (error) {
-          console.log('Google Drive not ready yet:', error.message)
-          // Retry after a short delay
-          setTimeout(checkGoogleDriveReady, 1000)
-        }
-      }
-      
-      checkGoogleDriveReady()
-    }
-  }, [auth.isAuthenticated, googleDriveReady])
 
   // Auto-switch view based on time of day (only on initial load)
   useEffect(() => {
@@ -144,13 +135,6 @@ function App() {
                 onReset={resetAuthState}
               />
             </div>
-          ) : auth.isAuthenticated && !googleDriveReady ? (
-            <div className="min-h-screen wildflower-bg flex items-center justify-center">
-              <div className="meadow-card">
-                <LoadingSpinner size="large" />
-                <p className="text-center mt-4 text-gray-600">Preparing your Google Drive connection...</p>
-              </div>
-            </div>
           ) : config && !config.onboarding.completed ? (
             <div className="min-h-screen wildflower-bg">
               <Onboarding />
@@ -162,8 +146,6 @@ function App() {
         <Route path="/settings" element={
           !auth.isAuthenticated ? (
             <Navigate to="/" replace />
-          ) : auth.isAuthenticated && !googleDriveReady ? (
-            <Navigate to="/" replace />
           ) : config && !config.onboarding.completed ? (
             <Navigate to="/" replace />
           ) : (
@@ -173,8 +155,6 @@ function App() {
         <Route path="/insights" element={
           !auth.isAuthenticated ? (
             <Navigate to="/" replace />
-          ) : auth.isAuthenticated && !googleDriveReady ? (
-            <Navigate to="/" replace />
           ) : config && !config.onboarding.completed ? (
             <Navigate to="/" replace />
           ) : (
@@ -183,8 +163,6 @@ function App() {
         } />
         <Route path="/logs" element={
           !auth.isAuthenticated ? (
-            <Navigate to="/" replace />
-          ) : auth.isAuthenticated && !googleDriveReady ? (
             <Navigate to="/" replace />
           ) : config && !config.onboarding.completed ? (
             <Navigate to="/" replace />

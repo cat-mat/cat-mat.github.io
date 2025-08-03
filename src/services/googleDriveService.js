@@ -341,9 +341,9 @@ class GoogleDriveService {
       }, 60000) // 1 minute timeout
 
       try {
-        // First try with 'none' prompt (silent refresh)
+        // Request a new access token
         this.tokenClient.requestAccessToken({
-          prompt: 'none'
+          prompt: 'none' // Don't show consent screen if user is already signed in
         })
 
         // Poll for new token
@@ -363,45 +363,6 @@ class GoogleDriveService {
         reject(error)
       }
     })
-  }
-
-  // Check if user is still signed in to Google (for silent refresh)
-  async checkGoogleSignInStatus() {
-    if (!this.tokenClient) {
-      return false
-    }
-
-    try {
-      // Try to get a token without showing any UI
-      return new Promise((resolve) => {
-        const timeoutId = setTimeout(() => {
-          resolve(false)
-        }, 5000) // 5 second timeout
-
-        try {
-          this.tokenClient.requestAccessToken({
-            prompt: 'none'
-          })
-
-          // Check if we get a token quickly
-          const checkToken = () => {
-            if (this.accessToken) {
-              clearTimeout(timeoutId)
-              resolve(true)
-            } else {
-              setTimeout(checkToken, 100)
-            }
-          }
-          checkToken()
-
-        } catch (error) {
-          clearTimeout(timeoutId)
-          resolve(false)
-        }
-      })
-    } catch (error) {
-      return false
-    }
   }
 
   // Force re-authentication (for when refresh fails)
@@ -460,38 +421,14 @@ class GoogleDriveService {
     // Check if we need to refresh authentication
     if (!this.isTokenValid()) {
       console.log('Token is invalid or expired, attempting to refresh...')
-      
-      // First check if user is still signed in to Google
-      const isStillSignedIn = await this.checkGoogleSignInStatus()
-      
-      if (isStillSignedIn) {
-        // User is still signed in, try silent refresh
-        try {
-          await this.refreshToken()
-        } catch (error) {
-          console.log('Silent token refresh failed, attempting re-authentication...')
-          try {
-            await this.forceReAuthentication()
-          } catch (reauthError) {
-            console.log('Re-authentication failed, clearing authentication')
-            this.accessToken = null
-            this.tokenExpiry = null
-            this.clearTokenFromStorage()
-            throw new Error('Authentication expired. Please sign in again.')
-          }
-        }
-      } else {
-        // User is not signed in, force re-authentication
-        console.log('User not signed in to Google, attempting re-authentication...')
-        try {
-          await this.forceReAuthentication()
-        } catch (reauthError) {
-          console.log('Re-authentication failed, clearing authentication')
-          this.accessToken = null
-          this.tokenExpiry = null
-          this.clearTokenFromStorage()
-          throw new Error('Authentication expired. Please sign in again.')
-        }
+      try {
+        await this.refreshToken()
+      } catch (error) {
+        console.log('Token refresh failed, clearing authentication')
+        this.accessToken = null
+        this.tokenExpiry = null
+        this.clearTokenFromStorage()
+        throw new Error('Authentication expired. Please sign in again.')
       }
     }
 

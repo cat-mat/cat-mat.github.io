@@ -1,54 +1,33 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-// import { VitePWA } from 'vite-plugin-pwa'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   base: '/',
   plugins: [
     react(),
-    // VitePWA plugin temporarily disabled to fix service worker issues
-    // VitePWA({
-    //   registerType: 'manual',
-    //   injectRegister: false,
-    //   devOptions: {
-    //     enabled: false
-    //   },
-    //   workbox: {
-    //     globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
-    //     runtimeCaching: [
-    //       {
-    //         urlPattern: /^https:\/\/apis\.google\.com\/.*/i,
-    //         handler: 'NetworkFirst',
-    //         options: {
-    //           cacheName: 'google-apis-cache',
-    //           expiration: {
-    //             maxEntries: 10,
-    //             maxAgeSeconds: 31536000 // 1 year
-    //           }
-    //         }
-    //       }
-    //     ]
-    //   },
-    //   manifest: {
-    //     name: 'What Even With My Hot Self?!',
-    //     short_name: 'Hot Self',
-    //     description: 'Track your perimenopause journey with personalized insights',
-    //     theme_color: '#f093fb',
-    //     background_color: '#ffffff',
-    //     display: 'standalone',
-    //     orientation: 'portrait',
-    //     scope: '/',
-    //     start_url: '/',
-    //     icons: [
-    //       {
-    //         src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔥</text></svg>',
-    //         sizes: 'any',
-    //         type: 'image/svg+xml',
-    //         purpose: 'any'
-    //       }
-    //     ]
-    //   }
-    // })
+    VitePWA({
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'What Even With My Hot Self?!',
+        short_name: 'Hot Self',
+        description: 'Track your perimenopause journey with personalized insights',
+        theme_color: '#f093fb',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
+        icons: [
+          {
+            src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔥</text></svg>',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          }
+        ]
+      }
+    })
   ],
   define: {
     'process.env.VITE_GOOGLE_CLIENT_ID': JSON.stringify(process.env.VITE_GOOGLE_CLIENT_ID),

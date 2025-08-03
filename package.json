@@ -8,7 +8,6 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist",
-    "deploy:local": "npm run build && xcopy dist\\* . /E /Y",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint . --ext js,jsx,ts,tsx",
