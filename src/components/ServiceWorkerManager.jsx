@@ -26,20 +26,8 @@ const ServiceWorkerManager = () => {
     
     if ('serviceWorker' in navigator) {
       try {
-        // Debug logging to understand the current environment
-        console.log('[SW] Debug Info:', {
-          hostname: window.location.hostname,
-          pathname: window.location.pathname,
-          href: window.location.href,
-          origin: window.location.origin,
-          protocol: window.location.protocol,
-          search: window.location.search,
-          hash: window.location.hash
-        })
-        
         // Try multiple paths for service worker registration
         const basePath = window.location.pathname.replace(/\/$/, '')
-        console.log('[SW] Base path:', basePath)
         
         const possiblePaths = [
           '/sw.js'

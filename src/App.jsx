@@ -102,8 +102,6 @@ function App() {
     )
   }
 
-  console.log('window.location.hostname', window.location.hostname)
-
   // Main app layout with conditional routing
   return (
     <div className="min-h-screen wildflower-bg">
