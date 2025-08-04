@@ -26,13 +26,26 @@ const ServiceWorkerManager = () => {
     
     if ('serviceWorker' in navigator) {
       try {
+        // Debug logging to understand the current environment
+        console.log('[SW] Debug Info:', {
+          hostname: window.location.hostname,
+          pathname: window.location.pathname,
+          href: window.location.href,
+          origin: window.location.origin,
+          protocol: window.location.protocol,
+          search: window.location.search,
+          hash: window.location.hash
+        })
+        
         // Try multiple paths for service worker registration
         const basePath = window.location.pathname.replace(/\/$/, '')
+        console.log('[SW] Base path:', basePath)
+        
         const possiblePaths = [
-          '/sw.js',
-          `${basePath}/sw.js`,
-          '/cat-mat.github.io-1/sw.js'
+          '/sw.js'
         ]
+        
+        console.log('[SW] Will try these paths:', possiblePaths)
         
         const registration = await tryRegisterServiceWorker(possiblePaths)
 
@@ -100,24 +113,7 @@ const ServiceWorkerManager = () => {
 
   // Helper function to determine the correct service worker path
   const getServiceWorkerPath = () => {
-    // Check if we're in development
-    if (import.meta.env.DEV) {
-      return '/sw.js'
-    }
-    
-    // For production, try different paths based on deployment
-    const basePath = window.location.pathname.replace(/\/$/, '')
-    
-    // Return the most likely path based on current location
-    if (window.location.hostname === 'cat-mat.github.io') {
-      return '/cat-mat.github.io-1/sw.js'
-    }
-    
-    // For other deployments, try the base path
-    if (basePath && basePath !== '/') {
-      return `${basePath}/sw.js`
-    }
-    
+    // Always use root path since GitHub Pages serves from root
     return '/sw.js'
   }
 
@@ -126,13 +122,17 @@ const ServiceWorkerManager = () => {
     for (const path of paths) {
       try {
         console.log(`[SW] Trying to register service worker at: ${path}`)
+        console.log(`[SW] Full URL would be: ${new URL(path, window.location.href).href}`)
+        
         const registration = await navigator.serviceWorker.register(path, {
           scope: '/'
         })
         console.log(`[SW] Successfully registered at: ${path}`)
+        console.log(`[SW] Registration scope: ${registration.scope}`)
         return registration
       } catch (error) {
         console.warn(`[SW] Failed to register at ${path}:`, error.message)
+        console.warn(`[SW] Error details:`, error)
         // Continue to next path
       }
     }

@@ -96,11 +96,13 @@ function App() {
       <div className="min-h-screen wildflower-bg flex items-center justify-center">
         <div className="meadow-card">
           <LoadingSpinner size="large" />
-          <p className="text-center mt-4 text-gray-600">Loading your wildflower garden...</p>
+          <p className="text-center mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
     )
   }
+
+  console.log('window.location.hostname', window.location.hostname)
 
   // Main app layout with conditional routing
   return (

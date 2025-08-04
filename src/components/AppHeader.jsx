@@ -17,6 +17,21 @@ const AppHeader = ({
   const user = auth?.user;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // Debug logging to understand the current environment
+  console.log('[SW] Debug Info:', {
+    hostname: window.location.hostname,
+    pathname: window.location.pathname,
+    href: window.location.href,
+    origin: window.location.origin,
+    protocol: window.location.protocol,
+    search: window.location.search,
+    hash: window.location.hash
+  })
+  
+  // Try multiple paths for service worker registration
+  const basePath = window.location.pathname.replace(/\/$/, '')
+  console.log('[SW] Base path:', basePath)
+
   return (
     <header
       className="sticky top-0 z-40 bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 shadow-wildflower header-dynamic-top"
