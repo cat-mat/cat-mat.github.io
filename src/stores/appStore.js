@@ -411,6 +411,13 @@ export const useAppStore = create(
             get().loadCurrentMonthData()
           } catch (error) {
             console.error('Config loading error:', error)
+            
+            // Check if it's an authentication error
+            if (error.message && error.message.includes('Authentication expired')) {
+              console.log('Authentication expired during config load, resetting auth state')
+              get().resetAuthState()
+            }
+            
             set(state => ({
               configLoading: false,
               configError: error.message
@@ -941,6 +948,14 @@ export const useAppStore = create(
               }))
             }
           } catch (error) {
+            console.error('Error loading current month data:', error)
+            
+            // Check if it's an authentication error
+            if (error.message && error.message.includes('Authentication expired')) {
+              console.log('Authentication expired during data load, resetting auth state')
+              get().resetAuthState()
+            }
+            
             set(state => ({
               trackingData: {
                 ...state.trackingData,
@@ -1208,6 +1223,15 @@ export const useAppStore = create(
             }))
 
           } catch (error) {
+            console.error('Error syncing entry:', error)
+            
+            // Check if it's an authentication error
+            if (error.message && error.message.includes('Authentication expired')) {
+              console.log('Authentication expired during sync, resetting auth state')
+              get().resetAuthState()
+              return // Don't mark as failed, just return
+            }
+            
             // Mark entry as failed
             const newEntries = trackingData.entries.map(e => 
               e.id === entry.id ? { ...e, sync_status: SYNC_STATUS.failed } : e
@@ -1253,6 +1277,14 @@ export const useAppStore = create(
               }))
             }
           } catch (error) {
+            console.error('Error syncing offline entries:', error)
+            
+            // Check if it's an authentication error
+            if (error.message && error.message.includes('Authentication expired')) {
+              console.log('Authentication expired during offline sync, resetting auth state')
+              get().resetAuthState()
+            }
+            
             set(state => ({
               sync: {
                 ...state.sync,
