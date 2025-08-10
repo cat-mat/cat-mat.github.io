@@ -371,12 +371,12 @@ const Dashboard = () => {
                 <input
                   type="file"
                   id="configImportFile"
-                  accept=".json"
+                  accept=".json,.lzjson"
                   onChange={handleConfigFileSelect}
                   className="input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
                 <p className="mt-2 text-sm text-gray-600">
-                  Select a JSON file containing configuration data to import.
+                  Select a JSON or LZJSON file containing configuration data to import.
                   This will replace your current configuration.
                 </p>
               </div>

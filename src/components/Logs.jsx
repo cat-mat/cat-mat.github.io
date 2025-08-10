@@ -258,12 +258,15 @@ const Logs = () => {
     
     const finalJsonString = JSON.stringify(finalExport, null, 2)
     console.log('Final export size:', finalJsonString.length, 'bytes')
-    
+
+    // Choose a file extension that reflects compression for clarity
+    const baseName = `tracking-export-${new Date().toISOString().slice(0, 10)}`
+    const fileExt = finalExport.compressed ? 'lzjson' : 'json'
     const blob = new Blob([finalJsonString], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `tracking-export-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `${baseName}.${fileExt}`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -906,18 +909,18 @@ const Logs = () => {
               <div className="space-y-4">
                 <div>
                   <label htmlFor="importFile" className="block text-sm font-medium text-gray-700 mb-2">
-                    Select JSON File to Import
+                    Select JSON/LZJSON File to Import
                   </label>
                   <input
                     type="file"
                     id="importFile"
-                    accept=".json"
+                    accept=".json,.lzjson"
                     onChange={handleFileSelect}
                     className="input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
                   <p className="mt-2 text-sm text-gray-600">
-                    Select a JSON file containing tracking data to import.
-                    The file should be a valid export from this application.
+                    Select a JSON or LZJSON file exported from this application.
+                    Compressed LZJSON exports will be automatically decompressed during import.
                   </p>
                 </div>
                 

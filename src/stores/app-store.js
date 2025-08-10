@@ -1544,7 +1544,8 @@ export const useAppStore = create(
           }
 
           const finalJsonString = JSON.stringify(compressedExport, null, 2)
-          const fileName = `tracking-config-${new Date().toISOString().slice(0, 10)}.json`
+          // Indicate compression in filename
+          const fileName = `tracking-config-${new Date().toISOString().slice(0, 10)}.lzjson`
 
           // Mobile-friendly export
           if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
