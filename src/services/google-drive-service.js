@@ -1200,12 +1200,13 @@ class GoogleDriveService {
   // Sync offline entries
   async syncOfflineEntries(offlineEntries) {
     if (!offlineEntries || offlineEntries.length === 0) {
-      return { success: true, synced: 0 }
+      return { success: true, synced: 0, syncedIds: [] }
     }
 
     try {
       let syncedCount = 0
       const errors = []
+      const syncedIds = []
 
       for (const entry of offlineEntries) {
         try {
@@ -1221,12 +1222,14 @@ class GoogleDriveService {
             monthData = { entries: [] }
           }
 
-          // Add the offline entry
-          monthData.entries.push(entry)
+          // Add the offline entry and mark as synced for storage
+          const entryToStore = { ...entry, sync_status: 'synced', updated_at: new Date().toISOString() }
+          monthData.entries.push(entryToStore)
           
           // Save the updated data
           await this.saveMonthlyTrackingFile(month, monthData)
           syncedCount++
+          syncedIds.push(entry.id)
           
         } catch (error) {
           console.error(`Failed to sync entry ${entry.id}:`, error)
@@ -1237,6 +1240,7 @@ class GoogleDriveService {
       return {
         success: errors.length === 0,
         synced: syncedCount,
+        syncedIds,
         errors: errors
       }
     } catch (error) {

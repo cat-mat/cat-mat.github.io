@@ -87,9 +87,6 @@ const Logs = () => {
       const isInDateRange = entryDateOnly >= start && entryDateOnly <= end
       const matchesView = selectedView === 'all' ? true : entry.type === selectedView
 
-      // Debug statement
-      console.log('LOGS FILTER DEBUG', { selectedView, entryType: entry.type, matchesView })
-
       const matchesSearch = !searchTerm || 
         entry.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
         Object.entries(entry).some(([key, value]) => {

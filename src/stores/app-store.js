@@ -317,6 +317,9 @@ export const useAppStore = create(
 
               // Load configuration after successful sign in
               get().loadConfig()
+
+              // Attempt to sync any offline entries queued while unauthenticated
+              get().syncOfflineEntries()
             } else {
               set(state => ({
                 auth: {
@@ -1270,17 +1273,27 @@ export const useAppStore = create(
             const result = await googleDriveService.syncOfflineEntries(trackingData.offlineEntries)
             
             if (result.success) {
-              set(state => ({
-                trackingData: {
-                  ...state.trackingData,
-                  offlineEntries: []
-                },
-                sync: {
-                  ...state.sync,
-                  isSyncing: false,
-                  lastSyncTime: new Date().toISOString()
+              set(state => {
+                // Promote matching local entries from pending->synced
+                const updatedEntries = state.trackingData.entries.map(e => {
+                  if (result.syncedIds?.includes(e.id)) {
+                    return { ...e, sync_status: SYNC_STATUS.synced, updated_at: new Date().toISOString() }
+                  }
+                  return e
+                })
+                return {
+                  trackingData: {
+                    ...state.trackingData,
+                    entries: updatedEntries,
+                    offlineEntries: []
+                  },
+                  sync: {
+                    ...state.sync,
+                    isSyncing: false,
+                    lastSyncTime: new Date().toISOString()
+                  }
                 }
-              }))
+              })
             }
           } catch (error) {
             console.error('Error syncing offline entries:', error)
@@ -1373,6 +1386,8 @@ export const useAppStore = create(
               set(state => ({ auth: { ...state.auth, isAuthenticated: true } }))
             }
             get().loadConfig()
+            // After re-auth, sync any offline entries
+            get().syncOfflineEntries()
             get().addNotification({
               type: 'success',
               title: 'Re-authenticated',
@@ -1415,7 +1430,7 @@ export const useAppStore = create(
           }))
 
           // Sync offline entries when coming back online
-          if (isOnline && get().trackingData.offlineEntries.length > 0) {
+          if (isOnline) {
             get().syncOfflineEntries()
           }
         },
