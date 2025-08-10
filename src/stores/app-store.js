@@ -1634,3 +1634,17 @@ if (typeof window !== 'undefined') {
 }
 
 export default useAppStore 
+
+// Wire Google Drive service notifications to app notifications
+try {
+  if (googleDriveService && typeof googleDriveService.setNotificationHandler === 'function') {
+    googleDriveService.setNotificationHandler((notification) => {
+      try {
+        const { addNotification } = useAppStore.getState()
+        if (typeof addNotification === 'function') {
+          addNotification(notification)
+        }
+      } catch {}
+    })
+  }
+} catch {}
