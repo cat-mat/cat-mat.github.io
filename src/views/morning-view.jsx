@@ -12,8 +12,16 @@ const MorningView = () => {
   const [existingEntry, setExistingEntry] = useState(null)
   const [collapsedSections, setCollapsedSections] = useState({})
 
-  // Get items for morning view
-  const viewItems = getItemsByView('morning')
+  // Helper to get configured items for morning view by category (preserves user sort order)
+  const getConfiguredSectionItems = (category) => {
+    const sections = config?.view_configurations?.morning_report?.sections
+    const ids = sections?.[category]?.items
+    if (ids && ids.length) {
+      return ids.map(id => TRACKING_ITEMS[id]).filter(Boolean)
+    }
+    // Fallback to default items if config missing
+    return Object.values(TRACKING_ITEMS).filter(item => item.morning && item.category === category)
+  }
 
   // Check for existing entry today
   useEffect(() => {
@@ -161,29 +169,42 @@ const MorningView = () => {
 
   const renderScaleButtons = (item) => {
     const is3Point = isItem3PointScale(item)
-    const scaleValues = is3Point ? [1, 3, 5] : [1, 2, 3, 4, 5]
-    const displayType = config?.display_type || 'text'
-    
+    const scaleValues = is3Point ? [1, 2, 3] : [1, 2, 3, 4, 5]
+    const displayType = config?.display_options?.item_display_type || 'text'
+    const colorClassMap = {
+      success: 'bg-green-100 border-green-400 text-green-800',
+      warning: 'bg-yellow-100 border-yellow-400 text-yellow-800',
+      danger: 'bg-red-100 border-red-400 text-red-800',
+      gray: 'bg-gray-100 border-gray-300 text-gray-700'
+    }
+
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className={clsx('grid gap-2 w-full', is3Point ? 'grid-cols-3' : 'grid-cols-5')}>
         {scaleValues.map((value) => {
           const { displayText, ariaLabel } = getValueLabels(item, value, displayType)
-          const isSelected = formData[item.id] === value
-          const color = getItemColor(value, displayType)
-          
+          const compareValue = is3Point ? normalizeScaleValue(value, 3) : value
+          const isSelected = formData[item.id] === compareValue
+          const tone = getItemColor(item, compareValue)
+          const selectedClasses = colorClassMap[tone] || colorClassMap.gray
+          const showCaption = displayType === 'face'
+          const labelIndex = (is3Point ? value : value) - 1
+          const captionText = item.textOptions?.[labelIndex]
           return (
             <button
               key={value}
               type="button"
               onClick={() => handleScaleChange(item.id, value)}
               className={clsx(
-                'px-4 py-2 rounded-lg border-2 transition-all duration-200 hover:shadow-medium',
+                'px-4 py-2 rounded-lg border-2 transition-all duration-200 hover:shadow-medium w-full',
                 isSelected
-                  ? `${color.bg} ${color.border} ${color.text} shadow-medium`
+                  ? `${selectedClasses} shadow-medium`
                   : 'bg-white border-gray-300 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
               )}
             >
-              <span className="text-lg" aria-label={ariaLabel}>{displayText}</span>
+              <span className="text-lg block" aria-label={ariaLabel}>{displayText}</span>
+              {showCaption && (
+                <span className="text-xs opacity-75 block mt-1">{captionText}</span>
+              )}
             </button>
           )
         })}
@@ -195,9 +216,9 @@ const MorningView = () => {
     const selectedValues = formData[item.id] || []
     
     return (
-      <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2 w-full">
         {selectedValues.length > 0 && (
-          <div>
+          <div className="col-span-2">
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, [item.id]: [] }))}
@@ -249,60 +270,73 @@ const MorningView = () => {
   }
 
   const renderItem = (item) => {
-    switch (item.scale_type) {
-      case '3-point':
-      case '5-point':
-        return (
-          <div key={item.id} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              {item.label}
-            </label>
-            {renderScaleButtons(item)}
-          </div>
-        )
-      
-      case 'multi-select':
-        return (
-          <div key={item.id} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              {item.label}
-            </label>
-            {renderMultiSelect(item)}
-          </div>
-        )
-      
-      case 'numeric':
-        return (
-          <div key={item.id} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              {item.label}
-            </label>
-            {renderNumberInput(item)}
-          </div>
-        )
-      
-      case 'date':
-        return (
-          <div key={item.id} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              {item.label}
-            </label>
-            <input
-              type="date"
-              value={formData[item.id] || ''}
-              onChange={(e) => handleDateChange(item.id, e.target.value)}
-              className="input"
-            />
-          </div>
-        )
-      
-      default:
-        return null
+    if (item.type === 'multi-select') {
+      return (
+        <div key={item.id} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 w-full">
+            {item.name}
+          </label>
+          {item.description && (
+            <p className="text-xs text-gray-500">{item.description}</p>
+          )}
+          {renderMultiSelect(item)}
+        </div>
+      )
     }
+    if (item.type === 'number') {
+      return (
+        <div key={item.id} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 w-full">
+            {item.name}
+          </label>
+          {item.description && (
+            <p className="text-xs text-gray-500">{item.description}</p>
+          )}
+          {renderNumberInput(item)}
+        </div>
+      )
+    }
+    if (item.type === 'date') {
+      return (
+        <div key={item.id} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 w-full">
+            {item.name}
+          </label>
+          {item.description && (
+            <p className="text-xs text-gray-500">{item.description}</p>
+          )}
+          <input
+            type="date"
+            value={formData[item.id] || ''}
+            onChange={(e) => handleDateChange(item.id, e.target.value)}
+            className="input"
+          />
+        </div>
+      )
+    }
+    if (
+      item.scale_type === '3-point' ||
+      item.scale_type === '5-point' ||
+      item.scale === 3 ||
+      item.scale === 5
+    ) {
+      return (
+        <div key={item.id} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 w-full">
+            {item.name}
+          </label>
+          {item.description && (
+            <p className="text-xs text-gray-500">{item.description}</p>
+          )}
+          {renderScaleButtons(item)}
+        </div>
+      )
+    }
+    return null
   }
 
   const renderSection = (category) => {
-    const categoryItems = viewItems.filter(item => item.section === category)
+    const categoryItems = getConfiguredSectionItems(category)
     if (categoryItems.length === 0) return null
     
     const isCollapsed = collapsedSections[category]
@@ -332,9 +366,8 @@ const MorningView = () => {
   }
 
   const renderWearablesSection = () => {
-    const wearablesItems = viewItems.filter(item => 
-      item.id === 'wearables_sleep_score' || item.id === 'wearables_body_battery'
-    )
+    const wearablesIds = config?.view_configurations?.morning_report?.wearables || ['wearables_sleep_score', 'wearables_body_battery']
+    const wearablesItems = wearablesIds.map(id => TRACKING_ITEMS[id]).filter(Boolean)
     
     if (wearablesItems.length === 0) return null
     
@@ -361,9 +394,6 @@ const MorningView = () => {
             
             {/* Mind Section */}
             {renderSection('mind')}
-            
-            {/* Morning Only Section */}
-            {renderSection('morning')}
             
             {/* Wearables Section */}
             {renderWearablesSection()}

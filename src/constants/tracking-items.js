@@ -37,7 +37,7 @@ export const TRACKING_ITEMS = {
   },
   bleeding_spotting: {
     id: 'bleeding_spotting',
-    name: 'Bleeding/Spotting',
+    name: 'Bleeding or Spotting',
     category: 'body',
     scale: 3,
     scale_type: SCALE_TYPES.THREE_POINT,
@@ -200,6 +200,7 @@ export const TRACKING_ITEMS = {
     name: 'Hot Flashes',
     category: 'body',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'low',
     description: 'Hot flashes? I\'m on fire!',
     morning: true,

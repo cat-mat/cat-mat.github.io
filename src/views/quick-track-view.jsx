@@ -12,11 +12,18 @@ const QuickTrackView = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Get quick track items (user-configurable subset)
-  const quickTrackItems = config?.quick_track_items || []
-  const availableItems = Object.values(TRACKING_ITEMS).filter(item => 
-    quickTrackItems.includes(item.id) && 
-    (item.section === 'body' || item.section === 'mind')
-  )
+  // Use configured Quick Track items if present; fallback to all quick items
+  const configuredQuickItems = config?.view_configurations?.quick_track?.sections
+  let availableItems
+  if (configuredQuickItems) {
+    const bodyIds = configuredQuickItems.body?.items || []
+    const mindIds = configuredQuickItems.mind?.items || []
+    // Preserve user order by concatenating in sequence
+    const orderedIds = [...bodyIds, ...mindIds]
+    availableItems = orderedIds.map(id => TRACKING_ITEMS[id]).filter(Boolean)
+  } else {
+    availableItems = Object.values(TRACKING_ITEMS).filter(item => item.quick)
+  }
 
   const handleItemSelect = (item) => {
     setSelectedItem(item)
@@ -75,35 +82,42 @@ const QuickTrackView = () => {
 
   const renderScaleButtons = (item) => {
     const is3Point = isItem3PointScale(item)
-    const scaleValues = is3Point ? [1, 3, 5] : [1, 2, 3, 4, 5]
-    const displayType = config?.display_type || 'text'
-    
+    const scaleValues = is3Point ? [1, 2, 3] : [1, 2, 3, 4, 5]
+    const displayType = config?.display_options?.item_display_type || 'text'
+
+    const colorClassMap = {
+      success: 'bg-green-100 border-green-400 text-green-800',
+      warning: 'bg-yellow-100 border-yellow-400 text-yellow-800',
+      danger: 'bg-red-100 border-red-400 text-red-800',
+      gray: 'bg-gray-100 border-gray-300 text-gray-700'
+    }
+
+    const cols = is3Point ? 'grid-cols-3' : 'grid-cols-5'
     return (
-      <div className="grid grid-cols-5 gap-2">
+      <div className={clsx('grid gap-2', cols)}>
         {scaleValues.map((value) => {
           const { displayText, ariaLabel } = getValueLabels(item, value, displayType)
-          const isSelected = selectedValue === value
-          const color = getItemColor(value, displayType)
-          
+          const compareValue = is3Point ? normalizeScaleValue(value, 3) : value
+          const isSelected = selectedValue === compareValue
+          const tone = getItemColor(item, compareValue)
+          const selectedClasses = colorClassMap[tone] || colorClassMap.gray
+          const showCaption = displayType === 'face'
+          const labelIndex = (is3Point ? value : value) - 1
+          const captionText = item.textOptions?.[labelIndex]
           return (
             <button
               key={value}
               type="button"
-              onClick={() => handleValueSelect(value)}
+              onClick={() => handleValueSelect(compareValue)}
               className={clsx(
-                'p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-medium flex flex-col items-center justify-center min-h-[80px]',
-                isSelected
-                  ? `${color.bg} ${color.border} ${color.text} shadow-medium`
-                  : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                'p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-medium flex flex-col items-center justify-center min-h-[80px] w-full',
+                isSelected ? `${selectedClasses} shadow-medium` : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
               )}
             >
               <span className="text-2xl mb-1" aria-label={ariaLabel}>{displayText}</span>
-              <span className="text-xs opacity-75">
-                {value === 1 ? 'Very Low' : 
-                 value === 2 ? 'Low' : 
-                 value === 3 ? 'Moderate' : 
-                 value === 4 ? 'High' : 'Very High'}
-              </span>
+              {showCaption && (
+                <span className="text-xs opacity-75">{captionText}</span>
+              )}
             </button>
           )
         })}
@@ -180,6 +194,28 @@ const QuickTrackView = () => {
     )
   }
 
+  const renderDateInput = (item) => {
+    return (
+      <div className="flex items-center justify-center space-x-4 w-full">
+        <input
+          type="date"
+          value={selectedValue || ''}
+          onChange={(e) => setSelectedValue(e.target.value || null)}
+          className="input w-full max-w-sm"
+        />
+        {selectedValue && (
+          <button
+            type="button"
+            onClick={() => setSelectedValue(null)}
+            className="text-sm text-green-700 hover:text-green-900"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+    )
+  }
+
   const renderValueSelection = () => {
     if (!selectedItem) return null
 
@@ -187,18 +223,26 @@ const QuickTrackView = () => {
       <div className="space-y-6">
         <div className="text-center">
           <h3 className="text-xl font-semibold text-gray-800 mb-2">
-            {selectedItem.label}
+            {selectedItem.name}
           </h3>
+          {selectedItem.description && (
+            <p className="text-sm text-gray-600 mb-1">{selectedItem.description}</p>
+          )}
           <p className="text-gray-600">Select your current level:</p>
         </div>
         
         <div className="space-y-4">
-          {selectedItem.scale_type === '3-point' || selectedItem.scale_type === '5-point' ? (
+          {(selectedItem.scale_type === '3-point' ||
+            selectedItem.scale_type === '5-point' ||
+            selectedItem.scale === 3 ||
+            selectedItem.scale === 5) ? (
             renderScaleButtons(selectedItem)
-          ) : selectedItem.scale_type === 'multi-select' ? (
+          ) : (selectedItem.scale_type === 'multi-select' || selectedItem.type === 'multi-select') ? (
             renderMultiSelect(selectedItem)
-          ) : selectedItem.scale_type === 'numeric' ? (
+          ) : (selectedItem.scale_type === 'numeric' || selectedItem.type === 'number') ? (
             renderNumberInput(selectedItem)
+          ) : (selectedItem.type === 'date') ? (
+            renderDateInput(selectedItem)
           ) : null}
         </div>
         
@@ -242,8 +286,8 @@ const QuickTrackView = () => {
                 : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
             )}
           >
-            <div className="text-lg font-medium mb-2">{item.label}</div>
-            <div className="text-sm text-gray-500 capitalize">{item.section}</div>
+            <div className="text-lg font-medium mb-2">{item.name}</div>
+            <div className="text-sm text-gray-500 capitalize">{item.category}</div>
           </button>
         ))}
       </div>
