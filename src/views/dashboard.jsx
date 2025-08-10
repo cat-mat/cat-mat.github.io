@@ -7,6 +7,7 @@ import EveningView from './evening-view.jsx'
 import QuickTrackView from './quick-track-view.jsx'
 import LoadingSpinner from '../components/loading-spinner.jsx'
 import { clsx } from 'clsx'
+import { getTimeBasedView } from '../utils/time-based-view.js'
 // Removed ServiceWorkerManager import - PWA functionality disabled
 import AppHeader from '../components/app-header.jsx';
 
@@ -39,6 +40,7 @@ const Dashboard = () => {
   const { user } = auth
   const { currentView } = ui
   const { entries, isLoading } = trackingData
+  const suggestedView = getTimeBasedView(config)
 
   // Get today's entries (using local timezone, excluding deleted entries)
   const today = new Date().toLocaleDateString('en-CA') // Returns YYYY-MM-DD in local timezone
@@ -219,25 +221,36 @@ const Dashboard = () => {
         {/* View selector */}
         <div className="mb-8">
           <div className="flex space-x-3">
-            {['morning', 'quick', 'evening'].map((view) => (
-              <button
-                key={view}
-                onClick={() => setCurrentView(view)}
-                className={clsx(
-                  'flex-1 py-4 px-4 rounded-xl border-2 transition-all duration-300 hover:shadow-medium',
-                  currentView === view
-                    ? 'border-primary-500 bg-gradient-to-br from-primary-100 to-primary-50 text-primary-700 shadow-medium'
-                    : 'border-cream-400 bg-cream-500 text-gray-700 hover:border-primary-300 hover:bg-cream-400'
-                )}
-              >
-                <div className="text-center">
-                  <div className="text-3xl mb-2 animate-bloom">
-                    {view === 'morning' ? '🌻' : view === 'evening' ? '🌙' : '⚡'}
+            {['morning', 'quick', 'evening'].map((view) => {
+              const isCurrent = currentView === view
+              const isSuggested = suggestedView === view
+              return (
+                <button
+                  key={view}
+                  onClick={() => setCurrentView(view)}
+                  className={clsx(
+                    'flex-1 py-4 px-4 rounded-xl border-2 transition-all duration-300 hover:shadow-medium',
+                    isCurrent
+                      ? 'border-primary-500 bg-gradient-to-br from-primary-100 to-primary-50 text-primary-700 shadow-medium'
+                      : 'border-cream-400 bg-cream-500 text-gray-700 hover:border-primary-300 hover:bg-cream-400'
+                  )}
+                  title={`${view.charAt(0).toUpperCase() + view.slice(1)}${isSuggested ? ' (suggested for current time)' : ''}`}
+                >
+                  <div className="text-center">
+                    <div className={clsx(
+                      'text-3xl mb-2',
+                      isSuggested && !isCurrent && 'animate-pulse'
+                    )}>
+                      {view === 'morning' ? '🌻' : view === 'evening' ? '🌙' : '⚡'}
+                    </div>
+                    <div className="text-sm font-medium capitalize">{view}</div>
+                    {isSuggested && !isCurrent && (
+                      <div className="text-xs text-primary-600 mt-1">Suggested</div>
+                    )}
                   </div>
-                  <div className="text-sm font-medium capitalize">{view}</div>
-                </div>
-              </button>
-            ))}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -308,36 +321,29 @@ const Dashboard = () => {
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-cream-500 border-t border-cream-400 md:hidden z-50 shadow-wildflower">
         <div className="flex justify-around">
-          <button
-            onClick={() => setCurrentView('morning')}
-            className={clsx(
-              'flex-1 py-3 px-2 text-center transition-all duration-200',
-              currentView === 'morning' ? 'text-primary-600' : 'text-gray-600'
-            )}
-          >
-            <div className="text-xl mb-1 animate-bloom">🌻</div>
-            <div className="text-xs">Morning</div>
-          </button>
-          <button
-            onClick={() => setCurrentView('quick')}
-            className={clsx(
-              'flex-1 py-3 px-2 text-center transition-all duration-200',
-              currentView === 'quick' ? 'text-primary-600' : 'text-gray-600'
-            )}
-          >
-            <div className="text-xl mb-1 animate-bloom">⚡</div>
-            <div className="text-xs">Quick</div>
-          </button>
-          <button
-            onClick={() => setCurrentView('evening')}
-            className={clsx(
-              'flex-1 py-3 px-2 text-center transition-all duration-200',
-              currentView === 'evening' ? 'text-primary-600' : 'text-gray-600'
-            )}
-          >
-            <div className="text-xl mb-1 animate-bloom">🌙</div>
-            <div className="text-xs">Evening</div>
-          </button>
+          {['morning', 'quick', 'evening'].map((view) => {
+            const isCurrent = currentView === view
+            const isSuggested = suggestedView === view
+            return (
+              <button
+                key={view}
+                onClick={() => setCurrentView(view)}
+                className={clsx(
+                  'flex-1 py-3 px-2 text-center transition-all duration-200',
+                  isCurrent ? 'text-primary-600' : 'text-gray-600'
+                )}
+                title={`${view.charAt(0).toUpperCase() + view.slice(1)}${isSuggested ? ' (suggested)' : ''}`}
+              >
+                <div className={clsx(
+                  'text-xl mb-1',
+                  isSuggested && !isCurrent && 'animate-pulse'
+                )}>
+                  {view === 'morning' ? '🌻' : view === 'evening' ? '🌙' : '⚡'}
+                </div>
+                <div className="text-xs">{view.charAt(0).toUpperCase() + view.slice(1)}</div>
+              </button>
+            )
+          })}
         </div>
       </nav>
 

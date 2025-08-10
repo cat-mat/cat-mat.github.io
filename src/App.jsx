@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAppStore } from './stores/app-store.js'
 import { format } from 'date-fns'
 import { DEFAULT_VIEW_TIMES } from './constants/tracking-items.js'
+import { getTimeBasedView } from './utils/time-based-view.js'
 import './styles/inline-styles.css'
 
 // Components
@@ -66,22 +67,12 @@ function App() {
     if (!config) return
 
     const updateView = () => {
-      const now = new Date()
-      const currentTime = format(now, 'HH:mm')
-      const { morning_end, evening_start } = config.display_options.view_times
-
-      let suggestedView = 'quick'
-      
-      if (currentTime < morning_end) {
-        suggestedView = 'morning'
-      } else if (currentTime >= evening_start) {
-        suggestedView = 'evening'
-      }
+      const suggestedView = getTimeBasedView(config)
 
       // Only auto-switch if the current view doesn't match the suggested view
       // and we haven't manually set a view yet
       if (ui.currentView !== suggestedView) {
-        console.log('Auto-switching view from', ui.currentView, 'to', suggestedView, 'based on time:', currentTime)
+        console.log('Auto-switching view from', ui.currentView, 'to', suggestedView, 'based on time-based logic')
         setCurrentView(suggestedView)
       }
     }
