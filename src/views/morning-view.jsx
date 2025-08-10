@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../stores/app-store.js'
-import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3PointScale } from '../constants/tracking-items.js'
+import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3PointScale, getValueLabels } from '../constants/tracking-items.js'
 import { denormalizeScaleValue, normalizeScaleValue } from '../utils/scale-conversion.js'
 import { format } from 'date-fns'
 import { clsx } from 'clsx'
@@ -167,7 +167,7 @@ const MorningView = () => {
     return (
       <div className="flex flex-wrap gap-2">
         {scaleValues.map((value) => {
-          const displayValue = getDisplayValue(value, displayType)
+          const { displayText, ariaLabel } = getValueLabels(item, value, displayType)
           const isSelected = formData[item.id] === value
           const color = getItemColor(value, displayType)
           
@@ -183,7 +183,7 @@ const MorningView = () => {
                   : 'bg-white border-gray-300 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
               )}
             >
-              <span className="text-lg">{displayValue}</span>
+              <span className="text-lg" aria-label={ariaLabel}>{displayText}</span>
             </button>
           )
         })}

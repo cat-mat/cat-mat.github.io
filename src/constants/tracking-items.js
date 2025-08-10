@@ -518,19 +518,32 @@ export const getItemsByView = (viewType) => {
 
 export const getDisplayValue = (item, value, displayType) => {
   if (!value) return ''
-  
+
+  const index = (val) => Math.min(Math.max(val, 1), 5) - 1
+  const text = item.textOptions?.[index(value)] ?? String(value)
+  const face = item.faceEmojis?.[index(value)] ?? text
+  const heart = item.heartEmojis?.[index(value)] ?? text
+  const dot = item.dotEmojis?.[index(value)] ?? text
+
   switch (displayType) {
     case 'text':
-      return item.textOptions ? item.textOptions[value - 1] : value
+      return text
     case 'face':
-      return item.faceEmojis ? item.faceEmojis[value - 1] : value
+      return face
     case 'heart':
-      return item.heartEmojis ? item.heartEmojis[value - 1] : value
+      return heart
     case 'dot':
-      return item.dotEmojis ? item.dotEmojis[value - 1] : value
+      return dot
     default:
-      return value
+      return text
   }
+}
+
+// Unified label helper for visuals + accessibility
+export const getValueLabels = (item, value, displayType) => {
+  const displayText = getDisplayValue(item, value, displayType)
+  const ariaLabel = `${item.name}: ${typeof displayText === 'string' ? displayText : String(value)}`
+  return { displayText, ariaLabel }
 }
 
 export const getItemColor = (item, value) => {

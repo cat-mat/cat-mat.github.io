@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../stores/app-store.js'
-import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3PointScale } from '../constants/tracking-items.js'
+import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3PointScale, getValueLabels } from '../constants/tracking-items.js'
 import { denormalizeScaleValue, normalizeScaleValue } from '../utils/scale-conversion.js'
 import { format } from 'date-fns'
 import { clsx } from 'clsx'
@@ -81,7 +81,7 @@ const QuickTrackView = () => {
     return (
       <div className="grid grid-cols-5 gap-2">
         {scaleValues.map((value) => {
-          const displayValue = getDisplayValue(value, displayType)
+          const { displayText, ariaLabel } = getValueLabels(item, value, displayType)
           const isSelected = selectedValue === value
           const color = getItemColor(value, displayType)
           
@@ -97,7 +97,7 @@ const QuickTrackView = () => {
                   : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
               )}
             >
-              <span className="text-2xl mb-1">{displayValue}</span>
+              <span className="text-2xl mb-1" aria-label={ariaLabel}>{displayText}</span>
               <span className="text-xs opacity-75">
                 {value === 1 ? 'Very Low' : 
                  value === 2 ? 'Low' : 
