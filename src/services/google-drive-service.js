@@ -29,6 +29,7 @@ class GoogleDriveService {
     this.refreshTimer = null
     this.proactiveReauthTimer = null
     this.notificationHandler = null
+    this.lastTokenError = null
     
     // Try to restore token from localStorage on initialization
     this.restoreTokenFromStorage()
@@ -134,9 +135,19 @@ class GoogleDriveService {
         scope: this.scope,
         callback: (tokenResponse) => {
           if (tokenResponse.error) {
+            this.lastTokenError = tokenResponse.error
             console.error('Token response error:', tokenResponse.error)
+            if (tokenResponse.error === 'interaction_required') {
+              // Surface a clear banner so user can re-auth
+              this.notify({
+                type: 'reauth-banner',
+                title: 'Sign in required',
+                message: 'Please sign in again to continue syncing with Google Drive.'
+              })
+            }
             return
           }
+          this.lastTokenError = null
           this.accessToken = tokenResponse.access_token
           
           // Calculate token expiry (Google tokens can last up to 1 hour, but let's be conservative)
@@ -350,9 +361,13 @@ class GoogleDriveService {
       clearTimeout(this.refreshTimer)
     }
 
-    // Only set up auto-refresh if we have a valid token
+    // Only set up auto-refresh if we have a token and expiry; try to initialize client if missing
     if (!this.accessToken || !this.tokenExpiry) {
       return
+    }
+    if (!this.tokenClient && !this.isMockMode) {
+      // Lazily initialize GIS client to enable refresh flow after restore
+      this.initialize().catch(() => {})
     }
 
     const now = new Date()
@@ -431,7 +446,13 @@ class GoogleDriveService {
   // Refresh the access token
   async refreshToken() {
     if (!this.tokenClient) {
-      throw new Error('Token client not initialized')
+      // Attempt to lazily initialize GIS and the token client when a token
+      // was restored from storage but the service wasn't initialized yet.
+      try {
+        await this.initialize()
+      } catch (e) {
+        throw new Error('Token client not initialized')
+      }
     }
 
     console.log('Attempting to refresh access token...')
@@ -453,6 +474,11 @@ class GoogleDriveService {
 
         // Poll for new token
         const checkToken = () => {
+          if (this.lastTokenError === 'interaction_required') {
+            clearTimeout(timeoutId)
+            reject(new Error('interaction_required'))
+            return
+          }
           // Check if we got a new token (different from current)
           if (this.accessToken && this.accessToken !== currentToken && this.isTokenValid()) {
             clearTimeout(timeoutId)

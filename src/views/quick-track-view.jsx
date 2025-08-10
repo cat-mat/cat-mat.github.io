@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../stores/app-store.js'
 import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3PointScale, getValueLabels } from '../constants/tracking-items.js'
 import { denormalizeScaleValue, normalizeScaleValue } from '../utils/scale-conversion.js'
@@ -10,6 +10,8 @@ const QuickTrackView = () => {
   const [selectedItem, setSelectedItem] = useState(null)
   const [selectedValue, setSelectedValue] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const topAnchorRef = useRef(null)
+  const headingRef = useRef(null)
 
   // Get quick track items (user-configurable subset)
   // Use configured Quick Track items if present; fallback to all quick items
@@ -29,6 +31,25 @@ const QuickTrackView = () => {
     setSelectedItem(item)
     setSelectedValue(null) // Reset value when selecting new item
   }
+
+  // When an item is selected, scroll the view to the top of the Quick Track card
+  useEffect(() => {
+    if (selectedItem) {
+      try {
+        if (topAnchorRef.current) {
+          topAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+        // Improve accessibility by moving focus to the heading after scroll
+        setTimeout(() => {
+          if (headingRef.current && typeof headingRef.current.focus === 'function') {
+            headingRef.current.focus()
+          }
+        }, 250)
+      } catch {}
+    }
+  }, [selectedItem])
 
   const handleValueSelect = (value) => {
     setSelectedValue(value)
@@ -61,7 +82,7 @@ const QuickTrackView = () => {
       addNotification({
         type: 'success',
         title: 'Quick entry saved',
-        message: `${selectedItem.label} tracked successfully! ⚡`
+        message: `${selectedItem.name} tracked successfully! ⚡`
       })
       
       // Reset form
@@ -296,8 +317,8 @@ const QuickTrackView = () => {
   return (
     <div className="quick-track-view bg-gradient-to-br from-green-50 to-blue-50 min-h-screen">
       <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h1 className="text-2xl font-bold text-green-800 mb-2">Quick Track ⚡</h1>
+        <div ref={topAnchorRef} className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h1 ref={headingRef} tabIndex="-1" className="text-2xl font-bold text-green-800 mb-2">Quick Track ⚡</h1>
           <p className="text-green-600 mb-6">Quickly track a single item. What would you like to record?</p>
           
           <form onSubmit={handleSubmit} className="space-y-8">
