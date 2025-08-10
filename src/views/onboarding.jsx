@@ -188,14 +188,14 @@ const Onboarding = () => {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Energy Level</h3>
         <div className="flex flex-wrap gap-2">
           {[1, 2, 3, 4, 5].map((value) => {
-            const displayValue = getDisplayValue(value, displayType)
+            const { displayText } = getValueLabels({ name: 'Energy Level', ...TRACKING_ITEMS.energy_level }, value, displayType)
             const color = getItemColor(value, displayType)
             return (
               <button
                 key={value}
                 className={`px-4 py-2 rounded-lg border-2 ${color.bg} ${color.border} ${color.text}`}
               >
-                <span className="text-lg">{displayValue}</span>
+                <span className="text-lg">{displayText}</span>
               </button>
             )
           })}
@@ -244,14 +244,14 @@ const Onboarding = () => {
               </h3>
               <div className="flex justify-center space-x-2">
                 {[1, 2, 3, 4, 5].map((value) => {
-                  const displayValue = getDisplayValue(value, type)
+                  const { displayText } = getValueLabels({ name: 'Sample', textOptions: TRACKING_ITEMS.energy_level.textOptions, faceEmojis: TRACKING_ITEMS.energy_level.faceEmojis, heartEmojis: TRACKING_ITEMS.energy_level.heartEmojis, dotEmojis: TRACKING_ITEMS.energy_level.dotEmojis }, value, type)
                   const color = getItemColor(value, type)
                   return (
                     <div
                       key={value}
                       className={`px-3 py-2 rounded-lg ${color.bg} ${color.text}`}
                     >
-                      <span className="text-lg">{displayValue}</span>
+                      <span className="text-lg">{displayText}</span>
                     </div>
                   )
                 })}

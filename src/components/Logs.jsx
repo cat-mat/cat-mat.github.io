@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useAppStore } from '../stores/app-store'
-import { TRACKING_ITEMS, getDisplayValue, getItemColor, isItem3PointScale } from '../constants/tracking-items'
+import { TRACKING_ITEMS, getDisplayValue, getItemColor, isItem3PointScale, getValueLabels } from '../constants/tracking-items'
 import { denormalizeScaleValue } from '../utils/scale-conversion.js'
 import { format, parseISO, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import { Link } from 'react-router-dom'
@@ -119,7 +119,7 @@ const Logs = () => {
                 if (isItem3PointScale(item)) {
                   displayValueToUse = denormalizeScaleValue(value, 3)
                 }
-                displayValue = getDisplayValue(item, displayValueToUse, 'text')
+                displayValue = getValueLabels(item, displayValueToUse, 'text').displayText
               }
               
               if (displayValue.toString().toLowerCase().includes(searchTerm.toLowerCase())) {
@@ -468,7 +468,7 @@ const Logs = () => {
             if (isItem3PointScale(item)) {
               displayValueToUse = denormalizeScaleValue(value, 3)
             }
-            displayValue = getDisplayValue(item, displayValueToUse, 'text')
+            displayValue = getValueLabels(item, displayValueToUse, 'text').displayText
           }
           dataItems.push({
             label: item.name,
