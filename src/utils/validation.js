@@ -17,7 +17,8 @@ const baseEntrySchema = Joi.object({
 
 // Scale validation helpers
 const scaleValidation = {
-  3: Joi.number().integer().min(1).max(3),
+  // Strict 3-point set {1,3,5} per .cursorrules
+  3: Joi.number().valid(1, 3, 5),
   4: Joi.number().integer().min(1).max(4),
   5: Joi.number().integer().min(1).max(5)
 }
@@ -37,7 +38,9 @@ const getItemScale = (itemId) => {
 
 // Custom validation for scale values that converts 3-point to 5-point internally
 const createScaleValidator = (scale) => {
-  return Joi.number().integer().min(1).max(scale === 3 ? 5 : scale)
+  // For 3-point, we normalize to 5 internally, but inputs must be from {1,3,5}
+  if (scale === 3) return Joi.number().valid(1, 3, 5)
+  return Joi.number().integer().min(1).max(scale)
 }
 
 // Multi-select validation
@@ -393,17 +396,18 @@ export const migrations = {
     // Migrate 3-point scale values to 5-point scale for consistency
     if (data.entries && Array.isArray(data.entries)) {
       const threePointItems = [
-        'allergic_reactions', 'bleeding_spotting', 'brain_fog', 'forehead_shine',
-        'hydration', 'mood', 'nausea', 'temperature_sensitivity', 'weird_dreams'
+        'allergic_reactions', 'bleeding_spotting', 'brain_fog', 'eating_habits', 'forehead_shine',
+        'headache', 'hydration', 'mood', 'nausea', 'temperature_sensitivity', 'workout_recovery', 'weird_dreams'
       ]
       
       data.entries.forEach(entry => {
         threePointItems.forEach(itemId => {
           if (entry[itemId] !== undefined && entry[itemId] !== null) {
             // Only convert if the value is still in 3-point format (1, 2, 3)
-            if (entry[itemId] >= 1 && entry[itemId] <= 3) {
-              entry[itemId] = normalizeScaleValue(entry[itemId], 3)
-            }
+            const v = entry[itemId]
+            // Coerce legacy midpoints {2,4} to nearest allowed {1,3,5}, then normalize
+            const coerced = v === 2 ? 3 : v === 4 ? 5 : v
+            entry[itemId] = normalizeScaleValue(coerced, 3)
           }
         })
       })
