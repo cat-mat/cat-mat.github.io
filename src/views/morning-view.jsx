@@ -5,36 +5,26 @@ import { denormalizeScaleValue, normalizeScaleValue } from '../utils/scale-conve
 import { format } from 'date-fns'
 import { clsx } from 'clsx'
 
-const TrackingForm = ({ viewType }) => {
+const MorningView = () => {
   const { config, trackingData, addEntry, updateEntry, addNotification } = useAppStore()
   const [formData, setFormData] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [existingEntry, setExistingEntry] = useState(null)
   const [collapsedSections, setCollapsedSections] = useState({})
 
-  // Get items for this view
-  const viewItems = getItemsByView(viewType)
-  const viewConfig = config?.view_configurations?.[`${viewType}_report`] || 
-                    (viewType === 'quick' ? config?.view_configurations?.quick_track : null)
-  
+  // Get items for morning view
+  const viewItems = getItemsByView('morning')
 
   // Check for existing entry today
   useEffect(() => {
-    // For Quick Track, we don't look for existing entries - always create new ones
-    if (viewType === 'quick') {
-      setExistingEntry(null)
-      setFormData({})
-      return
-    }
-
     // Use local timezone instead of UTC
     const today = new Date().toLocaleDateString('en-CA') // Returns YYYY-MM-DD in local timezone
     
-    // Find all entries for today and this view type (excluding deleted entries)
+    // Find all entries for today and morning type (excluding deleted entries)
     const todaysEntries = trackingData.entries.filter(entry => {
       // Convert UTC timestamp to local date for comparison
       const entryDate = new Date(entry.timestamp).toLocaleDateString('en-CA')
-      return entryDate === today && entry.type === viewType && !entry.is_deleted
+      return entryDate === today && entry.type === 'morning' && !entry.is_deleted
     })
     
     // Get the most recent entry (latest timestamp)
@@ -45,30 +35,17 @@ const TrackingForm = ({ viewType }) => {
           return currentTime > latestTime ? current : latest
         })
       : null
-    
 
     setExistingEntry(existing)
     
     if (existing) {
-      // Load all the data from the existing entry, including notes
-      const entryData = {
-        ...existing,
-        notes: existing.notes || {}
-      }
-
-      setFormData(entryData)
+      // Load all the data from the existing entry
+      setFormData(existing)
     } else {
       // Clear form data completely when no existing entry
       setFormData({})
     }
-  }, [viewType, trackingData.entries])
-
-  // Clear form when viewType changes (in case of cached data)
-  useEffect(() => {
-    if (!existingEntry) {
-      setFormData({})
-    }
-  }, [viewType, existingEntry])
+  }, [trackingData.entries])
 
   const handleScaleChange = (itemId, value) => {
     setFormData(prev => {
@@ -122,13 +99,10 @@ const TrackingForm = ({ viewType }) => {
     }))
   }
 
-  const handleNotesChange = (field, value) => {
+  const handleDateChange = (itemId, value) => {
     setFormData(prev => ({
       ...prev,
-      notes: {
-        ...prev.notes,
-        [field]: value
-      }
+      [itemId]: value
     }))
   }
 
@@ -143,7 +117,7 @@ const TrackingForm = ({ viewType }) => {
       // Create entry data
       const entryData = {
         ...formData,
-        type: viewType,
+        type: 'morning',
         timestamp: new Date().toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Los_Angeles'
       }
@@ -153,30 +127,25 @@ const TrackingForm = ({ viewType }) => {
         await updateEntry(existingEntry.id, entryData)
         addNotification({
           type: 'success',
-          title: 'Entry updated',
-          message: `${viewType} entry updated successfully!`
+          title: 'Morning entry updated',
+          message: 'Your morning entry has been updated successfully! 🌅'
         })
       } else {
         // Create new entry
         await addEntry(entryData)
         addNotification({
           type: 'success',
-          title: 'Entry saved',
-          message: `${viewType} entry saved successfully!`
+          title: 'Morning entry saved',
+          message: 'Your morning entry has been saved successfully! 🌅'
         })
       }
       
-      // Clear form data after successful submission
-      if (viewType === 'quick') {
-        setFormData({})
-      }
-      
     } catch (error) {
-      console.error('Error saving entry:', error)
+      console.error('Error saving morning entry:', error)
       addNotification({
         type: 'error',
         title: 'Save failed',
-        message: 'Failed to save entry. Please try again.'
+        message: 'Failed to save morning entry. Please try again.'
       })
     } finally {
       setIsSubmitting(false)
@@ -211,7 +180,7 @@ const TrackingForm = ({ viewType }) => {
                 'px-4 py-2 rounded-lg border-2 transition-all duration-200 hover:shadow-medium',
                 isSelected
                   ? `${color.bg} ${color.border} ${color.text} shadow-medium`
-                  : 'bg-white border-gray-300 text-gray-700 hover:border-primary-300 hover:bg-gray-50'
+                  : 'bg-white border-gray-300 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
               )}
             >
               <span className="text-lg">{displayValue}</span>
@@ -233,7 +202,7 @@ const TrackingForm = ({ viewType }) => {
               type="checkbox"
               checked={selectedValues.includes(option)}
               onChange={(e) => handleMultiSelectChange(item.id, option, e.target.checked)}
-              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
             />
             <span className="text-gray-700">{option}</span>
           </label>
@@ -259,70 +228,7 @@ const TrackingForm = ({ viewType }) => {
     )
   }
 
-  const renderNotesSection = () => {
-    if (viewType !== 'evening') return null
-    
-    return (
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Observations
-          </label>
-          <textarea
-            value={formData.notes?.observations || ''}
-            onChange={(e) => handleNotesChange('observations', e.target.value)}
-            className="input w-full h-24 resize-none"
-            placeholder="What did you notice today?"
-            maxLength={2000}
-          />
-          <div className="text-xs text-gray-500 mt-1">
-            {(formData.notes?.observations || '').length}/2000
-          </div>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Reflections
-          </label>
-          <textarea
-            value={formData.notes?.reflections || ''}
-            onChange={(e) => handleNotesChange('reflections', e.target.value)}
-            className="input w-full h-24 resize-none"
-            placeholder="What are your thoughts and feelings?"
-            maxLength={2000}
-          />
-          <div className="text-xs text-gray-500 mt-1">
-            {(formData.notes?.reflections || '').length}/2000
-          </div>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Thankful For
-          </label>
-          <textarea
-            value={formData.notes?.thankful_for || ''}
-            onChange={(e) => handleNotesChange('thankful_for', e.target.value)}
-            className="input w-full h-24 resize-none"
-            placeholder="What are you grateful for today?"
-            maxLength={2000}
-          />
-          <div className="text-xs text-gray-500 mt-1">
-            {(formData.notes?.thankful_for || '').length}/2000
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   const renderItem = (item) => {
-    const handleDateChange = (itemId, value) => {
-      setFormData(prev => ({
-        ...prev,
-        [itemId]: value
-      }))
-    }
-
     switch (item.scale_type) {
       case '3-point':
       case '5-point':
@@ -406,8 +312,6 @@ const TrackingForm = ({ viewType }) => {
   }
 
   const renderWearablesSection = () => {
-    if (viewType !== 'morning') return null
-    
     const wearablesItems = viewItems.filter(item => 
       item.id === 'wearables_sleep_score' || item.id === 'wearables_body_battery'
     )
@@ -425,40 +329,43 @@ const TrackingForm = ({ viewType }) => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Body Section */}
-      {renderSection('body')}
-      
-      {/* Mind Section */}
-      {renderSection('mind')}
-      
-      {/* Morning Only Section */}
-      {viewType === 'morning' && renderSection('morning')}
-      
-      {/* Evening Only Section */}
-      {viewType === 'evening' && renderSection('evening')}
-      
-      {/* Wearables Section */}
-      {renderWearablesSection()}
-      
-      {/* Notes Section */}
-      {renderNotesSection()}
-      
-      {/* Submit Button */}
-      <div className="flex justify-end pt-6 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={clsx(
-            'btn-primary px-8 py-3',
-            isSubmitting && 'opacity-50 cursor-not-allowed'
-          )}
-        >
-          {isSubmitting ? 'Saving...' : existingEntry ? 'Update Entry' : 'Save Entry'}
-        </button>
+    <div className="morning-view bg-gradient-to-br from-blue-50 to-green-50 min-h-screen">
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h1 className="text-2xl font-bold text-blue-800 mb-2">Good Morning! 🌅</h1>
+          <p className="text-blue-600 mb-6">How are you feeling this morning? Let's track your sleep quality and energy levels.</p>
+          
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Body Section */}
+            {renderSection('body')}
+            
+            {/* Mind Section */}
+            {renderSection('mind')}
+            
+            {/* Morning Only Section */}
+            {renderSection('morning')}
+            
+            {/* Wearables Section */}
+            {renderWearablesSection()}
+            
+            {/* Submit Button */}
+            <div className="flex justify-end pt-6 border-t border-gray-200">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={clsx(
+                  'btn-primary px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white',
+                  isSubmitting && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                {isSubmitting ? 'Saving...' : existingEntry ? 'Update Morning Entry' : 'Save Morning Entry'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </form>
+    </div>
   )
 }
 
-export default TrackingForm
+export default MorningView

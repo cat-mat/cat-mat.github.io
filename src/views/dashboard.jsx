@@ -2,7 +2,9 @@ import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAppStore } from '../stores/app-store.js'
 import { format } from 'date-fns'
-import TrackingForm from './tracking-form.jsx'
+import MorningView from './morning-view.jsx'
+import EveningView from './evening-view.jsx'
+import QuickTrackView from './quick-track-view.jsx'
 import LoadingSpinner from '../components/loading-spinner.jsx'
 import { clsx } from 'clsx'
 // Removed ServiceWorkerManager import - PWA functionality disabled
@@ -264,7 +266,11 @@ const Dashboard = () => {
                   <LoadingSpinner size="large" />
                 </div>
               ) : (
-                <TrackingForm key={currentView} viewType={currentView} />
+                <>
+                  {currentView === 'morning' && <MorningView key="morning" />}
+                  {currentView === 'evening' && <EveningView key="evening" />}
+                  {currentView === 'quick' && <QuickTrackView key="quick" />}
+                </>
               )}
             </div>
           </div>
