@@ -8,6 +8,13 @@ class PerformanceMonitor {
     this.metrics = {}
     this.observers = []
     this.isSupported = 'PerformanceObserver' in window
+    this.slowOperationThresholdMs = 5000
+    this.slowOperationHandler = null
+    this.performanceBudgets = {
+      lcpMs: 3000,
+      fcpMs: 2000,
+      bundleKb: 500
+    }
   }
 
   /**
@@ -143,6 +150,48 @@ class PerformanceMonitor {
   }
 
   /**
+   * Configure slow operation threshold and handler
+   */
+  setSlowOperationHandler(handler, thresholdMs = 5000) {
+    this.slowOperationHandler = typeof handler === 'function' ? handler : null
+    if (typeof thresholdMs === 'number' && thresholdMs > 0) {
+      this.slowOperationThresholdMs = thresholdMs
+    }
+  }
+
+  /**
+   * Set performance budgets
+   */
+  setPerformanceBudgets({ lcpMs, fcpMs, bundleKb } = {}) {
+    this.performanceBudgets = {
+      lcpMs: lcpMs ?? this.performanceBudgets.lcpMs,
+      fcpMs: fcpMs ?? this.performanceBudgets.fcpMs,
+      bundleKb: bundleKb ?? this.performanceBudgets.bundleKb
+    }
+  }
+
+  /**
+   * Evaluate against budgets and return breaches
+   */
+  evaluateBudgets() {
+    const summary = this.getSummary()
+    const breaches = []
+    if (summary?.lcp && summary.lcp > this.performanceBudgets.lcpMs) {
+      breaches.push({ metric: 'LCP', value: summary.lcp, budget: this.performanceBudgets.lcpMs })
+    }
+    const fcp = summary?.navigation?.firstPaint
+    if (fcp && fcp > this.performanceBudgets.fcpMs) {
+      breaches.push({ metric: 'FCP', value: fcp, budget: this.performanceBudgets.fcpMs })
+    }
+    const bundle = this.getBundleSize()
+    const bundleKb = Math.round((bundle.estimatedSize || 0) / 1024)
+    if (bundleKb && bundleKb > this.performanceBudgets.bundleKb) {
+      breaches.push({ metric: 'Bundle Size', value: `${bundleKb}KB`, budget: `${this.performanceBudgets.bundleKb}KB` })
+    }
+    return breaches
+  }
+
+  /**
    * Get performance report
    */
   getReport() {
@@ -202,10 +251,16 @@ class PerformanceMonitor {
       const result = await fn()
       const duration = performance.now() - start
       this.logMetric(`Function:${name}`, duration)
+      if (this.slowOperationHandler && duration >= this.slowOperationThresholdMs) {
+        try { this.slowOperationHandler({ name, duration }) } catch {}
+      }
       return result
     } catch (error) {
       const duration = performance.now() - start
       this.logMetric(`Function:${name}:error`, duration)
+      if (this.slowOperationHandler && duration >= this.slowOperationThresholdMs) {
+        try { this.slowOperationHandler({ name, duration, error: true }) } catch {}
+      }
       throw error
     }
   }

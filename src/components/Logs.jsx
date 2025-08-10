@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import LZString from 'lz-string'
 import AppHeader from './app-header.jsx';
+import ReauthBanner from './reauth-banner.jsx';
 import { googleDriveService } from '../services/google-drive-service.js';
 
 const Logs = () => {
@@ -505,6 +506,9 @@ const Logs = () => {
         configImportError={configImportError}
         configImportSuccess={configImportSuccess}
       />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <ReauthBanner />
+      </div>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">

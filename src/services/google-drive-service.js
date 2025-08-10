@@ -392,16 +392,17 @@ class GoogleDriveService {
       const now = Date.now()
       const delay = Math.max(firstTs + sixDaysMs - now, 0)
       if (delay === 0) {
+        // Immediate banner prompt
         this.notify({
-          type: 'warning',
-          title: 'Google Drive re-auth soon',
-          message: 'For unverified apps, access may expire soon. Please re-authenticate to keep syncing.'
+          type: 'reauth-banner',
+          title: 'Heads up: sign in again soon',
+          message: 'For unverified apps, access may expire every 7 days. Re-authenticate to keep syncing without interruption.'
         })
         return
       }
       this.proactiveReauthTimer = setTimeout(() => {
         this.notify({
-          type: 'warning',
+          type: 'reauth-banner',
           title: 'Please sign in again',
           message: 'To keep your Google Drive connection active, sign in again. Your data is safe and will sync after re-auth.'
         })
@@ -628,10 +629,11 @@ class GoogleDriveService {
           req.backoffIndex += 1
           req.retryCount += 1
           if (req.retryCount >= this.backoffSchedule.length) {
+            // Throttled user messaging for rate limits
             this.notify({
-              type: 'warning',
-              title: 'Rate limited by Google',
-              message: 'Sync is slowed due to Google Drive rate limits. We will keep trying automatically.'
+              type: 'rate-limit',
+              title: 'Sync is throttled',
+              message: 'Google Drive is rate limiting requests. We will keep trying in the background.'
             })
           }
           // Put the request back in the queue and continue

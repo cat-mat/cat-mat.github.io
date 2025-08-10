@@ -277,6 +277,12 @@ export const useAppStore = create(
           currentView: 'morning', // morning, evening, quick
           isLoading: false,
           notifications: [],
+          reauthBanner: {
+            visible: false,
+            title: '',
+            message: '',
+            severity: 'warning'
+          },
           modals: {
             settings: false,
             onboarding: false,
@@ -1334,6 +1340,53 @@ export const useAppStore = create(
           }, 5000)
         },
 
+        // Re-auth banner controls
+        showReauthBanner: ({ title, message, severity = 'warning' } = {}) => {
+          set(state => ({
+            ui: {
+              ...state.ui,
+              reauthBanner: {
+                visible: true,
+                title: title || 'Please sign in again',
+                message: message || 'To keep your Google Drive connection active, sign in again. Your data is safe and will sync after re-auth.',
+                severity
+              }
+            }
+          }))
+        },
+        dismissReauthBanner: () => {
+          set(state => ({
+            ui: {
+              ...state.ui,
+              reauthBanner: { ...state.ui.reauthBanner, visible: false }
+            }
+          }))
+        },
+        reauthenticate: async () => {
+          try {
+            await googleDriveService.forceReAuthentication()
+            // On success, hide banner and reload config/data
+            get().dismissReauthBanner()
+            const { auth } = get()
+            if (!auth.isAuthenticated) {
+              // In case state drifted, mark authenticated optimistically; user info isn't persisted for security
+              set(state => ({ auth: { ...state.auth, isAuthenticated: true } }))
+            }
+            get().loadConfig()
+            get().addNotification({
+              type: 'success',
+              title: 'Re-authenticated',
+              message: 'Your Google Drive connection is active again.'
+            })
+          } catch (error) {
+            get().addNotification({
+              type: 'error',
+              title: 'Re-authentication failed',
+              message: error?.message || 'Please try again.'
+            })
+          }
+        },
+
         removeNotification: (id) => {
           set(state => ({
             ui: {
@@ -1641,9 +1694,24 @@ try {
     googleDriveService.setNotificationHandler((notification) => {
       try {
         const { addNotification } = useAppStore.getState()
-        if (typeof addNotification === 'function') {
-          addNotification(notification)
+        if (notification?.type === 'reauth-banner') {
+          useAppStore.getState().showReauthBanner({
+            title: notification.title,
+            message: notification.message,
+            severity: 'warning'
+          })
+          return
         }
+        if (notification?.type === 'rate-limit') {
+          // Coalesce repeated rate-limit toasts by showing banner-like toast once
+          addNotification && addNotification({
+            type: 'warning',
+            title: notification.title || 'Rate limited by Google',
+            message: notification.message || 'We will keep trying automatically.'
+          })
+          return
+        }
+        if (typeof addNotification === 'function') addNotification(notification)
       } catch {}
     })
   }

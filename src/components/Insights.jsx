@@ -5,6 +5,7 @@ import { TRACKING_ITEMS, getDisplayValue, getItemColor, getItemEffectiveScale } 
 import { format, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval, parseISO, isWithinInterval } from 'date-fns'
 import { clsx } from 'clsx'
 import AppHeader from './app-header.jsx';
+import ReauthBanner from './reauth-banner.jsx';
 
 const Insights = () => {
   const { trackingData, loadAllHistoricalData } = useAppStore()
@@ -709,6 +710,9 @@ const Insights = () => {
         configImportError={configImportError}
         configImportSuccess={configImportSuccess}
       />
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <ReauthBanner />
+      </div>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center mb-8">
           <Link 

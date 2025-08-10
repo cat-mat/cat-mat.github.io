@@ -17,6 +17,7 @@ import LoadingSpinner from './components/loading-spinner.jsx'
 import OfflineIndicator from './components/offline-indicator.jsx'
 import ToastNotifications from './components/toast-notifications.jsx'
 import PrivacyPolicy from './components/privacy-policy.jsx'
+import { performanceMonitor } from './utils/performance.js'
 
 // Initialize Google API
 const initializeGoogleAPI = () => {
@@ -99,6 +100,29 @@ function App() {
       {/* Temporarily disabled OfflineIndicator to debug hot pink banner issue */}
       {/* <OfflineIndicator /> */}
       <ToastNotifications />
+      {(() => {
+        // Configure global slow-op hooks and budget checks once per render
+        performanceMonitor.setSlowOperationHandler(({ name, duration }) => {
+          try {
+            addNotification && addNotification({
+              type: 'warning',
+              title: 'Slow operation detected',
+              message: `${name} took ${Math.round(duration)}ms`
+            })
+          } catch {}
+        }, 5000)
+        const breaches = performanceMonitor.evaluateBudgets()
+        if (Array.isArray(breaches)) {
+          breaches.slice(0, 2).forEach(b => {
+            addNotification && addNotification({
+              type: 'warning',
+              title: 'Performance budget breach',
+              message: `${b.metric} over budget (${b.value} > ${b.budget})`
+            })
+          })
+        }
+        return null
+      })()}
       
       <Routes>
         {/* Public routes - accessible without authentication */}

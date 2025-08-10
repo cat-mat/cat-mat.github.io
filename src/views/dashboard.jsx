@@ -10,6 +10,7 @@ import { clsx } from 'clsx'
 import { getTimeBasedView } from '../utils/time-based-view.js'
 // Removed ServiceWorkerManager import - PWA functionality disabled
 import AppHeader from '../components/app-header.jsx';
+import ReauthBanner from '../components/reauth-banner.jsx';
 
 const Dashboard = () => {
   const { 
@@ -183,6 +184,7 @@ const Dashboard = () => {
 
               {/* Main content */}
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
+        <ReauthBanner />
         {/* Date header */}
         <div className="mb-6 meadow-card">
           <h2 className="text-2xl font-bold text-gray-800 wildflower-text-shadow">
