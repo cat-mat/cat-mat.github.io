@@ -16,7 +16,7 @@ const AppHeader = ({
   const { auth, signOut, addNotification } = useAppStore();
   const user = auth?.user;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
+  
   return (
     <header
       className="sticky top-0 z-40 bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 shadow-wildflower header-dynamic-top"

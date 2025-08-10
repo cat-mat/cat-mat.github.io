@@ -18,7 +18,7 @@ const LoadingSpinner = ({ size = 'medium', className = '' }) => {
       role="status"
       aria-label="Loading"
     >
-      <span className="sr-only">Loading...</span>
+      <span className="sr-only">Loading my hot self...</span>
     </div>
   )
 }

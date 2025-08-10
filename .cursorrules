@@ -1,0 +1,464 @@
+# Cursor Rules for "What Even With My Hot Self" App
+
+## Project Overview
+This is a mobile-first PWA for tracking body, mind, and emotional changes during perimenopause. The app uses Google Drive for data storage and is designed for 6 initial users (owner + 5 friends).
+
+## Core Architecture Principles
+
+### Data Storage Strategy
+- **PRIMARY STORAGE**: Google Drive API v3 (app-data scope)
+- **LOCAL STORAGE**: Configuration and current data only
+- **LARGE DATA**: IndexedDB for historical datasets
+- **NEVER**: Use localStorage for sensitive data without encryption
+- **ENCRYPTION**: Use Web Crypto API for sensitive notes before localStorage storage
+
+### File Structure on Google Drive
+- Configuration: `config.json` (single file per user)
+- Tracking Data: `tracking-my-hot-self_YYYY-MM.json` (monthly files)
+- Auto-split files if >100KB: `tracking-my-hot-self_YYYY-MM_part2.json`
+
+### Authentication & Security
+- **Google OAuth 2.0** with refresh token support
+- **CRITICAL - Unverified App Limits**: Refresh tokens expire after 7 days for unverified apps
+- **Access token lifetime**: 1 hour with automatic refresh
+- **Refresh token strategy**: Request offline access with prompt=consent for maximum token lifetime
+- **Re-authentication flow**: Graceful 7-day re-auth prompt with data preservation
+- **Rate limiting**: 100 requests per 100 seconds per user with exponential backoff
+- **NO SECRETS** in frontend code - use environment variables
+- **CSP headers** for XSS prevention
+
+## Development Standards
+
+### Code Organization
+```
+src/
+├── components/           # Reusable UI components
+├── views/               # Main app views (Morning, Evening, Quick)
+├── services/            # Google Drive API, data handling
+├── utils/               # Helper functions, validation
+├── stores/              # State management
+├── workers/             # Service worker for offline functionality
+└── types/               # TypeScript definitions
+```
+
+### Naming Conventions
+- **Files**: kebab-case (`user-config.js`, `morning-view.js`)
+- **Components**: PascalCase (`MorningReport`, `TrackingItem`)
+- **Functions**: camelCase (`validateEntry`, `syncToGoogleDrive`)
+- **Constants**: SCREAMING_SNAKE_CASE (`MAX_FILE_SIZE_KB`, `SYNC_RETRY_ATTEMPTS`)
+
+### Time & Timezone Handling
+- **ALWAYS** use device local time with timezone storage
+- **Fallback**: Los Angeles timezone if unable to detect
+- **Store timezone** with each entry for accuracy
+- **Handle daylight saving** transitions gracefully
+- **Validate reasonable times**: within last 30 days, not future (except 1 hour tolerance)
+
+## Data Model Rules
+
+### Entry Validation Schema
+```javascript
+// Always validate these required fields
+const requiredFields = ['id', 'timestamp', 'type', 'sync_status'];
+
+// Scale validations (enforce strictly)
+const scaleValidations = {
+  '3-point': [1, 3, 5],        // Very Low, Moderate, Very High
+  '5-point': [1, 2, 3, 4, 5]   // Very Low, Low, Moderate, High, Very High
+};
+
+// Wearable data ranges
+const wearableRanges = {
+  sleep_score: [0, 100],
+  body_battery: [0, 100]
+};
+```
+
+### Data Structure Rules
+- **Entry IDs**: `entry_${timestamp}_${randomString}` for uniqueness
+- **Timestamps**: ISO 8601 format with timezone
+- **Sync Status**: 'synced' | 'pending' | 'failed'
+- **Soft Deletes**: Use `is_deleted: true` flag, never hard delete
+- **Notes Max Length**: 2000 characters per note field
+
+## UI/UX Guidelines
+
+### View-Specific Rules
+
+#### Morning Report (before 10 AM)
+- **Focus**: Sleep quality and energy assessment
+- **Color Scheme**: Light blues and greens (morning theme)
+
+#### Evening Report (after 7 PM)
+- **Text Fields**: observations, reflections, thankful_for
+- **Focus**: Reflection and sentiment tracking
+- **Color Scheme**: Warm oranges and purples (evening theme)
+
+#### Quick Track (10 AM - 7 PM)
+- **Focus**: Rapid single-item tracking
+- **Interface**: Minimal, one-tap entries
+- **All Items Available**: User-configurable subset
+
+### Display Options (User Configurable)
+- **Text**: "Very Low", "Low", "Medium", "High", "Very High"
+- **Face Emojis**: 😁, 🙂, 😐, 😧, 😭
+- **Heart Emojis**: 💚, 💛, 🧡, ❤️, 💜
+- **Dot Emojis**: 🟢, 🟡, 🟠, 🔴, 🟣
+
+### Mobile-First Design Rules
+- **Touch Targets**: Minimum 44px
+- **Thumb Navigation**: Critical actions within thumb reach
+- **Swipe Gestures**: Implement where intuitive
+- **Loading States**: Always show progress indicators
+- **Offline Indicators**: Clear sync status visualization
+
+## Error Handling Patterns
+
+### Google Drive API Errors
+```javascript
+// Always implement these error patterns
+const errorHandling = {
+  rateLimitError: () => {
+    // Exponential backoff: 1s, 2s, 4s, 8s delays
+    // Queue requests, retry automatically
+    // Show user notification if severely limited
+  },
+  authenticationError: () => {
+    // UNVERIFIED APP: May need re-auth every 7 days
+    // Clear expired tokens, redirect to re-auth
+    // Preserve offline data during re-auth
+    // User-friendly "Sign in again" prompt with explanation
+  },
+  refreshTokenExpired: () => {
+    // Expected every 7 days for unverified apps
+    // Show proactive re-auth prompt at day 6
+    // Explain why re-authentication is needed
+    // Maintain app functionality during re-auth
+  },
+  networkError: () => {
+    // Store in offline queue
+    // Retry every 5 minutes when online
+    // Show offline indicator
+  },
+  corruptedDataError: () => {
+    // Create new file with timestamp suffix
+    // Notify user of data recovery options
+    // Continue with new clean file
+  }
+};
+```
+
+### File Size Management
+- **Monitor monthly file sizes** - warn at 80KB, split at 100KB
+- **Compress files >50KB** using gzip before upload
+- **Implement progressive loading** for large historical datasets
+
+## State Management Rules
+
+### Offline-First Architecture
+- **Store entries locally first**, then sync to Google Drive
+- **Queue offline entries** with retry logic
+- **Conflict resolution**: Last writer wins based on `updated_at` timestamp
+- **Deduplication**: Prevent duplicate entries using timestamp + type
+
+### Configuration Management
+- **Default configurations** for new users
+- **Graceful degradation** when configuration missing
+- **Real-time preview** when changing display options
+- **Backup/restore** functionality for user configurations
+
+## API Integration Guidelines
+
+### Google Drive API Usage
+```javascript
+// Always use these patterns for UNVERIFIED APP
+const apiPatterns = {
+  authentication: {
+    scopes: ['https://www.googleapis.com/auth/drive.appdata'],
+    accessType: 'offline', // CRITICAL: Required for refresh tokens
+    prompt: 'consent', // CRITICAL: Forces refresh token generation
+    accessTokenLifetime: 3600000, // 1 hour
+    refreshTokenLifetime: 604800000, // 7 days for unverified apps
+    proactiveReauthDay: 6, // Prompt re-auth on day 6
+    includeGrantedScopes: false // Security best practice
+  },
+  fileOperations: {
+    maxRetries: 3,
+    retryDelay: [1000, 2000, 4000], // exponential backoff
+    batchSize: 10, // max requests per batch
+    timeoutMs: 30000 // 30 second timeout
+  },
+  errorRecovery: {
+    rateLimitBackoff: [1000, 2000, 4000, 8000],
+    authFailureRedirect: '/connect-google-drive',
+    corruptDataFallback: 'create-new-file',
+    tokenExpiryGracePeriod: 86400000 // 1 day before showing re-auth
+  }
+};
+```
+
+## Performance & Monitoring
+
+### Performance Budgets
+- **First Contentful Paint**: < 2 seconds
+- **Largest Contentful Paint**: < 3 seconds
+- **Bundle Size**: < 500KB
+- **Lighthouse Score**: > 90
+
+### Monitoring Rules
+- **Track API response times** - alert if >5s average
+- **Monitor localStorage usage** - warn at 4MB
+- **Log slow operations** for optimization
+- **Privacy-respecting analytics** (opt-in only)
+
+## Security Rules
+
+### Client-Side Security
+- **Encrypt sensitive data** before localStorage using Web Crypto API
+- **Sanitize all user inputs** before storage or display
+- **Validate all data** against schema before processing
+- **No sensitive data in logs** or error reports
+
+### API Security
+- **Environment variables** for all API keys
+- **No secrets in source code**
+- **Implement request signing** where required
+- **Rate limit client-side requests**
+
+## Testing Requirements
+
+### Required Test Coverage
+- **Unit Tests**: All utility functions, data validation, transformations
+- **Integration Tests**: Google Drive API flows, offline sync
+- **Accessibility Tests**: axe-core integration
+- **Performance Tests**: Bundle size, load times
+
+### Mock Data Patterns
+```javascript
+// Always provide realistic test data
+const mockDataRules = {
+  entries: {
+    includeEdgeCases: true, // missing fields, extreme values
+    realisticPatterns: true, // correlation between mood/energy
+    timeVariations: true, // different timezones, DST transitions
+    userPersonas: ['new-user', 'power-user', 'sporadic-user']
+  }
+};
+```
+
+## Privacy & Compliance
+
+### Data Handling Rules
+- **Minimal data collection**: Only track what users explicitly enter
+- **User control**: Users can delete all data at any time
+- **No third-party tracking** without explicit opt-in
+- **Clear privacy disclosure** before Google Drive connection
+
+### GDPR Considerations (Future-Ready)
+- **Data portability**: JSON export functionality
+- **Right to deletion**: Complete data removal capability
+- **Consent management**: Clear opt-in/opt-out mechanisms
+- **Data minimization**: Only store necessary data
+
+## Accessibility Standards
+
+### WCAG 2.1 AA Compliance
+- **Color contrast**: Minimum 4.5:1 ratio
+- **Keyboard navigation**: All interactive elements accessible
+- **Screen readers**: Proper ARIA labels and semantic HTML
+- **Focus management**: Clear focus indicators and logical tab order
+
+### Mobile Accessibility
+- **Touch targets**: Minimum 44px
+- **Voice-over support**: Test with iOS/Android screen readers
+- **Gesture alternatives**: Provide non-gesture alternatives
+- **Reduced motion**: Respect user motion preferences
+
+## Code Quality Standards
+
+### JavaScript/TypeScript Rules
+- **ES6+ features**: Use modern JavaScript patterns
+- **Type safety**: TypeScript for complex data structures
+- **Functional patterns**: Prefer pure functions, avoid mutations
+- **Error boundaries**: Comprehensive error handling
+
+### CSS Rules
+- **Mobile-first**: Write mobile styles first, desktop as enhancement
+- **CSS Grid/Flexbox**: Use modern layout methods
+- **Custom properties**: Use CSS variables for theming
+- **Performance**: Avoid layout thrashing, use transforms for animations
+
+## Development Workflow
+
+### Branch Strategy
+- **main**: Production-ready code only
+- **develop**: Integration branch for features
+- **feature/**: Individual feature branches
+- **hotfix/**: Critical production fixes
+
+### Commit Standards
+- **Conventional Commits**: feat:, fix:, docs:, test:, refactor:
+- **Descriptive messages**: Include context and reasoning
+- **Small commits**: Single responsibility per commit
+- **Test coverage**: Include tests with feature commits
+
+## Environment Variables Template
+```bash
+# Google Drive Integration
+VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
+VITE_ENVIRONMENT=development
+
+# Development Flags
+VITE_MOCK_GOOGLE_DRIVE=true
+VITE_DEBUG_MODE=true
+
+# Optional Features
+VITE_ENABLE_ANALYTICS=false
+```
+
+## Common Patterns to Follow
+
+### Component Structure
+```javascript
+// Always follow this component pattern
+const ComponentName = () => {
+  // 1. State declarations
+  // 2. Effect hooks
+  // 3. Event handlers
+  // 4. Computed values
+  // 5. Render logic
+  return (
+    <div className="component-container">
+      {/* Semantic HTML structure */}
+    </div>
+  );
+};
+```
+
+### Data Fetching Pattern
+```javascript
+// Consistent async data handling
+const fetchData = async () => {
+  try {
+    setLoading(true);
+    const result = await apiCall();
+    setData(result);
+  } catch (error) {
+    handleError(error);
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+### Error Boundary Pattern
+```javascript
+// Wrap critical components
+<ErrorBoundary fallback={<ErrorFallback />}>
+  <CriticalComponent />
+</ErrorBoundary>
+```
+
+## Specific Implementation Notes
+
+### Time-Based View Logic
+- **Morning**: Check if current time < user's morning_end setting (default 09:00)
+- **Evening**: Check if current time > user's evening_start setting (default 20:00)
+- **Quick Track**: Available during middle hours (09:00-20:00 default)
+
+### Tracking Item Configuration
+- **Body Section Items**: allergic_reactions, bleeding_spotting, diet_triggers, eating_habits, energy_level, exercise_impact, forehead_shine, headache, hormone_symptoms, hot_flashes, hydration, joint_pain, nausea, temperature_sensitivity, workout_recovery
+- **Mind Section Items**: anxiety, brain_fog, depression, irritability, mood, social_stamina, stress_level
+- **Morning Only**: pill_pack_start_date, sleep_quality, weird_dreams, wearables_sleep_score, wearables_body_battery
+- **Evening Only**: overall_sentiment, notes (observations, reflections, thankful_for)
+
+### Scale Type Mapping
+```javascript
+const scaleTypes = {
+  '3-point': ['allergic_reactions', 'bleeding_spotting', 'brain_fog', 'eating_habits', 'forehead_shine', 'headache', 'hydration', 'mood', 'nausea', 'sleep_quality', 'temperature_sensitivity', 'weird_dreams', 'workout_recovery'],
+  '5-point': ['anxiety', 'depression', 'diet_triggers', 'energy_level', 'exercise_impact', 'hormone_symptoms', 'hot_flashes', 'irritability', 'overall_sentiment', 'social_stamina', 'stress_level'],
+  'multi-select': ['joint_pain'],
+  'numeric': ['wearables_sleep_score', 'wearables_body_battery']
+};
+```
+
+## File Naming Conventions
+- **Components**: `PascalCase.jsx` (e.g., `MorningReport.jsx`)
+- **Services**: `camelCase.js` (e.g., `googleDriveService.js`)
+- **Utils**: `kebab-case.js` (e.g., `date-utils.js`)
+- **Types**: `PascalCase.ts` (e.g., `TrackingEntry.ts`)
+- **Tests**: `ComponentName.test.js`
+
+## Important Constraints
+
+### GitHub Pages Deployment
+- **Static site only** - no backend server
+- **Public repository** - no secrets in code
+- **Manual deployment** to gh-pages branch
+- **Environment variables** via GitHub secrets
+
+### Google Drive Integration
+- **App-data scope** creates hidden folder in user's Drive
+- **JSON file storage** with version field for migrations
+- **Offline queue** for sync when reconnected
+- **Conflict resolution** using "last writer wins" with timestamps
+
+### PWA Requirements
+- **Web App Manifest** for "Add to Home Screen"
+- **Service Worker** for offline functionality
+- **App Icons** in multiple sizes
+- **Background sync** when coming back online
+
+## Error Messages & User Communication
+- **User-friendly language**: Avoid technical jargon
+- **Actionable guidance**: Tell users what they can do
+- **Avoid gamification**: Do not encourage or discourage user behavior or sentiment
+- **Progressive disclosure**: Show simple message first, details on request
+- **Consistent tone**: Supportive and encouraging
+
+## Performance Guidelines
+- **Lazy load** non-critical components
+- **Virtualize** long lists (>100 items)
+- **Debounce** user inputs (300ms)
+- **Cache** frequently accessed data
+- **Compress** large payloads before storage
+
+## Accessibility Requirements
+- **Semantic HTML**: Use proper heading hierarchy, form labels
+- **ARIA labels**: For complex interactions and dynamic content
+- **Keyboard navigation**: Tab order, Enter/Space activation
+- **Screen reader testing**: Test with actual screen readers
+- **Color contrast**: Minimum 4.5:1 ratio
+
+## Testing Strategy
+- **Unit tests**: All utility functions and data transformations
+- **Integration tests**: Google Drive API mocking
+- **Accessibility tests**: axe-core automated testing
+- **Manual testing**: Real device testing on iOS/Android
+
+## Common Anti-Patterns to Avoid
+- ❌ Storing Google API secrets in frontend code
+- ❌ Using localStorage without encryption for sensitive data
+- ❌ Hard-coding user interface text (externalize for i18n)
+- ❌ Blocking UI during API calls without loading states
+- ❌ Ignoring offline scenarios
+- ❌ Creating non-unique entry IDs
+- ❌ Assuming timezone never changes
+- ❌ Storing large datasets in localStorage (use IndexedDB)
+
+## Development Environment Setup
+1. **Node.js 18+** with npm/yarn
+2. **Environment file**: Copy `.env.example` to `.env.local`
+3. **Google Cloud Project**: Enable Drive API, create OAuth 2.0 credentials
+4. **Mock mode**: Set `VITE_MOCK_GOOGLE_DRIVE=true` for development
+5. **Test data generator**: Use provided mock data functions
+
+## Key Libraries & Dependencies
+- **Google APIs**: `googleapis` for Drive API integration
+- **Charts**: `chart.js` or `recharts` for data visualization
+- **Validation**: `joi` or `yup` for data validation
+- **Date handling**: `date-fns` for consistent date operations
+- **Encryption**: Native Web Crypto API (no additional deps)
+- **State management**: Zustand or Valtio (lightweight options)
+
+Remember: This app is designed for women tracking perimenopause symptoms. Keep the tone supportive, the interface intuitive, and the data secure. Every decision should prioritize user privacy and a seamless mobile experience.

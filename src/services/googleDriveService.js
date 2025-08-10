@@ -24,9 +24,13 @@ class GoogleDriveService {
     this.isProcessingQueue = false
     this.rateLimitDelay = 1000 // Start with 1 second delay
     this.maxRetries = 3
+    this.refreshTimer = null
     
     // Try to restore token from localStorage on initialization
     this.restoreTokenFromStorage()
+    
+    // Set up automatic token refresh
+    this.setupAutoRefresh()
   }
 
   // Load Google Identity Services (GIS) dynamically
@@ -128,14 +132,17 @@ class GoogleDriveService {
           }
           this.accessToken = tokenResponse.access_token
           
-          // Calculate token expiry (Google tokens typically last 1 hour)
-          const expiryTime = new Date(Date.now() + 3600000) // 1 hour from now
+          // Calculate token expiry (Google tokens can last up to 1 hour, but let's be conservative)
+          // If we have an expires_in, use it, otherwise default to 50 minutes
+          const expiresIn = tokenResponse.expires_in || 3000 // 50 minutes in seconds
+          const expiryTime = new Date(Date.now() + (expiresIn * 1000))
           this.tokenExpiry = expiryTime
           
           // Save token to localStorage for persistence
           this.saveTokenToStorage(tokenResponse.access_token, expiryTime.getTime())
           
           console.log('Access token obtained and saved successfully')
+          console.log('Token expires at:', expiryTime.toISOString())
         }
       })
 
@@ -265,6 +272,9 @@ class GoogleDriveService {
       localStorage.setItem('google_access_token', token)
       localStorage.setItem('google_token_expiry', expiry.toString())
       console.log('Token saved to localStorage')
+      
+      // Set up automatic refresh for the new token
+      this.setupAutoRefresh()
     } catch (error) {
       console.error('Failed to save token to localStorage:', error)
     }
@@ -285,6 +295,9 @@ class GoogleDriveService {
           this.accessToken = token
           this.tokenExpiry = expiryTime
           console.log('Token restored from localStorage')
+          
+          // Set up auto-refresh for restored token
+          this.setupAutoRefresh()
           return true
         } else {
           console.log('Stored token has expired, clearing localStorage')
@@ -303,9 +316,49 @@ class GoogleDriveService {
       localStorage.removeItem('google_access_token')
       localStorage.removeItem('google_token_expiry')
       console.log('Token cleared from localStorage')
+      
+      // Clear any pending refresh timer
+      if (this.refreshTimer) {
+        clearTimeout(this.refreshTimer)
+        this.refreshTimer = null
+      }
     } catch (error) {
       console.error('Failed to clear token from localStorage:', error)
     }
+  }
+
+  // Set up automatic token refresh
+  setupAutoRefresh() {
+    // Clear any existing timer
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer)
+    }
+
+    // Only set up auto-refresh if we have a valid token
+    if (!this.accessToken || !this.tokenExpiry) {
+      return
+    }
+
+    const now = new Date()
+    const timeUntilExpiry = this.tokenExpiry.getTime() - now.getTime()
+    
+    // Refresh token 10 minutes before it expires
+    const refreshTime = Math.max(timeUntilExpiry - (10 * 60 * 1000), 60000) // At least 1 minute
+    
+    console.log(`Setting up auto-refresh in ${Math.round(refreshTime / 1000 / 60)} minutes`)
+    
+    this.refreshTimer = setTimeout(async () => {
+      try {
+        console.log('Auto-refreshing token...')
+        await this.refreshToken()
+        // Set up the next refresh
+        this.setupAutoRefresh()
+      } catch (error) {
+        console.error('Auto-refresh failed:', error)
+        // Try again in 5 minutes
+        this.refreshTimer = setTimeout(() => this.setupAutoRefresh(), 5 * 60 * 1000)
+      }
+    }, refreshTime)
   }
 
   // Check if user is signed in
@@ -340,6 +393,9 @@ class GoogleDriveService {
         reject(new Error('Token refresh timeout'))
       }, 60000) // 1 minute timeout
 
+      // Store the current token to detect changes
+      const currentToken = this.accessToken
+
       try {
         // Request a new access token
         this.tokenClient.requestAccessToken({
@@ -348,12 +404,19 @@ class GoogleDriveService {
 
         // Poll for new token
         const checkToken = () => {
-          if (this.accessToken && this.isTokenValid()) {
+          // Check if we got a new token (different from current)
+          if (this.accessToken && this.accessToken !== currentToken && this.isTokenValid()) {
             clearTimeout(timeoutId)
             console.log('Token refreshed successfully')
+            console.log('New token expires at:', this.tokenExpiry.toISOString())
             resolve()
-          } else {
+          } else if (this.accessToken === currentToken) {
+            // Still the same token, keep polling
             setTimeout(checkToken, 100)
+          } else {
+            // No token or invalid, stop polling
+            clearTimeout(timeoutId)
+            reject(new Error('Token refresh failed - no new token received'))
           }
         }
         checkToken()
@@ -369,6 +432,16 @@ class GoogleDriveService {
   async forceReAuthentication() {
     console.log('Forcing re-authentication...')
     
+    // Make sure we're initialized
+    if (!this.isInitialized) {
+      console.log('Initializing Google Identity Services for re-authentication...')
+      await this.initialize()
+    }
+    
+    if (!this.tokenClient) {
+      throw new Error('Token client not available for re-authentication')
+    }
+    
     // Clear current token
     this.accessToken = null
     this.tokenExpiry = null
@@ -381,6 +454,7 @@ class GoogleDriveService {
       }, 120000) // 2 minutes timeout
 
       try {
+        console.log('Requesting new token with consent...')
         this.tokenClient.requestAccessToken({
           prompt: 'consent' // Show consent screen
         })
@@ -399,6 +473,7 @@ class GoogleDriveService {
 
       } catch (error) {
         clearTimeout(timeoutId)
+        console.error('Error during force re-authentication:', error)
         reject(error)
       }
     })
@@ -424,11 +499,16 @@ class GoogleDriveService {
       try {
         await this.refreshToken()
       } catch (error) {
-        console.log('Token refresh failed, clearing authentication')
-        this.accessToken = null
-        this.tokenExpiry = null
-        this.clearTokenFromStorage()
-        throw new Error('Authentication expired. Please sign in again.')
+        console.log('Token refresh failed, attempting force re-authentication...')
+        try {
+          await this.forceReAuthentication()
+        } catch (reauthError) {
+          console.log('Force re-authentication failed, clearing authentication')
+          this.accessToken = null
+          this.tokenExpiry = null
+          this.clearTokenFromStorage()
+          throw new Error('Authentication expired. Please sign in again.')
+        }
       }
     }
 
@@ -1041,6 +1121,12 @@ class GoogleDriveService {
     this.isInitialized = false
     this.requestQueue = []
     this.isProcessingQueue = false
+    
+    // Clear refresh timer
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer)
+      this.refreshTimer = null
+    }
   }
 
   // Mock request for development
