@@ -228,7 +228,6 @@ const QuickTrackView = () => {
           {selectedItem.description && (
             <p className="text-sm text-gray-600 mb-1">{selectedItem.description}</p>
           )}
-          <p className="text-gray-600">Select your current level:</p>
         </div>
         
         <div className="space-y-4">

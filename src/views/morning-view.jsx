@@ -365,22 +365,6 @@ const MorningView = () => {
     )
   }
 
-  const renderWearablesSection = () => {
-    const wearablesIds = config?.view_configurations?.morning_report?.wearables || ['wearables_sleep_score', 'wearables_body_battery']
-    const wearablesItems = wearablesIds.map(id => TRACKING_ITEMS[id]).filter(Boolean)
-    
-    if (wearablesItems.length === 0) return null
-    
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800">Wearable Data</h3>
-        <div className="space-y-6 pl-4">
-          {wearablesItems.map(renderItem)}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="morning-view bg-gradient-to-br from-blue-50 to-green-50 min-h-screen">
       <div className="max-w-2xl mx-auto p-6">
@@ -394,9 +378,6 @@ const MorningView = () => {
             
             {/* Mind Section */}
             {renderSection('mind')}
-            
-            {/* Wearables Section */}
-            {renderWearablesSection()}
             
             {/* Submit Button */}
             <div className="flex justify-end pt-6 border-t border-gray-200">
