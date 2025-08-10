@@ -203,6 +203,17 @@ const EveningView = () => {
     
     return (
       <div className="space-y-2">
+        {selectedValues.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, [item.id]: [] }))}
+              className="text-sm text-orange-600 hover:text-orange-800"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
         {item.options.map((option) => (
           <label key={option} className="flex items-center space-x-3 cursor-pointer">
             <input
@@ -231,6 +242,15 @@ const EveningView = () => {
           placeholder="0"
         />
         <span className="text-gray-600">/ {item.max || 100}</span>
+        {(formData[item.id] ?? null) !== null && (
+          <button
+            type="button"
+            onClick={() => handleNumberChange(item.id, '')}
+            className="text-sm text-orange-600 hover:text-orange-800"
+          >
+            Clear
+          </button>
+        )}
       </div>
     )
   }

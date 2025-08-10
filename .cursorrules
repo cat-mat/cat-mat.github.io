@@ -362,9 +362,10 @@ const fetchData = async () => {
 ## Specific Implementation Notes
 
 ### Time-Based View Logic for the Default View
-- **Morning**: Check if current time < user's morning_end setting (default 09:00)
-- **Evening**: Check if current time > user's evening_start setting (default 20:00)
-- **Quick Track**: Available during middle hours (09:00-20:00 default)
+- All views are available to the user at all times, but the default view shown to the user is defined by the following:
+  - **Morning**: Check if current time < user's morning_end setting (default 09:00)
+  - **Evening**: Check if current time > user's evening_start setting (default 20:00)
+  - **Quick Track**: Available during middle hours (09:00-20:00 default)
 
 ### Tracking Item Configuration
 - **Body Section Items**: allergic_reactions, bleeding_spotting, diet_triggers, eating_habits, energy_level, exercise_impact, forehead_shine, headache, hormone_symptoms, hot_flashes, hydration, joint_pain, nausea, temperature_sensitivity, workout_recovery

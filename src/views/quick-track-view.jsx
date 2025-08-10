@@ -124,6 +124,17 @@ const QuickTrackView = () => {
     
     return (
       <div className="grid grid-cols-2 gap-2">
+        {selectedValues.length > 0 && (
+          <div className="col-span-2">
+            <button
+              type="button"
+              onClick={() => setSelectedValue([])}
+              className="text-sm text-green-700 hover:text-green-900"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
         {item.options.map((option) => (
           <button
             key={option}
@@ -156,6 +167,15 @@ const QuickTrackView = () => {
           placeholder="0"
         />
         <span className="text-gray-600 text-lg">/ {item.max || 100}</span>
+        {(selectedValue ?? null) !== null && (
+          <button
+            type="button"
+            onClick={() => setSelectedValue(null)}
+            className="text-sm text-green-700 hover:text-green-900"
+          >
+            Clear
+          </button>
+        )}
       </div>
     )
   }
