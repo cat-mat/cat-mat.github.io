@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAppStore } from '../stores/appStore.js';
+import { useAppStore } from '../stores/app-store.js';
 
 const AppHeader = ({
   bannerHeight = 0,

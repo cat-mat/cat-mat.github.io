@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { subscribeWithSelector } from 'zustand/middleware'
-import { googleDriveService } from '../services/googleDriveService.js'
+import { googleDriveService } from '../services/google-drive-service.js'
 import { validateEntry, validateConfig, sanitizeEntry, migrateData } from '../utils/validation.js'
-import { TRACKING_ITEMS, DEFAULT_VIEW_TIMES, SYNC_STATUS } from '../constants/trackingItems.js'
+import { TRACKING_ITEMS, DEFAULT_VIEW_TIMES, SYNC_STATUS } from '../constants/tracking-items.js'
 import LZString from 'lz-string'
 
 // Default configuration

@@ -1,4 +1,4 @@
-import { normalizeScaleValue, denormalizeScaleValue, getEffectiveScale, is3PointScale } from '../scaleConversion.js'
+import { normalizeScaleValue, denormalizeScaleValue, getEffectiveScale, is3PointScale } from '../scale-conversion.js'
 
 describe('scaleConversion', () => {
   describe('normalizeScaleValue', () => {

@@ -1,12 +1,12 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import DisplayTypeSelector from '../DisplayTypeSelector.jsx'
+import DisplayTypeSelector from '../display-type-selector.jsx'
 
 // Mock the app store
 const mockUpdateDisplayType = jest.fn()
 const mockAddNotification = jest.fn()
 
-jest.mock('../../stores/appStore.js', () => ({
+jest.mock('../../stores/app-store.js', () => ({
   useAppStore: () => ({
     config: {
       display_options: {

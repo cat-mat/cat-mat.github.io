@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { useAppStore } from '../stores/appStore'
-import { TRACKING_ITEMS, getDisplayValue, getItemColor, isItem3PointScale } from '../constants/trackingItems'
-import { denormalizeScaleValue } from '../utils/scaleConversion.js'
+import { useAppStore } from '../stores/app-store'
+import { TRACKING_ITEMS, getDisplayValue, getItemColor, isItem3PointScale } from '../constants/tracking-items'
+import { denormalizeScaleValue } from '../utils/scale-conversion.js'
 import { format, parseISO, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import LZString from 'lz-string'
-import AppHeader from './AppHeader.jsx';
-import { googleDriveService } from '../services/googleDriveService.js';
+import AppHeader from './app-header.jsx';
+import { googleDriveService } from '../services/google-drive-service.js';
 
 const Logs = () => {
   const { trackingData, deleteEntry, restoreEntry, addNotification, generateTestData, loadAllHistoricalData, importTrackingData, auth, signOut } = useAppStore()

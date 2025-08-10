@@ -1,4 +1,4 @@
-import { getEffectiveScale, is3PointScale } from '../utils/scaleConversion.js'
+import { getEffectiveScale, is3PointScale } from '../utils/scale-conversion.js'
 
 // Tracking items configuration
 export const TRACKING_ITEMS = {

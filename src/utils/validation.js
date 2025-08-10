@@ -1,6 +1,6 @@
 import Joi from 'joi'
-import { TRACKING_ITEMS } from '../constants/trackingItems.js'
-import { normalizeScaleValue, denormalizeScaleValue } from './scaleConversion.js'
+import { TRACKING_ITEMS } from '../constants/tracking-items.js'
+import { normalizeScaleValue, denormalizeScaleValue } from './scale-conversion.js'
 
 // Base validation schemas
 const baseEntrySchema = Joi.object({

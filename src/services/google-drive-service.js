@@ -1,6 +1,6 @@
 // Google Drive Service for perimenopause tracking app
 // Updated to use Google Identity Services (GIS) instead of deprecated gapi
-import { DEFAULT_VIEW_TIMES } from '../constants/trackingItems.js'
+import { DEFAULT_VIEW_TIMES } from '../constants/tracking-items.js'
 import { compressData, decompressData, shouldCompress } from '../utils/compression.js'
 
 class GoogleDriveService {

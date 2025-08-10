@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { useAppStore } from '../stores/appStore.js'
-import { TRACKING_ITEMS, getDisplayValue, getItemColor, getItemEffectiveScale } from '../constants/trackingItems.js'
+import { useAppStore } from '../stores/app-store.js'
+import { TRACKING_ITEMS, getDisplayValue, getItemColor, getItemEffectiveScale } from '../constants/tracking-items.js'
 import { format, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval, parseISO, isWithinInterval } from 'date-fns'
 import { clsx } from 'clsx'
-import AppHeader from './AppHeader.jsx';
+import AppHeader from './app-header.jsx';
 
 const Insights = () => {
   const { trackingData, loadAllHistoricalData } = useAppStore()

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, createContext, useContext } from 'react'
-import { useAppStore } from '../stores/appStore.js'
+import { useAppStore } from '../stores/app-store.js'
 
 export const BannerContext = createContext({ bannerHeight: 0, bannerVisible: false })
 

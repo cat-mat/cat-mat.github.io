@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import LoadingSpinner from './LoadingSpinner.jsx'
+import LoadingSpinner from './loading-spinner.jsx'
 
 const AuthScreen = ({ onSignIn, isLoading, error, onReset }) => {
   return (

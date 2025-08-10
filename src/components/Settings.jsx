@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { TRACKING_ITEMS } from '../constants/trackingItems.js'
-import { useAppStore } from '../stores/appStore.js'
-import DisplayTypeSelector from './DisplayTypeSelector.jsx'
-import AppHeader from './AppHeader.jsx';
+import { TRACKING_ITEMS } from '../constants/tracking-items.js'
+import { useAppStore } from '../stores/app-store.js'
+import DisplayTypeSelector from './display-type-selector.jsx'
+import AppHeader from './app-header.jsx';
 
 const Settings = () => {
   const { config, updateConfig, addNotification, auth, signOut } = useAppStore()

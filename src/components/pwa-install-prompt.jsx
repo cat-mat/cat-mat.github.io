@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useAppStore } from '../stores/appStore.js'
+import { useAppStore } from '../stores/app-store.js'
 
 const PWAInstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null)

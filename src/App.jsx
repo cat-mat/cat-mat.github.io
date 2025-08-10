@@ -1,21 +1,21 @@
 import React, { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAppStore } from './stores/appStore.js'
+import { useAppStore } from './stores/app-store.js'
 import { format } from 'date-fns'
-import { DEFAULT_VIEW_TIMES } from './constants/trackingItems.js'
+import { DEFAULT_VIEW_TIMES } from './constants/tracking-items.js'
 import './styles/inline-styles.css'
 
 // Components
-import AuthScreen from './components/AuthScreen.jsx'
-import Onboarding from './components/Onboarding.jsx'
-import Dashboard from './components/Dashboard.jsx'
-import Settings from './components/Settings.jsx'
-import Insights from './components/Insights.jsx'
-import Logs from './components/Logs.jsx'
-import LoadingSpinner from './components/LoadingSpinner.jsx'
-import OfflineIndicator from './components/OfflineIndicator.jsx'
-import ToastNotifications from './components/ToastNotifications.jsx'
-import PrivacyPolicy from './components/PrivacyPolicy.jsx'
+import AuthScreen from './components/auth-screen.jsx'
+import Onboarding from './views/onboarding.jsx'
+import Dashboard from './views/dashboard.jsx'
+import Settings from './components/settings.jsx'
+import Insights from './components/insights.jsx'
+import Logs from './components/logs.jsx'
+import LoadingSpinner from './components/loading-spinner.jsx'
+import OfflineIndicator from './components/offline-indicator.jsx'
+import ToastNotifications from './components/toast-notifications.jsx'
+import PrivacyPolicy from './components/privacy-policy.jsx'
 
 // Initialize Google API
 const initializeGoogleAPI = () => {
