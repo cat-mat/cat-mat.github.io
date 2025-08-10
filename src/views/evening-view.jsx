@@ -222,7 +222,7 @@ const EveningView = () => {
               onChange={(e) => handleMultiSelectChange(item.id, option, e.target.checked)}
               className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
             />
-            <span className="text-gray-700">{option}</span>
+            <span className="text-gray-700">{item.optionLabels?.[option] || option}</span>
           </label>
         ))}
       </div>
