@@ -178,12 +178,7 @@ const EveningView = () => {
     const is3Point = isItem3PointScale(item)
     const scaleValues = is3Point ? [1, 2, 3] : [1, 2, 3, 4, 5]
     const displayType = config?.display_options?.item_display_type || 'text'
-    const colorClassMap = {
-      success: 'bg-green-100 border-green-400 text-green-800',
-      warning: 'bg-yellow-100 border-yellow-400 text-yellow-800',
-      danger: 'bg-red-100 border-red-400 text-red-800',
-      gray: 'bg-gray-100 border-gray-300 text-gray-700'
-    }
+    const uniformSelected = 'bg-purple-100 border-purple-400 text-purple-800'
 
     const cols = is3Point ? 'grid-cols-3' : 'grid-cols-5'
     return (
@@ -192,8 +187,7 @@ const EveningView = () => {
           const { displayText, ariaLabel } = getValueLabels(item, value, displayType)
           const compareValue = is3Point ? normalizeScaleValue(value, 3) : value
           const isSelected = formData[item.id] === compareValue
-          const tone = getItemColor(item, compareValue)
-          const selectedClasses = colorClassMap[tone] || colorClassMap.gray
+          const selectedClasses = uniformSelected
           const showCaption = displayType === 'face'
           const labelIndex = (is3Point ? value : value) - 1
           const captionText = item.textOptions?.[labelIndex]
