@@ -18,6 +18,7 @@ import OfflineIndicator from './components/offline-indicator.jsx'
 import ToastNotifications from './components/toast-notifications.jsx'
 import PrivacyPolicy from './components/privacy-policy.jsx'
 import { performanceMonitor } from './utils/performance.js'
+import ServiceWorkerManager from './workers/service-worker-manager.jsx'
 
 // Initialize Google API
 const initializeGoogleAPI = () => {
@@ -97,8 +98,8 @@ function App() {
   // Main app layout with conditional routing
   return (
     <div className="min-h-screen wildflower-bg">
-      {/* Temporarily disabled OfflineIndicator to debug hot pink banner issue */}
-      {/* <OfflineIndicator /> */}
+      <ServiceWorkerManager />
+       <OfflineIndicator />
       <ToastNotifications />
       {(() => {
         // Configure global slow-op hooks and budget checks once per render

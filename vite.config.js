@@ -1,39 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+// PWA handled via custom service worker in /public/sw.js and /public/manifest.json
 
 export default defineConfig({
   base: '/',
   plugins: [
     react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: false, // Disable auto-registration, use manual registration
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        cleanupOutdatedCaches: true,
-        sourcemap: true
-      },
-      manifest: {
-        name: 'What Even With My Hot Self?!',
-        short_name: 'Hot Self',
-        description: 'Track your perimenopause journey with personalized insights',
-        theme_color: '#f093fb',
-        background_color: '#ffffff',
-        display: 'standalone',
-        orientation: 'portrait',
-        scope: '/',
-        start_url: '/',
-        icons: [
-          {
-            src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔥</text></svg>',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any'
-          }
-        ]
-      }
-    }),
     {
       name: 'copy-404',
       generateBundle() {

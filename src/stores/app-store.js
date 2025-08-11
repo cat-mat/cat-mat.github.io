@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { encryptionService } from '../utils/encryption.js'
 import { subscribeWithSelector } from 'zustand/middleware'
+import { performanceMonitor } from '../utils/performance.js'
 import { googleDriveService } from '../services/google-drive-service.js'
 import { validateEntry, validateConfig, sanitizeEntry, migrateData } from '../utils/validation.js'
 import { TRACKING_ITEMS, DEFAULT_VIEW_TIMES, SYNC_STATUS } from '../constants/tracking-items.js'
@@ -293,6 +294,21 @@ export const useAppStore = create(
 
         // Authentication actions
         signIn: async () => {
+          // If offline, avoid attempting Google auth and provide a friendly notice
+          if (typeof navigator !== 'undefined' && navigator && navigator.onLine === false) {
+            try {
+              const { addNotification } = get()
+              if (typeof addNotification === 'function') {
+                addNotification({
+                  type: 'info',
+                  title: 'You are offline',
+                  message: 'Connect to the internet to sign in with Google.'
+                })
+              }
+            } catch {}
+            return
+          }
+
           set(state => ({
             auth: { ...state.auth, isLoading: true, error: null }
           }))
@@ -1060,6 +1076,15 @@ export const useAppStore = create(
                 offlineEntries: [...state.trackingData.offlineEntries, entry]
               }
             }))
+
+            // Register a one-shot background sync if supported
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready
+                  .then(reg => reg?.sync?.register && reg.sync.register('sync-offline-entries'))
+                  .catch(() => {})
+              }
+            } catch {}
           }
 
           return entry
@@ -1113,6 +1138,16 @@ export const useAppStore = create(
               console.error('Failed to sync updated entry:', error)
             }
           }
+          // If offline, ensure background sync is queued
+          else {
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready
+                  .then(reg => reg?.sync?.register && reg.sync.register('sync-offline-entries'))
+                  .catch(() => {})
+              }
+            } catch {}
+          }
 
           return validation.data
         },
@@ -1150,6 +1185,16 @@ export const useAppStore = create(
               console.error('Failed to sync deleted entry:', error)
             }
           }
+          // If offline, ensure background sync is queued
+          else {
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready
+                  .then(reg => reg?.sync?.register && reg.sync.register('sync-offline-entries'))
+                  .catch(() => {})
+              }
+            } catch {}
+          }
         },
 
         restoreEntry: async (entryId) => {
@@ -1184,6 +1229,16 @@ export const useAppStore = create(
             } catch (error) {
               console.error('Failed to sync restored entry:', error)
             }
+          }
+          // If offline, ensure background sync is queued
+          else {
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready
+                  .then(reg => reg?.sync?.register && reg.sync.register('sync-offline-entries'))
+                  .catch(() => {})
+              }
+            } catch {}
           }
         },
 
@@ -1283,7 +1338,7 @@ export const useAppStore = create(
           }))
 
           try {
-            const result = await googleDriveService.syncOfflineEntries(trackingData.offlineEntries)
+            const result = await performanceMonitor.measureFunction('Drive:syncOfflineEntries', () => googleDriveService.syncOfflineEntries(trackingData.offlineEntries))
             
             if (result.success) {
               set(state => {
