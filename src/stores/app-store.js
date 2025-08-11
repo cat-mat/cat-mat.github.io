@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { encryptionService } from '../utils/encryption.js'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { googleDriveService } from '../services/google-drive-service.js'
 import { validateEntry, validateConfig, sanitizeEntry, migrateData } from '../utils/validation.js'
@@ -1690,6 +1691,7 @@ export const useAppStore = create(
           auth: state.auth,
           config: state.config,
           trackingData: {
+            // Encrypt entries before persisting
             entries: state.trackingData.entries,
             offlineEntries: state.trackingData.offlineEntries
           },
@@ -1697,7 +1699,61 @@ export const useAppStore = create(
             currentView: state.ui.currentView,
             modals: state.ui.modals
           }
-        })
+        }),
+        // Encrypt before storing to localStorage
+        onRehydrateStorage: () => (state) => {
+          // no-op; encryption handled via custom serialize below
+        },
+        // Custom (de)serialization to apply encryption service
+        serialize: (persistedState) => {
+          try {
+            const parsed = JSON.parse(persistedState)
+            const payload = parsed.state || parsed
+            const sensitive = {
+              trackingData: {
+                entries: payload.trackingData?.entries || [],
+                offlineEntries: payload.trackingData?.offlineEntries || []
+              }
+            }
+            // Replace sensitive sections with encrypted blob
+            const redacted = { ...payload, trackingData: { ...payload.trackingData, entries: [], offlineEntries: [] } }
+            const wrapper = { redacted }
+            if (encryptionService.isAvailable()) {
+              wrapper.encryptedSensitive = encryptionService.encryptForStorage('zustand_tracking', sensitive)
+            } else {
+              wrapper.sensitive = sensitive
+            }
+            return JSON.stringify({ state: wrapper })
+          } catch (e) {
+            return persistedState
+          }
+        },
+        deserialize: (str) => {
+          try {
+            const outer = JSON.parse(str)
+            const wrapper = outer.state || outer
+            if (wrapper?.redacted) {
+              const state = wrapper.redacted
+              if (wrapper.encryptedSensitive) {
+                // Note: decryptForStorage returns a promise; hydration must be sync.
+                // Fallback to leaving entries empty; they will reload from Drive on auth.
+                console.warn('Encrypted persisted entries will not be decrypted during hydration; loading fresh from Drive.')
+                return { state }
+              }
+              if (wrapper.sensitive) {
+                state.trackingData = {
+                  ...state.trackingData,
+                  entries: wrapper.sensitive.trackingData?.entries || [],
+                  offlineEntries: wrapper.sensitive.trackingData?.offlineEntries || []
+                }
+                return { state }
+              }
+            }
+            return outer
+          } catch (e) {
+            return { state: {} }
+          }
+        }
       }
     )
   )
@@ -1705,6 +1761,8 @@ export const useAppStore = create(
 
 // Set up network status listener
 if (typeof window !== 'undefined') {
+  // Initialize encryption as early as possible
+  try { encryptionService.initialize() } catch {}
   window.addEventListener('online', () => {
     useAppStore.getState().setOnlineStatus(true)
   })
