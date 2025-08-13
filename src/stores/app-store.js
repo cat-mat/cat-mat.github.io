@@ -1,9 +1,11 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { encryptionService } from '../utils/encryption.js'
 import { subscribeWithSelector } from 'zustand/middleware'
-import { googleDriveService } from '../services/googleDriveService.js'
+import { performanceMonitor } from '../utils/performance.js'
+import { googleDriveService } from '../services/google-drive-service.js'
 import { validateEntry, validateConfig, sanitizeEntry, migrateData } from '../utils/validation.js'
-import { TRACKING_ITEMS, DEFAULT_VIEW_TIMES, SYNC_STATUS } from '../constants/trackingItems.js'
+import { TRACKING_ITEMS, DEFAULT_VIEW_TIMES, SYNC_STATUS } from '../constants/tracking-items.js'
 import LZString from 'lz-string'
 
 // Default configuration
@@ -277,6 +279,12 @@ export const useAppStore = create(
           currentView: 'morning', // morning, evening, quick
           isLoading: false,
           notifications: [],
+          reauthBanner: {
+            visible: false,
+            title: '',
+            message: '',
+            severity: 'warning'
+          },
           modals: {
             settings: false,
             onboarding: false,
@@ -286,6 +294,21 @@ export const useAppStore = create(
 
         // Authentication actions
         signIn: async () => {
+          // If offline, avoid attempting Google auth and provide a friendly notice
+          if (typeof navigator !== 'undefined' && navigator && navigator.onLine === false) {
+            try {
+              const { addNotification } = get()
+              if (typeof addNotification === 'function') {
+                addNotification({
+                  type: 'info',
+                  title: 'You are offline',
+                  message: 'Connect to the internet to sign in with Google.'
+                })
+              }
+            } catch {}
+            return
+          }
+
           set(state => ({
             auth: { ...state.auth, isLoading: true, error: null }
           }))
@@ -311,6 +334,9 @@ export const useAppStore = create(
 
               // Load configuration after successful sign in
               get().loadConfig()
+
+              // Attempt to sync any offline entries queued while unauthenticated
+              get().syncOfflineEntries()
             } else {
               set(state => ({
                 auth: {
@@ -384,6 +410,29 @@ export const useAppStore = create(
             let config = await googleDriveService.getConfigFile(auth.user.email)
             console.log('Retrieved config successfully')
             
+            // Safety: ensure required view_configurations fields exist (wearables + sections scaffolding)
+            const ensureSection = (section) => ({
+              items: Array.isArray(section?.items) ? section.items : [],
+              sort_order: Array.isArray(section?.sort_order) ? section.sort_order : [],
+              visible: typeof section?.visible === 'boolean' ? section.visible : true,
+              collapsed: typeof section?.collapsed === 'boolean' ? section.collapsed : false
+            })
+            const ensureView = (view, addWearables = false) => {
+              const v = view || {}
+              if (addWearables && !Array.isArray(v.wearables)) {
+                v.wearables = ['wearables_sleep_score', 'wearables_body_battery']
+              }
+              v.sections = v.sections || {}
+              v.sections.body = ensureSection(v.sections.body)
+              v.sections.mind = ensureSection(v.sections.mind)
+              return v
+            }
+            if (config && config.view_configurations) {
+              config.view_configurations.morning_report = ensureView(config.view_configurations.morning_report, true)
+              config.view_configurations.evening_report = ensureView(config.view_configurations.evening_report, false)
+              config.view_configurations.quick_track = ensureView(config.view_configurations.quick_track, false)
+            }
+
             // Let the Google Drive service handle all config creation and migration
             // The getConfigFile method will create a proper config if none exists
             // and migrate any old configs automatically
@@ -452,6 +501,65 @@ export const useAppStore = create(
             console.error('Failed to save config:', error)
             // Revert changes on save failure
             set({ config })
+            throw error
+          }
+        },
+
+        // Local-only config update (no Google Drive save). Useful for staged UI edits.
+        updateConfigLocal: (updates) => {
+          const { config } = get()
+          if (!config) return
+
+          const updatedConfig = {
+            ...config,
+            ...updates,
+            updated_at: new Date().toISOString()
+          }
+
+          const validation = validateConfig(updatedConfig)
+          if (!validation.isValid) {
+            throw new Error(`Invalid configuration: ${validation.errors.map(e => e.message).join(', ')}`)
+          }
+
+          set({ config: validation.data })
+        },
+
+        // Minimal, non-throwing onboarding completion that only updates
+        // onboarding flags and display options locally without full schema validation.
+        completeOnboardingLocal: (itemDisplayType = 'face') => {
+          const { config } = get()
+          if (!config) return
+          const viewTimes = (config.display_options && config.display_options.view_times) || { morning_end: '09:00', evening_start: '20:00' }
+          const newConfig = {
+            ...config,
+            onboarding: {
+              completed: true,
+              completed_at: new Date().toISOString(),
+              tour_completed: true,
+              skipped_steps: []
+            },
+            display_options: {
+              item_display_type: itemDisplayType,
+              view_times: viewTimes
+            },
+            updated_at: new Date().toISOString()
+          }
+          set({ config: newConfig })
+        },
+
+        // Persist current config to Google Drive (explicit save action)
+        saveConfig: async () => {
+          const { config } = get()
+          if (!config) return
+
+          const validation = validateConfig(config)
+          if (!validation.isValid) {
+            throw new Error(`Invalid configuration: ${validation.errors.map(e => e.message).join(', ')}`)
+          }
+
+          try {
+            await googleDriveService.saveConfigFile(validation.data)
+          } catch (error) {
             throw error
           }
         },
@@ -949,6 +1057,12 @@ export const useAppStore = create(
             }
           } catch (error) {
             console.error('Error loading current month data:', error)
+            if (String(error?.message).includes('interaction_required')) {
+                get().showReauthBanner({
+                  title: 'Sign in required',
+                  message: 'Please sign in again to save and sync your entries.'
+                })
+            }
             
             // Check if it's an authentication error
             if (error.message && error.message.includes('Authentication expired')) {
@@ -1044,6 +1158,15 @@ export const useAppStore = create(
                 offlineEntries: [...state.trackingData.offlineEntries, entry]
               }
             }))
+
+            // Register a one-shot background sync if supported
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready
+                  .then(reg => reg?.sync?.register && reg.sync.register('sync-offline-entries'))
+                  .catch(() => {})
+              }
+            } catch {}
           }
 
           return entry
@@ -1097,6 +1220,16 @@ export const useAppStore = create(
               console.error('Failed to sync updated entry:', error)
             }
           }
+          // If offline, ensure background sync is queued
+          else {
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready
+                  .then(reg => reg?.sync?.register && reg.sync.register('sync-offline-entries'))
+                  .catch(() => {})
+              }
+            } catch {}
+          }
 
           return validation.data
         },
@@ -1134,6 +1267,16 @@ export const useAppStore = create(
               console.error('Failed to sync deleted entry:', error)
             }
           }
+          // If offline, ensure background sync is queued
+          else {
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready
+                  .then(reg => reg?.sync?.register && reg.sync.register('sync-offline-entries'))
+                  .catch(() => {})
+              }
+            } catch {}
+          }
         },
 
         restoreEntry: async (entryId) => {
@@ -1168,6 +1311,16 @@ export const useAppStore = create(
             } catch (error) {
               console.error('Failed to sync restored entry:', error)
             }
+          }
+          // If offline, ensure background sync is queued
+          else {
+            try {
+              if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready
+                  .then(reg => reg?.sync?.register && reg.sync.register('sync-offline-entries'))
+                  .catch(() => {})
+              }
+            } catch {}
           }
         },
 
@@ -1224,6 +1377,12 @@ export const useAppStore = create(
 
           } catch (error) {
             console.error('Error syncing entry:', error)
+            if (String(error?.message).includes('interaction_required')) {
+              get().showReauthBanner({
+                title: 'Sign in required',
+                message: 'Please sign in again to continue syncing with Google Drive.'
+              })
+            }
             
             // Check if it's an authentication error
             if (error.message && error.message.includes('Authentication expired')) {
@@ -1261,20 +1420,30 @@ export const useAppStore = create(
           }))
 
           try {
-            const result = await googleDriveService.syncOfflineEntries(trackingData.offlineEntries)
+            const result = await performanceMonitor.measureFunction('Drive:syncOfflineEntries', () => googleDriveService.syncOfflineEntries(trackingData.offlineEntries))
             
             if (result.success) {
-              set(state => ({
-                trackingData: {
-                  ...state.trackingData,
-                  offlineEntries: []
-                },
-                sync: {
-                  ...state.sync,
-                  isSyncing: false,
-                  lastSyncTime: new Date().toISOString()
+              set(state => {
+                // Promote matching local entries from pending->synced
+                const updatedEntries = state.trackingData.entries.map(e => {
+                  if (result.syncedIds?.includes(e.id)) {
+                    return { ...e, sync_status: SYNC_STATUS.synced, updated_at: new Date().toISOString() }
+                  }
+                  return e
+                })
+                return {
+                  trackingData: {
+                    ...state.trackingData,
+                    entries: updatedEntries,
+                    offlineEntries: []
+                  },
+                  sync: {
+                    ...state.sync,
+                    isSyncing: false,
+                    lastSyncTime: new Date().toISOString()
+                  }
                 }
-              }))
+              })
             }
           } catch (error) {
             console.error('Error syncing offline entries:', error)
@@ -1334,6 +1503,55 @@ export const useAppStore = create(
           }, 5000)
         },
 
+        // Re-auth banner controls
+        showReauthBanner: ({ title, message, severity = 'warning' } = {}) => {
+          set(state => ({
+            ui: {
+              ...state.ui,
+              reauthBanner: {
+                visible: true,
+                title: title || 'Please sign in again',
+                message: message || 'To keep your Google Drive connection active, sign in again. Your data is safe and will sync after re-auth.',
+                severity
+              }
+            }
+          }))
+        },
+        dismissReauthBanner: () => {
+          set(state => ({
+            ui: {
+              ...state.ui,
+              reauthBanner: { ...state.ui.reauthBanner, visible: false }
+            }
+          }))
+        },
+        reauthenticate: async () => {
+          try {
+            await googleDriveService.forceReAuthentication()
+            // On success, hide banner and reload config/data
+            get().dismissReauthBanner()
+            const { auth } = get()
+            if (!auth.isAuthenticated) {
+              // In case state drifted, mark authenticated optimistically; user info isn't persisted for security
+              set(state => ({ auth: { ...state.auth, isAuthenticated: true } }))
+            }
+            get().loadConfig()
+            // After re-auth, sync any offline entries
+            get().syncOfflineEntries()
+            get().addNotification({
+              type: 'success',
+              title: 'Re-authenticated',
+              message: 'Your Google Drive connection is active again.'
+            })
+          } catch (error) {
+            get().addNotification({
+              type: 'error',
+              title: 'Re-authentication failed',
+              message: error?.message || 'Please try again.'
+            })
+          }
+        },
+
         removeNotification: (id) => {
           set(state => ({
             ui: {
@@ -1362,7 +1580,7 @@ export const useAppStore = create(
           }))
 
           // Sync offline entries when coming back online
-          if (isOnline && get().trackingData.offlineEntries.length > 0) {
+          if (isOnline) {
             get().syncOfflineEntries()
           }
         },
@@ -1476,7 +1694,8 @@ export const useAppStore = create(
           }
 
           const finalJsonString = JSON.stringify(compressedExport, null, 2)
-          const fileName = `tracking-config-${new Date().toISOString().slice(0, 10)}.json`
+          // Indicate compression in filename
+          const fileName = `tracking-config-${new Date().toISOString().slice(0, 10)}.lzjson`
 
           // Mobile-friendly export
           if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
@@ -1605,13 +1824,9 @@ export const useAppStore = create(
         name: 'hot-self-storage',
         storage: createJSONStorage(() => localStorage),
         partialize: (state) => ({
-          // Persist auth state as well
+          // Persist only non-sensitive state
           auth: state.auth,
           config: state.config,
-          trackingData: {
-            entries: state.trackingData.entries,
-            offlineEntries: state.trackingData.offlineEntries
-          },
           ui: {
             currentView: state.ui.currentView,
             modals: state.ui.modals
@@ -1624,6 +1839,24 @@ export const useAppStore = create(
 
 // Set up network status listener
 if (typeof window !== 'undefined') {
+  // Initialize encryption as early as possible
+  try { encryptionService.initialize() } catch {}
+  // Periodically persist encrypted entries snapshot for offline safety (non-readable without key)
+  try {
+    setInterval(async () => {
+      const state = useAppStore.getState()
+      const snapshot = {
+        trackingData: {
+          entries: state.trackingData.entries,
+          offlineEntries: state.trackingData.offlineEntries
+        }
+      }
+      if (encryptionService.isAvailable()) {
+        const enc = await encryptionService.encryptForStorage('zustand_tracking', snapshot)
+        localStorage.setItem('hot-self-storage.enc', JSON.stringify(enc))
+      }
+    }, 30000)
+  } catch {}
   window.addEventListener('online', () => {
     useAppStore.getState().setOnlineStatus(true)
   })
@@ -1634,3 +1867,32 @@ if (typeof window !== 'undefined') {
 }
 
 export default useAppStore 
+
+// Wire Google Drive service notifications to app notifications
+try {
+  if (googleDriveService && typeof googleDriveService.setNotificationHandler === 'function') {
+    googleDriveService.setNotificationHandler((notification) => {
+      try {
+        const { addNotification } = useAppStore.getState()
+        if (notification?.type === 'reauth-banner') {
+          useAppStore.getState().showReauthBanner({
+            title: notification.title,
+            message: notification.message,
+            severity: 'warning'
+          })
+          return
+        }
+        if (notification?.type === 'rate-limit') {
+          // Coalesce repeated rate-limit toasts by showing banner-like toast once
+          addNotification && addNotification({
+            type: 'warning',
+            title: notification.title || 'Rate limited by Google',
+            message: notification.message || 'We will keep trying automatically.'
+          })
+          return
+        }
+        if (typeof addNotification === 'function') addNotification(notification)
+      } catch {}
+    })
+  }
+} catch {}

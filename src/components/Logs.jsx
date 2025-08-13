@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { useAppStore } from '../stores/appStore'
-import { TRACKING_ITEMS, getDisplayValue, getItemColor, isItem3PointScale } from '../constants/trackingItems'
-import { denormalizeScaleValue } from '../utils/scaleConversion.js'
+import { useAppStore } from '../stores/app-store'
+import { TRACKING_ITEMS, getDisplayValue, getItemColor, isItem3PointScale, getValueLabels } from '../constants/tracking-items'
+import { denormalizeScaleValue } from '../utils/scale-conversion.js'
 import { format, parseISO, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import LZString from 'lz-string'
-import AppHeader from './AppHeader.jsx';
-import { googleDriveService } from '../services/googleDriveService.js';
+import AppHeader from './app-header.jsx';
+import ReauthBanner from './reauth-banner.jsx';
+import { googleDriveService } from '../services/google-drive-service.js';
+import { i18n } from '../utils/i18n.js'
 
 const Logs = () => {
   const { trackingData, deleteEntry, restoreEntry, addNotification, generateTestData, loadAllHistoricalData, importTrackingData, auth, signOut } = useAppStore()
@@ -86,9 +88,6 @@ const Logs = () => {
       const isInDateRange = entryDateOnly >= start && entryDateOnly <= end
       const matchesView = selectedView === 'all' ? true : entry.type === selectedView
 
-      // Debug statement
-      console.log('LOGS FILTER DEBUG', { selectedView, entryType: entry.type, matchesView })
-
       const matchesSearch = !searchTerm || 
         entry.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
         Object.entries(entry).some(([key, value]) => {
@@ -119,7 +118,7 @@ const Logs = () => {
                 if (isItem3PointScale(item)) {
                   displayValueToUse = denormalizeScaleValue(value, 3)
                 }
-                displayValue = getDisplayValue(item, displayValueToUse, 'text')
+                displayValue = getValueLabels(item, displayValueToUse, 'text').displayText
               }
               
               if (displayValue.toString().toLowerCase().includes(searchTerm.toLowerCase())) {
@@ -174,14 +173,14 @@ const Logs = () => {
       await deleteEntry(entryId)
       addNotification({
         type: 'success',
-        title: 'Entry deleted',
-        message: 'Entry has been moved to trash. You can restore it later.'
+        title: i18n.t('logs.toast.delete.success.title'),
+        message: i18n.t('logs.toast.delete.success.message')
       })
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Delete failed',
-        message: 'Failed to delete entry. Please try again.'
+        title: i18n.t('logs.toast.delete.error.title'),
+        message: i18n.t('logs.toast.delete.error.message')
       })
     }
   }
@@ -192,14 +191,14 @@ const Logs = () => {
       await restoreEntry(entryId)
       addNotification({
         type: 'success',
-        title: 'Entry restored',
-        message: 'Entry has been restored successfully.'
+        title: i18n.t('logs.toast.restore.success.title'),
+        message: i18n.t('logs.toast.restore.success.message')
       })
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Restore failed',
-        message: 'Failed to restore entry. Please try again.'
+        title: i18n.t('logs.toast.restore.error.title'),
+        message: i18n.t('logs.toast.restore.error.message')
       })
     }
   }
@@ -260,12 +259,15 @@ const Logs = () => {
     
     const finalJsonString = JSON.stringify(finalExport, null, 2)
     console.log('Final export size:', finalJsonString.length, 'bytes')
-    
+
+    // Choose a file extension that reflects compression for clarity
+    const baseName = `tracking-export-${new Date().toISOString().slice(0, 10)}`
+    const fileExt = finalExport.compressed ? 'lzjson' : 'json'
     const blob = new Blob([finalJsonString], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `tracking-export-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `${baseName}.${fileExt}`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -276,8 +278,8 @@ const Logs = () => {
     if (data.length === 0) {
       addNotification({
         type: 'error',
-        title: 'Export failed',
-        message: 'No data to export.'
+        title: i18n.t('logs.toast.export.error.title'),
+        message: i18n.t('logs.toast.export.noData')
       })
       return
     }
@@ -342,8 +344,8 @@ const Logs = () => {
       if (dataToExport.length === 0) {
         addNotification({
           type: 'error',
-          title: 'Export failed',
-          message: 'No data to export.'
+          title: i18n.t('logs.toast.export.error.title'),
+          message: i18n.t('logs.toast.export.noData')
         })
         return
       }
@@ -356,16 +358,16 @@ const Logs = () => {
 
       addNotification({
         type: 'success',
-        title: 'Export successful',
-        message: `Exported ${dataToExport.length} entries as ${exportFormat.toUpperCase()}.`
+        title: i18n.t('logs.toast.export.success.title'),
+        message: i18n.t('logs.toast.export.success.message', { count: dataToExport.length, format: exportFormat.toUpperCase() })
       })
       
       setShowExportModal(false)
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Export failed',
-        message: 'Failed to export data. Please try again.'
+        title: i18n.t('logs.toast.export.error.title'),
+        message: i18n.t('logs.toast.export.error.message')
       })
     }
   }
@@ -402,11 +404,11 @@ const Logs = () => {
       // Use the app store import function
       const result = await importTrackingData(dataToImport)
       
-      const successMessage = `Successfully imported ${result.entriesImported} entries across ${result.monthsImported} months.`
+      const successMessage = i18n.t('logs.toast.import.success.message', { entries: result.entriesImported, months: result.monthsImported })
       
       addNotification({
         type: 'success',
-        title: 'Import successful',
+        title: i18n.t('logs.toast.import.success.title'),
         message: successMessage
       })
       
@@ -419,7 +421,7 @@ const Logs = () => {
       setShowImportModal(false)
     } catch (error) {
       console.error('Import error:', error)
-      setImportError(error.message || 'Failed to import data. Please check the file format.')
+      setImportError(error.message || i18n.t('logs.import.error.fallback'))
     } finally {
       setIsImporting(false)
     }
@@ -468,7 +470,7 @@ const Logs = () => {
             if (isItem3PointScale(item)) {
               displayValueToUse = denormalizeScaleValue(value, 3)
             }
-            displayValue = getDisplayValue(item, displayValueToUse, 'text')
+            displayValue = getValueLabels(item, displayValueToUse, 'text').displayText
           }
           dataItems.push({
             label: item.name,
@@ -505,6 +507,9 @@ const Logs = () => {
         configImportError={configImportError}
         configImportSuccess={configImportSuccess}
       />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <ReauthBanner />
+      </div>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -514,7 +519,7 @@ const Logs = () => {
               className="btn-secondary px-4 py-2 text-sm flex items-center"
             >
               <span className="mr-2">←</span>
-              Back to Dashboard
+              {i18n.t('nav.backToDashboard')}
             </Link>
             
             <div className="flex items-center space-x-2">
@@ -525,17 +530,17 @@ const Logs = () => {
                   setShowImportModal(true)
                 }}
                 className="btn-secondary px-4 py-2 text-sm"
-                title="Import tracking data from a backup file"
+                title={i18n.t('logs.import.button.title')}
               >
-                📥 Import
+                {i18n.t('logs.import.button')}
               </button>
               
               <button
                 onClick={() => setShowExportModal(true)}
                 className="btn-primary px-4 py-2 text-sm"
-                title="Export tracking data for backup or analysis"
+                title={i18n.t('logs.export.button.title')}
               >
-                📤 Export
+                {i18n.t('logs.export.button')}
               </button>
               
               {googleDriveService.isMockMode && (
@@ -544,22 +549,20 @@ const Logs = () => {
                     const result = generateTestData()
                     addNotification({
                       type: 'success',
-                      title: 'Test Data Generated',
-                      message: `Generated ${result.entriesGenerated} entries across ${result.monthsGenerated} months for testing date ranges.`
+                      title: i18n.t('logs.toast.generate.success.title'),
+                      message: i18n.t('logs.toast.generate.success.message', { entries: result.entriesGenerated, months: result.monthsGenerated })
                     })
                   }}
                   className="btn-secondary px-4 py-2 text-sm"
-                  title="Generate 60 days of test data to test date range filtering"
+                  title={i18n.t('logs.generate.button.title')}
                 >
-                  🧪 Generate Test Data
+                  {i18n.t('logs.generate.button')}
                 </button>
               )}
             </div>
           </div>
-          <h1 className="wildflower-header text-4xl mb-4">📝 Tracking Logs</h1>
-          <p className="text-gray-600 text-center">
-            Review and manage your historical tracking data
-          </p>
+          <h1 className="wildflower-header text-4xl mb-4">{i18n.t('logs.title')}</h1>
+          <p className="text-gray-600 text-center">{i18n.t('logs.subtitle')}</p>
         </div>
 
         {/* Success Banner */}
@@ -729,10 +732,8 @@ const Logs = () => {
           {filteredEntries.length === 0 ? (
             <div className="meadow-card text-center py-12">
               <div className="text-6xl mb-4">📭</div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">No entries found</h3>
-              <p className="text-gray-600">
-                Try adjusting your filters or date range to see more entries.
-              </p>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">{i18n.t('logs.empty.title')}</h3>
+              <p className="text-gray-600">{i18n.t('logs.empty.subtitle')}</p>
             </div>
           ) : (
             filteredEntries.map((entry) => {
@@ -905,18 +906,18 @@ const Logs = () => {
               <div className="space-y-4">
                 <div>
                   <label htmlFor="importFile" className="block text-sm font-medium text-gray-700 mb-2">
-                    Select JSON File to Import
+                    Select JSON/LZJSON File to Import
                   </label>
                   <input
                     type="file"
                     id="importFile"
-                    accept=".json"
+                    accept=".json,.lzjson"
                     onChange={handleFileSelect}
                     className="input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
                   <p className="mt-2 text-sm text-gray-600">
-                    Select a JSON file containing tracking data to import.
-                    The file should be a valid export from this application.
+                    Select a JSON or LZJSON file exported from this application.
+                    Compressed LZJSON exports will be automatically decompressed during import.
                   </p>
                 </div>
                 

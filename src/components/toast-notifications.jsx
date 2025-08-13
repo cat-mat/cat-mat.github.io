@@ -1,5 +1,5 @@
 import React from 'react'
-import { useAppStore } from '../stores/appStore.js'
+import { useAppStore } from '../stores/app-store.js'
 import { clsx } from 'clsx'
 
 const ToastNotifications = () => {

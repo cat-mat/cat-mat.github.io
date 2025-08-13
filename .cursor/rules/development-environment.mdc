@@ -1,0 +1,29 @@
+---
+alwaysApply: true
+---
+## Development Environment
+
+### Operating System
+- **Platform**: Windows
+- **Shell Commands**: Use Windows-compatible commands
+- **Path Separators**: Use backslashes `\` for Windows paths or forward slashes `/` for cross-platform compatibility
+- **Environment Variables**: Use Windows syntax `%VARIABLE%` or cross-platform `process.env.VARIABLE`
+
+### Windows-Specific Command Patterns
+```bash
+# Use these Windows-compatible commands:
+npm run build          # ✅ Cross-platform
+yarn install          # ✅ Cross-platform
+npx create-react-app   # ✅ Cross-platform
+
+# File operations:
+copy src\file.js dest\  # Windows
+cp src/file.js dest/    # Use cross-platform alternatives when possible
+
+# Directory operations:
+mkdir new-folder       # ✅ Cross-platform
+rmdir /s folder-name   # Windows (use rimraf package for cross-platform)
+
+# Process management:
+tasklist              # Windows (instead of ps)
+taskkill /f /pid 1234 # Windows (instead of kill)

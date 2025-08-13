@@ -85,16 +85,16 @@ const wearableRanges = {
 
 ### View-Specific Rules
 
-#### Morning Report (before 10 AM)
+#### Morning Report (displayed by default before 9 AM)
 - **Focus**: Sleep quality and energy assessment
 - **Color Scheme**: Light blues and greens (morning theme)
 
-#### Evening Report (after 7 PM)
+#### Evening Report (displayed by default after 8 PM)
 - **Text Fields**: observations, reflections, thankful_for
 - **Focus**: Reflection and sentiment tracking
 - **Color Scheme**: Warm oranges and purples (evening theme)
 
-#### Quick Track (10 AM - 7 PM)
+#### Quick Track (displayed by default 9 AM - 8 PM)
 - **Focus**: Rapid single-item tracking
 - **Interface**: Minimal, one-tap entries
 - **All Items Available**: User-configurable subset
@@ -361,10 +361,11 @@ const fetchData = async () => {
 
 ## Specific Implementation Notes
 
-### Time-Based View Logic
-- **Morning**: Check if current time < user's morning_end setting (default 09:00)
-- **Evening**: Check if current time > user's evening_start setting (default 20:00)
-- **Quick Track**: Available during middle hours (09:00-20:00 default)
+### Time-Based View Logic for the Default View
+- All views are available to the user at all times, but the default view shown to the user is defined by the following:
+  - **Morning**: Check if current time < user's morning_end setting (default 09:00)
+  - **Evening**: Check if current time > user's evening_start setting (default 20:00)
+  - **Quick Track**: Available during middle hours (09:00-20:00 default)
 
 ### Tracking Item Configuration
 - **Body Section Items**: allergic_reactions, bleeding_spotting, diet_triggers, eating_habits, energy_level, exercise_impact, forehead_shine, headache, hormone_symptoms, hot_flashes, hydration, joint_pain, nausea, temperature_sensitivity, workout_recovery

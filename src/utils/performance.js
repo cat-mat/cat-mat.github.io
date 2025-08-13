@@ -8,6 +8,14 @@ class PerformanceMonitor {
     this.metrics = {}
     this.observers = []
     this.isSupported = 'PerformanceObserver' in window
+    this.slowOperationThresholdMs = 5000
+    this.slowOperationHandler = null
+    this.performanceBudgets = {
+      lcpMs: 3000,
+      fcpMs: 2000,
+      bundleKb: 500
+    }
+    this.devPanelEnabled = false
   }
 
   /**
@@ -140,6 +148,88 @@ class PerformanceMonitor {
       this.metrics[name] = []
     }
     this.metrics[name].push({ value, timestamp })
+
+    if (this.devPanelEnabled) {
+      try {
+        if (!window.__perfPanel) {
+          const panel = document.createElement('div')
+          panel.id = '__perfPanel'
+          panel.style.position = 'fixed'
+          panel.style.bottom = '8px'
+          panel.style.right = '8px'
+          panel.style.maxHeight = '40vh'
+          panel.style.overflow = 'auto'
+          panel.style.background = 'rgba(0,0,0,0.7)'
+          panel.style.color = '#fff'
+          panel.style.fontSize = '12px'
+          panel.style.padding = '8px'
+          panel.style.borderRadius = '6px'
+          panel.style.zIndex = '9999'
+          const header = document.createElement('div')
+          header.textContent = 'Perf (dev)'
+          header.style.fontWeight = '600'
+          header.style.marginBottom = '4px'
+          const list = document.createElement('div')
+          list.id = '__perfList'
+          panel.appendChild(header)
+          panel.appendChild(list)
+          document.body.appendChild(panel)
+          window.__perfPanel = panel
+        }
+        const list = document.getElementById('__perfList')
+        if (list) {
+          const row = document.createElement('div')
+          row.textContent = `${new Date().toLocaleTimeString()} • ${name}: ${typeof value === 'object' ? JSON.stringify(value) : value}`
+          list.prepend(row)
+        }
+      } catch {}
+    }
+  }
+
+  /**
+   * Configure slow operation threshold and handler
+   */
+  setSlowOperationHandler(handler, thresholdMs = 5000) {
+    this.slowOperationHandler = typeof handler === 'function' ? handler : null
+    if (typeof thresholdMs === 'number' && thresholdMs > 0) {
+      this.slowOperationThresholdMs = thresholdMs
+    }
+  }
+
+  /**
+   * Set performance budgets
+   */
+  setPerformanceBudgets({ lcpMs, fcpMs, bundleKb } = {}) {
+    this.performanceBudgets = {
+      lcpMs: lcpMs ?? this.performanceBudgets.lcpMs,
+      fcpMs: fcpMs ?? this.performanceBudgets.fcpMs,
+      bundleKb: bundleKb ?? this.performanceBudgets.bundleKb
+    }
+  }
+
+  enableDevPanel(enable = true) {
+    this.devPanelEnabled = !!enable
+  }
+
+  /**
+   * Evaluate against budgets and return breaches
+   */
+  evaluateBudgets() {
+    const summary = this.getSummary()
+    const breaches = []
+    if (summary?.lcp && summary.lcp > this.performanceBudgets.lcpMs) {
+      breaches.push({ metric: 'LCP', value: summary.lcp, budget: this.performanceBudgets.lcpMs })
+    }
+    const fcp = summary?.navigation?.firstPaint
+    if (fcp && fcp > this.performanceBudgets.fcpMs) {
+      breaches.push({ metric: 'FCP', value: fcp, budget: this.performanceBudgets.fcpMs })
+    }
+    const bundle = this.getBundleSize()
+    const bundleKb = Math.round((bundle.estimatedSize || 0) / 1024)
+    if (bundleKb && bundleKb > this.performanceBudgets.bundleKb) {
+      breaches.push({ metric: 'Bundle Size', value: `${bundleKb}KB`, budget: `${this.performanceBudgets.bundleKb}KB` })
+    }
+    return breaches
   }
 
   /**
@@ -202,10 +292,16 @@ class PerformanceMonitor {
       const result = await fn()
       const duration = performance.now() - start
       this.logMetric(`Function:${name}`, duration)
+      if (this.slowOperationHandler && duration >= this.slowOperationThresholdMs) {
+        try { this.slowOperationHandler({ name, duration }) } catch {}
+      }
       return result
     } catch (error) {
       const duration = performance.now() - start
       this.logMetric(`Function:${name}:error`, duration)
+      if (this.slowOperationHandler && duration >= this.slowOperationThresholdMs) {
+        try { this.slowOperationHandler({ name, duration, error: true }) } catch {}
+      }
       throw error
     }
   }

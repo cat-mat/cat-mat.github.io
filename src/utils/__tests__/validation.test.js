@@ -42,8 +42,8 @@ describe('validation', () => {
         type: 'morning',
         sync_status: 'synced',
         energy_level: 5, // Valid 5-point scale
-        brain_fog: 2, // Valid 3-point scale (converted to 5-point)
-        headache: 3 // Valid 4-point scale
+        brain_fog: 3, // Valid 3-point value in {1,3,5}
+        headache: 3 // Valid 3-point value
       }
 
       const result = validateEntry(entry)
@@ -217,8 +217,8 @@ describe('validation', () => {
 
       const migrated = migrateData(oldData)
       expect(migrated.version).toBe('1.3.0')
-      expect(migrated.entries[0].brain_fog).toBe(3) // Converted to 5-point
-      expect(migrated.entries[0].mood).toBe(1) // Converted to 5-point
+      expect(migrated.entries[0].brain_fog).toBe(5) // 2 -> nearest allowed 3 -> normalized to 5
+      expect(migrated.entries[0].mood).toBe(1)
     })
   })
 }) 

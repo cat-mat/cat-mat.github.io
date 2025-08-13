@@ -1,6 +1,7 @@
 import Joi from 'joi'
-import { TRACKING_ITEMS } from '../constants/trackingItems.js'
-import { normalizeScaleValue, denormalizeScaleValue } from './scaleConversion.js'
+import { TRACKING_ITEMS } from '../constants/tracking-items.js'
+import { SCALE_TYPES } from '../constants/scale-types.js'
+import { normalizeScaleValue, denormalizeScaleValue } from './scale-conversion.js'
 
 // Base validation schemas
 const baseEntrySchema = Joi.object({
@@ -16,14 +17,30 @@ const baseEntrySchema = Joi.object({
 
 // Scale validation helpers
 const scaleValidation = {
-  3: Joi.number().integer().min(1).max(3),
+  // Strict 3-point set {1,3,5} per .cursorrules
+  3: Joi.number().valid(1, 3, 5),
   4: Joi.number().integer().min(1).max(4),
   5: Joi.number().integer().min(1).max(5)
 }
 
+// Resolve numeric scale from item definition (prefer scale_type, fallback to scale)
+const getItemScale = (itemId) => {
+  const item = Object.values(TRACKING_ITEMS).find(i => i.id === itemId)
+  if (!item) return undefined
+  if (item.scale_type) {
+    if (item.scale_type === SCALE_TYPES.THREE_POINT) return 3
+    if (item.scale_type === SCALE_TYPES.FIVE_POINT) return 5
+    // non-discrete scale types (multi-select, numeric) return undefined here
+    return undefined
+  }
+  return item.scale
+}
+
 // Custom validation for scale values that converts 3-point to 5-point internally
 const createScaleValidator = (scale) => {
-  return Joi.number().integer().min(1).max(scale === 3 ? 5 : scale)
+  // For 3-point, we normalize to 5 internally, but inputs must be from {1,3,5}
+  if (scale === 3) return Joi.number().valid(1, 3, 5)
+  return Joi.number().integer().min(1).max(scale)
 }
 
 // Multi-select validation
@@ -47,29 +64,29 @@ const notesSchema = Joi.object({
 // Entry validation schema
 export const entryValidationSchema = baseEntrySchema.keys({
   // 5-point scale items
-  energy_level: scaleValidation[5].optional(),
-  anxiety: scaleValidation[5].optional(),
-  depression: scaleValidation[5].optional(),
-  irritability: scaleValidation[5].optional(),
-  stress_level: scaleValidation[5].optional(),
-  overall_sentiment: scaleValidation[5].optional(),
+  energy_level: scaleValidation[getItemScale('energy_level') || 5].optional(),
+  anxiety: scaleValidation[getItemScale('anxiety') || 5].optional(),
+  depression: scaleValidation[getItemScale('depression') || 5].optional(),
+  irritability: scaleValidation[getItemScale('irritability') || 5].optional(),
+  stress_level: scaleValidation[getItemScale('stress_level') || 5].optional(),
+  overall_sentiment: scaleValidation[getItemScale('overall_sentiment') || 5].optional(),
   
   // 3-point scale items (converted to 5-point internally)
-  allergic_reactions: createScaleValidator(3).optional(),
-  bleeding_spotting: createScaleValidator(3).optional(),
-  brain_fog: createScaleValidator(3).optional(),
-  exercise_impact: createScaleValidator(3).optional(),
-  forehead_shine: createScaleValidator(3).optional(),
-  hydration: createScaleValidator(3).optional(),
-  mood: createScaleValidator(3).optional(),
-  nausea: createScaleValidator(3).optional(),
-  temperature_sensitivity: createScaleValidator(3).optional(),
-  workout_recovery: createScaleValidator(3).optional(),
-  weird_dreams: createScaleValidator(3).optional(),
+  allergic_reactions: createScaleValidator(getItemScale('allergic_reactions') || 3).optional(),
+  bleeding_spotting: createScaleValidator(getItemScale('bleeding_spotting') || 3).optional(),
+  brain_fog: createScaleValidator(getItemScale('brain_fog') || 3).optional(),
+  exercise_impact: createScaleValidator(getItemScale('exercise_impact') || 3).optional(),
+  forehead_shine: createScaleValidator(getItemScale('forehead_shine') || 3).optional(),
+  hydration: createScaleValidator(getItemScale('hydration') || 3).optional(),
+  mood: createScaleValidator(getItemScale('mood') || 3).optional(),
+  nausea: createScaleValidator(getItemScale('nausea') || 3).optional(),
+  temperature_sensitivity: createScaleValidator(getItemScale('temperature_sensitivity') || 3).optional(),
+  workout_recovery: createScaleValidator(getItemScale('workout_recovery') || 3).optional(),
+  weird_dreams: createScaleValidator(getItemScale('weird_dreams') || 3).optional(),
   
-  // 4-point scale items
-  headache: scaleValidation[4].optional(),
-  hot_flashes: scaleValidation[4].optional(),
+  // Specific items with explicit defaults
+  headache: scaleValidation[getItemScale('headache') || 3].optional(),
+  hot_flashes: scaleValidation[getItemScale('hot_flashes') || 5].optional(),
   
   // Multi-select items
   joint_pain: jointPainSchema.optional(),
@@ -379,17 +396,18 @@ export const migrations = {
     // Migrate 3-point scale values to 5-point scale for consistency
     if (data.entries && Array.isArray(data.entries)) {
       const threePointItems = [
-        'allergic_reactions', 'bleeding_spotting', 'brain_fog', 'forehead_shine',
-        'hydration', 'mood', 'nausea', 'temperature_sensitivity', 'weird_dreams'
+        'allergic_reactions', 'bleeding_spotting', 'brain_fog', 'eating_habits', 'forehead_shine',
+        'headache', 'hydration', 'mood', 'nausea', 'temperature_sensitivity', 'workout_recovery', 'weird_dreams'
       ]
       
       data.entries.forEach(entry => {
         threePointItems.forEach(itemId => {
           if (entry[itemId] !== undefined && entry[itemId] !== null) {
             // Only convert if the value is still in 3-point format (1, 2, 3)
-            if (entry[itemId] >= 1 && entry[itemId] <= 3) {
-              entry[itemId] = normalizeScaleValue(entry[itemId], 3)
-            }
+            const v = entry[itemId]
+            // Coerce legacy midpoints {2,4} to nearest allowed {1,3,5}, then normalize
+            const coerced = v === 2 ? 3 : v === 4 ? 5 : v
+            entry[itemId] = normalizeScaleValue(coerced, 3)
           }
         })
       })

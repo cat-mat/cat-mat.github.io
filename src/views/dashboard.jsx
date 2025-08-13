@@ -1,12 +1,17 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useAppStore } from '../stores/appStore.js'
+import { useAppStore } from '../stores/app-store.js'
 import { format } from 'date-fns'
-import TrackingForm from './TrackingForm.jsx'
-import LoadingSpinner from './LoadingSpinner.jsx'
+import MorningView from './morning-view.jsx'
+import EveningView from './evening-view.jsx'
+import QuickTrackView from './quick-track-view.jsx'
+import LoadingSpinner from '../components/loading-spinner.jsx'
 import { clsx } from 'clsx'
+import { getTimeBasedView } from '../utils/time-based-view.js'
 // Removed ServiceWorkerManager import - PWA functionality disabled
-import AppHeader from './AppHeader.jsx';
+import AppHeader from '../components/app-header.jsx';
+import ReauthBanner from '../components/reauth-banner.jsx';
+import { i18n } from '../utils/i18n.js'
 
 const Dashboard = () => {
   const { 
@@ -37,6 +42,7 @@ const Dashboard = () => {
   const { user } = auth
   const { currentView } = ui
   const { entries, isLoading } = trackingData
+  const suggestedView = getTimeBasedView(config)
 
   // Get today's entries (using local timezone, excluding deleted entries)
   const today = new Date().toLocaleDateString('en-CA') // Returns YYYY-MM-DD in local timezone
@@ -50,20 +56,19 @@ const Dashboard = () => {
   const currentViewEntries = todaysEntries.filter(entry => entry.type === currentView)
   
 
-
   const handleSignOut = async () => {
     try {
       await signOut()
       addNotification({
         type: 'success',
-        title: 'Signed out',
-        message: 'You have been successfully signed out.'
+        title: i18n.t('toast.signOut.success.title'),
+        message: i18n.t('toast.signOut.success.message')
       })
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Sign out failed',
-        message: 'There was an error signing out. Please try again.'
+        title: i18n.t('toast.signOut.error.title'),
+        message: i18n.t('toast.signOut.error.message')
       })
     }
   }
@@ -73,14 +78,14 @@ const Dashboard = () => {
       await clearCorruptedConfig()
       addNotification({
         type: 'success',
-        title: 'Configuration cleared',
-        message: 'Your configuration has been reset to defaults.'
+        title: i18n.t('toast.config.cleared.title'),
+        message: i18n.t('toast.config.cleared.message')
       })
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Clear failed',
-        message: 'Failed to clear configuration. Please try again.'
+        title: i18n.t('toast.config.clearFailed.title'),
+        message: i18n.t('toast.config.clearFailed.message')
       })
     }
   }
@@ -90,14 +95,14 @@ const Dashboard = () => {
       exportConfig()
       addNotification({
         type: 'success',
-        title: 'Configuration exported',
-        message: 'Your configuration has been exported successfully.'
+        title: i18n.t('toast.config.exported.title'),
+        message: i18n.t('toast.config.exported.message')
       })
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Export failed',
-        message: 'Failed to export configuration. Please try again.'
+        title: i18n.t('toast.config.exportFailed.title'),
+        message: i18n.t('toast.config.exportFailed.message')
       })
     }
   }
@@ -113,11 +118,11 @@ const Dashboard = () => {
       
       const result = await importConfig(importData)
       
-      const successMessage = 'Your configuration has been imported successfully.'
+      const successMessage = i18n.t('toast.config.imported.message')
       
       addNotification({
         type: 'success',
-        title: 'Configuration imported',
+        title: i18n.t('toast.config.imported.title'),
         message: successMessage
       })
       
@@ -143,13 +148,13 @@ const Dashboard = () => {
   const getViewTitle = () => {
     switch (currentView) {
       case 'morning':
-        return 'Morning Report'
+        return i18n.t('dashboard.viewTitle.morning')
       case 'evening':
-        return 'Evening Report'
+        return i18n.t('dashboard.viewTitle.evening')
       case 'quick':
-        return 'Quick Track'
+        return i18n.t('dashboard.viewTitle.quick')
       default:
-        return 'Tracking'
+        return i18n.t('dashboard.viewTitle.tracking')
     }
   }
 
@@ -180,6 +185,7 @@ const Dashboard = () => {
 
               {/* Main content */}
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
+        <ReauthBanner />
         {/* Date header */}
         <div className="mb-6 meadow-card">
           <h2 className="text-2xl font-bold text-gray-800 wildflower-text-shadow">
@@ -218,25 +224,36 @@ const Dashboard = () => {
         {/* View selector */}
         <div className="mb-8">
           <div className="flex space-x-3">
-            {['morning', 'quick', 'evening'].map((view) => (
-              <button
-                key={view}
-                onClick={() => setCurrentView(view)}
-                className={clsx(
-                  'flex-1 py-4 px-4 rounded-xl border-2 transition-all duration-300 hover:shadow-medium',
-                  currentView === view
-                    ? 'border-primary-500 bg-gradient-to-br from-primary-100 to-primary-50 text-primary-700 shadow-medium'
-                    : 'border-cream-400 bg-cream-500 text-gray-700 hover:border-primary-300 hover:bg-cream-400'
-                )}
-              >
-                <div className="text-center">
-                  <div className="text-3xl mb-2 animate-bloom">
-                    {view === 'morning' ? '🌻' : view === 'evening' ? '🌙' : '⚡'}
+            {['morning', 'quick', 'evening'].map((view) => {
+              const isCurrent = currentView === view
+              const isSuggested = suggestedView === view
+              return (
+                <button
+                  key={view}
+                  onClick={() => setCurrentView(view)}
+                  className={clsx(
+                    'flex-1 py-4 px-4 rounded-xl border-2 transition-all duration-300 hover:shadow-medium',
+                    isCurrent
+                      ? 'border-primary-500 bg-gradient-to-br from-primary-100 to-primary-50 text-primary-700 shadow-medium'
+                      : 'border-cream-400 bg-cream-500 text-gray-700 hover:border-primary-300 hover:bg-cream-400'
+                  )}
+                  title={`${view.charAt(0).toUpperCase() + view.slice(1)}${isSuggested ? ' (suggested for current time)' : ''}`}
+                >
+                  <div className="text-center">
+                    <div className={clsx(
+                      'text-3xl mb-2',
+                      isSuggested && !isCurrent && 'animate-pulse'
+                    )}>
+                      {view === 'morning' ? '🌻' : view === 'evening' ? '🌙' : '⚡'}
+                    </div>
+                    <div className="text-sm font-medium capitalize">{view}</div>
+                    {isSuggested && !isCurrent && (
+                      <div className="text-xs text-primary-600 mt-1">Suggested</div>
+                    )}
                   </div>
-                  <div className="text-sm font-medium capitalize">{view}</div>
-                </div>
-              </button>
-            ))}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -251,9 +268,9 @@ const Dashboard = () => {
                     {getViewTitle()}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {currentView === 'morning' && 'Start your day by tracking sleep and energy'}
-                    {currentView === 'evening' && 'End your day with reflection and sentiment'}
-                    {currentView === 'quick' && 'Add timestamped entries throughout the day'}
+                    {currentView === 'morning' && i18n.t('dashboard.viewDesc.morning')}
+                    {currentView === 'evening' && i18n.t('dashboard.viewDesc.evening')}
+                    {currentView === 'quick' && i18n.t('dashboard.viewDesc.quick')}
                   </p>
                 </div>
               </div>
@@ -265,7 +282,11 @@ const Dashboard = () => {
                   <LoadingSpinner size="large" />
                 </div>
               ) : (
-                <TrackingForm key={currentView} viewType={currentView} />
+                <>
+                  {currentView === 'morning' && <MorningView key="morning" />}
+                  {currentView === 'evening' && <EveningView key="evening" />}
+                  {currentView === 'quick' && <QuickTrackView key="quick" />}
+                </>
               )}
             </div>
           </div>
@@ -275,7 +296,7 @@ const Dashboard = () => {
         {todaysEntries.length > 0 && (
           <div className="meadow-card">
             <div className="section-header">
-              <h3 className="text-lg font-semibold text-gray-800">Today's Summary</h3>
+              <h3 className="text-lg font-semibold text-gray-800">{i18n.t('dashboard.todaysSummary')}</h3>
             </div>
             <div className="section-content">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -286,11 +307,11 @@ const Dashboard = () => {
                       <div className="text-3xl mb-2 animate-bloom">
                         {view === 'morning' ? '🌻' : view === 'evening' ? '🌙' : '⚡'}
                       </div>
-                      <div className="text-sm font-medium text-gray-800 capitalize">{view}</div>
+                      <div className="text-sm font-medium text-gray-800 capitalize">{i18n.t(`common.view.${view}`)}</div>
                       <div className="text-lg font-semibold text-primary-600">
                         {viewEntries.length}
                       </div>
-                      <div className="text-xs text-gray-500">entries</div>
+                      <div className="text-xs text-gray-500">{i18n.t('common.entries')}</div>
                     </div>
                   )
                 })}
@@ -303,36 +324,29 @@ const Dashboard = () => {
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-cream-500 border-t border-cream-400 md:hidden z-50 shadow-wildflower">
         <div className="flex justify-around">
-          <button
-            onClick={() => setCurrentView('morning')}
-            className={clsx(
-              'flex-1 py-3 px-2 text-center transition-all duration-200',
-              currentView === 'morning' ? 'text-primary-600' : 'text-gray-600'
-            )}
-          >
-            <div className="text-xl mb-1 animate-bloom">🌻</div>
-            <div className="text-xs">Morning</div>
-          </button>
-          <button
-            onClick={() => setCurrentView('quick')}
-            className={clsx(
-              'flex-1 py-3 px-2 text-center transition-all duration-200',
-              currentView === 'quick' ? 'text-primary-600' : 'text-gray-600'
-            )}
-          >
-            <div className="text-xl mb-1 animate-bloom">⚡</div>
-            <div className="text-xs">Quick</div>
-          </button>
-          <button
-            onClick={() => setCurrentView('evening')}
-            className={clsx(
-              'flex-1 py-3 px-2 text-center transition-all duration-200',
-              currentView === 'evening' ? 'text-primary-600' : 'text-gray-600'
-            )}
-          >
-            <div className="text-xl mb-1 animate-bloom">🌙</div>
-            <div className="text-xs">Evening</div>
-          </button>
+          {['morning', 'quick', 'evening'].map((view) => {
+            const isCurrent = currentView === view
+            const isSuggested = suggestedView === view
+            return (
+              <button
+                key={view}
+                onClick={() => setCurrentView(view)}
+                className={clsx(
+                  'flex-1 py-3 px-2 text-center transition-all duration-200',
+                  isCurrent ? 'text-primary-600' : 'text-gray-600'
+                )}
+                title={`${view.charAt(0).toUpperCase() + view.slice(1)}${isSuggested ? ' (suggested)' : ''}`}
+              >
+                <div className={clsx(
+                  'text-xl mb-1',
+                  isSuggested && !isCurrent && 'animate-pulse'
+                )}>
+                  {view === 'morning' ? '🌻' : view === 'evening' ? '🌙' : '⚡'}
+                </div>
+                <div className="text-xs">{i18n.t(`common.view.${view}`)}</div>
+              </button>
+            )
+          })}
         </div>
       </nav>
 
@@ -341,7 +355,7 @@ const Dashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="meadow-card max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Import Configuration</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{i18n.t('dashboard.import.title')}</h3>
               <button
                 onClick={() => setShowImportModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -353,18 +367,17 @@ const Dashboard = () => {
             <div className="space-y-4">
               <div>
                 <label htmlFor="configImportFile" className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Configuration File to Import
+                  {i18n.t('dashboard.import.selectFileLabel')}
                 </label>
                 <input
                   type="file"
                   id="configImportFile"
-                  accept=".json"
+                  accept=".json,.lzjson"
                   onChange={handleConfigFileSelect}
                   className="input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
                 <p className="mt-2 text-sm text-gray-600">
-                  Select a JSON file containing configuration data to import.
-                  This will replace your current configuration.
+                  {i18n.t('dashboard.import.helpText')}
                 </p>
               </div>
               
@@ -374,10 +387,10 @@ const Dashboard = () => {
                   <div className="flex items-start">
                     <div className="text-red-600 mr-3 mt-0.5">⚠️</div>
                     <div>
-                      <h4 className="text-sm font-medium text-red-800 mb-1">Import Error</h4>
+                      <h4 className="text-sm font-medium text-red-800 mb-1">{i18n.t('dashboard.import.error.title')}</h4>
                       <p className="text-sm text-red-700">{configImportError}</p>
                       <p className="text-xs text-red-600 mt-2">
-                        Please check that your file is a valid configuration export from this application.
+                        {i18n.t('dashboard.import.error.hint')}
                       </p>
                     </div>
                   </div>
@@ -389,7 +402,7 @@ const Dashboard = () => {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center">
                     <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full mr-3"></div>
-                    <p className="text-sm text-blue-800">Importing configuration...</p>
+                    <p className="text-sm text-blue-800">{i18n.t('dashboard.import.loading')}</p>
                   </div>
                 </div>
               )}
@@ -400,7 +413,7 @@ const Dashboard = () => {
                   <div className="flex items-start">
                     <div className="text-green-600 mr-3 mt-0.5">✅</div>
                     <div>
-                      <h4 className="text-sm font-medium text-green-800 mb-1">Import Successful</h4>
+                      <h4 className="text-sm font-medium text-green-800 mb-1">{i18n.t('dashboard.import.success.heading')}</h4>
                       <p className="text-sm text-green-700">{configImportSuccess}</p>
                     </div>
                   </div>
@@ -408,10 +421,10 @@ const Dashboard = () => {
               )}
 
               <div className="text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg">
-                <p className="font-medium mb-2">⚠️ Warning:</p>
-                <p>• <strong>Backup First:</strong> Export your current configuration before importing</p>
-                <p>• <strong>Replacement:</strong> Imported configuration will replace your current settings</p>
-                <p>• <strong>Validation:</strong> Invalid configuration files will be rejected</p>
+                <p className="font-medium mb-2">{i18n.t('dashboard.import.warning.title')}</p>
+                <p>• <strong>{i18n.t('dashboard.import.warning.backup.title')}</strong> {i18n.t('dashboard.import.warning.backup.text')}</p>
+                <p>• <strong>{i18n.t('dashboard.import.warning.replacement.title')}</strong> {i18n.t('dashboard.import.warning.replacement.text')}</p>
+                <p>• <strong>{i18n.t('dashboard.import.warning.validation.title')}</strong> {i18n.t('dashboard.import.warning.validation.text')}</p>
               </div>
             </div>
             
@@ -421,14 +434,14 @@ const Dashboard = () => {
                 className="btn-secondary px-4 py-2"
                 disabled={isConfigImporting}
               >
-                Cancel
+                {i18n.t('common.cancel')}
               </button>
               <button
                 onClick={() => document.getElementById('configImportFile').click()}
                 className="btn-primary px-4 py-2"
                 disabled={isConfigImporting}
               >
-                {isConfigImporting ? 'Importing...' : 'Select File & Import'}
+                {isConfigImporting ? i18n.t('dashboard.import.loading') : i18n.t('dashboard.import.selectAndImport')}
               </button>
             </div>
           </div>
@@ -440,7 +453,7 @@ const Dashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="meadow-card max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Reset Configuration</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{i18n.t('dashboard.reset.title')}</h3>
               <button
                 onClick={() => setShowResetConfirmModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -454,24 +467,24 @@ const Dashboard = () => {
                 <div className="flex items-start">
                   <div className="text-red-600 mr-3 mt-0.5">⚠️</div>
                   <div>
-                    <h4 className="text-sm font-medium text-red-800 mb-2">Are you sure?</h4>
+                    <h4 className="text-sm font-medium text-red-800 mb-2">{i18n.t('dashboard.reset.confirmTitle')}</h4>
                     <p className="text-sm text-red-700 mb-2">
-                      This will reset your configuration to default values. This action cannot be undone.
+                      {i18n.t('dashboard.reset.confirmText')}
                     </p>
                     <p className="text-xs text-red-600">
-                      Consider exporting your current configuration first if you want to save it.
+                      {i18n.t('dashboard.reset.confirmHint')}
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="text-sm text-gray-600">
-                <p><strong>What will be reset:</strong></p>
+                <p><strong>{i18n.t('dashboard.reset.detailsTitle')}</strong></p>
                 <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>All custom tracking fields and categories</li>
-                  <li>Form configurations and layouts</li>
-                  <li>User preferences and settings</li>
-                  <li>Custom validation rules</li>
+                  <li>{i18n.t('dashboard.reset.detail.fields')}</li>
+                  <li>{i18n.t('dashboard.reset.detail.forms')}</li>
+                  <li>{i18n.t('dashboard.reset.detail.preferences')}</li>
+                  <li>{i18n.t('dashboard.reset.detail.validation')}</li>
                 </ul>
               </div>
             </div>
@@ -481,7 +494,7 @@ const Dashboard = () => {
                 onClick={() => setShowResetConfirmModal(false)}
                 className="btn-secondary px-4 py-2"
               >
-                Cancel
+                {i18n.t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -490,7 +503,7 @@ const Dashboard = () => {
                 }}
                 className="btn-danger px-4 py-2"
               >
-                Yes, Reset Configuration
+                {i18n.t('dashboard.reset.confirmButton')}
               </button>
             </div>
           </div>
@@ -500,4 +513,4 @@ const Dashboard = () => {
   )
 }
 
-export default Dashboard 
+export default Dashboard

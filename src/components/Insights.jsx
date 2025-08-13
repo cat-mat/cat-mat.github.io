@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { useAppStore } from '../stores/appStore.js'
-import { TRACKING_ITEMS, getDisplayValue, getItemColor, getItemEffectiveScale } from '../constants/trackingItems.js'
+import { useAppStore } from '../stores/app-store.js'
+import { TRACKING_ITEMS, getDisplayValue, getItemColor, getItemEffectiveScale } from '../constants/tracking-items.js'
 import { format, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval, parseISO, isWithinInterval } from 'date-fns'
 import { clsx } from 'clsx'
-import AppHeader from './AppHeader.jsx';
+import AppHeader from './app-header.jsx';
+import ReauthBanner from './reauth-banner.jsx';
+import { i18n } from '../utils/i18n.js'
 
 const Insights = () => {
   const { trackingData, loadAllHistoricalData } = useAppStore()
@@ -465,98 +467,71 @@ const Insights = () => {
     return (
       <div className="space-y-4">
         {/* Scatter Plot */}
-        <div className="relative bg-gray-50 rounded-lg p-4 chart-container">
+        {/* Legend above the chart */}
+        <div className="flex items-center justify-center space-x-4 text-xs text-gray-600 mb-3">
+          <div className="flex items-center space-x-1">
+            <div className="w-3 h-3 bg-red-600 rounded-full"></div>
+            <span>Data Points</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <div className="w-4 h-0.5 bg-red-600 border-dashed"></div>
+            <span>7-Day Average Curve</span>
+          </div>
+        </div>
+
+        <div className="relative bg-gray-50 rounded-lg p-4 pb-8 chart-container">
           <svg 
             width={chartWidth + padding * 2 + 80} 
-            height={chartHeight + padding * 2 + 30}
+            height={chartHeight + padding * 2 + 100}
             className="absolute inset-0 chart-svg"
           >
-                         {/* Y-axis labels */}
+             {/* Y-axis labels (numeric ticks) */}
              {(() => {
-               const item = TRACKING_ITEMS[selectedItem]
-               const effectiveScale = getItemEffectiveScale(item) || 5
-               const textOptions = item?.textOptions || []
-               
-               // Check if this is a wearable item (no text options)
-               const isWearable = !textOptions || textOptions.length === 0
-               
-               if (isWearable) {
-                 // For wearable items, show numeric values (0-100 for sleep score, body battery)
-                 const startValue = item?.id === 'wearables_sleep_score' || item?.id === 'wearables_body_battery' ? 0 : 1
-                 const endValue = item?.id === 'wearables_sleep_score' || item?.id === 'wearables_body_battery' ? 100 : effectiveScale
-                 const step = (endValue - startValue) / 4 // Show 5 values total
-                 
-                 return Array.from({ length: 5 }, (_, i) => {
-                   const value = startValue + (i * step)
-                   // Use fixed scale for wearables (0-100) instead of data-based scale
-                   const wearableScale = 100
-                   const wearableMinValue = 0
-                   const yPos = padding + (chartHeight - ((value - wearableMinValue) / wearableScale) * chartHeight)
-                   
-                   return (
-                     <text 
-                       key={value}
-                       x={padding - 15} 
-                       y={yPos + 4} 
-                       textAnchor="end" 
-                       className="text-xs fill-gray-500 chart-text-small"
-                     >
-                       {Math.round(value)}
-                     </text>
-                   )
-                 })
-               } else {
-                 // For regular items, show text labels
-                 return Array.from({ length: effectiveScale }, (_, i) => {
-                   const value = i + 1
-                   // Adjust positioning to give more space at top and bottom for labels
-                   const adjustedChartHeight = chartHeight - 40 // Reduce chart area to give more padding
-                   const safeScale = scale || 1 // Prevent division by zero
-                   const yPos = padding + 20 + (adjustedChartHeight - ((value - minValue) / safeScale) * adjustedChartHeight)
-                   const label = textOptions[i] || value.toString()
-                   
-                   return (
-                     <g key={value}>
-                       {label.split(' ').map((word, wordIndex) => (
-                         <text 
-                           key={wordIndex}
-                           x={padding - 15} 
-                           y={yPos + 4 + (wordIndex * (label.split(' ').length > 1 ? 12 : 0))} 
-                           textAnchor="end" 
-                           className="text-xs fill-gray-500 chart-text-small"
-                         >
-                           {word}
-                         </text>
-                       ))}
-                     </g>
-                   )
-                 })
-               }
+               const tickCount = 5
+               const adjustedChartHeight = chartHeight - 40
+               const safeScale = scale || 1
+               const step = safeScale / Math.max(1, tickCount - 1)
+               return Array.from({ length: tickCount }, (_, i) => {
+                 const value = minValue + (i * step)
+                 const yPos = padding + 20 + (adjustedChartHeight - ((value - minValue) / safeScale) * adjustedChartHeight)
+                 return (
+                   <text 
+                     key={i}
+                     x={padding - 15} 
+                     y={yPos + 4} 
+                     textAnchor="end" 
+                     className="text-xs fill-gray-500 chart-text-small"
+                   >
+                     {Number(value.toFixed(1))}
+                   </text>
+                 )
+               })
              })()}
              
-             {/* X-axis date labels */}
+             {/* X-axis date labels (evenly spaced) */}
              {(() => {
-               const labelCount = 6 // Show 6 date labels
-               const step = Math.max(1, Math.floor((itemData.length - 1) / (labelCount - 1))) // Prevent division by zero
-               
-               return itemData.map((point, index) => {
-                 if (index % step === 0 || index === itemData.length - 1) {
-                   const x = padding + (index / Math.max(1, itemData.length - 1)) * chartWidth
-                   return (
-                     <g key={index}>
-                       <text 
-                         x={x} 
-                         y={chartHeight + padding + 35} 
-                         textAnchor="middle" 
-                         className="text-xs fill-gray-500"
-                         transform={`rotate(-45 ${x} ${chartHeight + padding + 35})`}
-                       >
-                         {format(point.date, 'EEE, MMM d')}
-                       </text>
-                     </g>
-                   )
-                 }
-                 return null
+               const labelCount = Math.min(6, itemData.length)
+               if (labelCount === 0) return null
+               const indices = Array.from({ length: labelCount }, (_, i) => {
+                 return Math.round(i * (itemData.length - 1) / Math.max(1, labelCount - 1))
+               })
+               const unique = Array.from(new Set(indices))
+               return unique.map((idx) => {
+                 const point = itemData[idx]
+                 const x = padding + (idx / Math.max(1, itemData.length - 1)) * chartWidth
+                 return (
+                   <g key={idx}>
+                     <text 
+                       x={x} 
+                       y={chartHeight + padding + 30} 
+                       textAnchor="end" 
+                       className="text-xs fill-gray-500"
+                       transform={`rotate(-45 ${x} ${chartHeight + padding + 60})`}
+                     >
+                       {format(point.date, 'EEE, MMM d')}
+                     </text>
+                   </g>
+                 )
                })
              })()}
 
@@ -626,17 +601,7 @@ const Insights = () => {
                      
         </div>
         
-        {/* Legend */}
-        <div className="flex items-center justify-center space-x-4 text-xs text-gray-600">
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-red-600 rounded-full"></div>
-            <span>Data Points</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-4 h-0.5 bg-red-600 border-dashed"></div>
-            <span>7-Day Average Curve</span>
-          </div>
-        </div>
+        {/* Legend moved above chart; none below */}
       </div>
     )
   }
@@ -681,14 +646,14 @@ const Insights = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center mb-8">
             <Link to="/" className="text-primary-600 hover:text-primary-700 mr-4">
-              ← Back to Dashboard
+              ← {i18n.t('nav.backToDashboard')}
             </Link>
-            <h1 className="text-2xl font-bold text-gray-800 wildflower-text-shadow">Insights</h1>
+            <h1 className="text-2xl font-bold text-gray-800 wildflower-text-shadow">{i18n.t('insights.title')}</h1>
           </div>
           <div className="meadow-card p-8">
             <div className="text-center">
               <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading your insights...</p>
+              <p className="text-gray-600">{i18n.t('insights.loading')}</p>
             </div>
           </div>
         </div>
@@ -709,6 +674,9 @@ const Insights = () => {
         configImportError={configImportError}
         configImportSuccess={configImportSuccess}
       />
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <ReauthBanner />
+      </div>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center mb-8">
           <Link 
@@ -716,41 +684,41 @@ const Insights = () => {
             className="btn-secondary px-4 py-2 text-sm flex items-center"
           >
             <span className="mr-2">←</span>
-            Back to Dashboard
+            {i18n.t('nav.backToDashboard')}
           </Link>
-          <h1 className="text-2xl font-bold text-gray-800 wildflower-text-shadow ml-4">Insights</h1>
+          <h1 className="text-2xl font-bold text-gray-800 wildflower-text-shadow ml-4">{i18n.t('insights.title')}</h1>
         </div>
 
         {/* Filters */}
         <div className="meadow-card p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Timeframe</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{i18n.t('insights.filters.timeframe')}</label>
               <select
                 value={selectedTimeframe}
                 onChange={(e) => setSelectedTimeframe(e.target.value)}
                 className="input"
               >
-                <option value="6weeks">Last 6 Weeks</option>
-                <option value="4weeks">Last 4 Weeks</option>
-                <option value="2weeks">Last 2 Weeks</option>
+                <option value="6weeks">{i18n.t('insights.filters.options.last6weeks')}</option>
+                <option value="4weeks">{i18n.t('insights.filters.options.last4weeks')}</option>
+                <option value="2weeks">{i18n.t('insights.filters.options.last2weeks')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">View Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{i18n.t('insights.filters.viewType')}</label>
               <select
                 value={selectedView}
                 onChange={(e) => setSelectedView(e.target.value)}
                 className="input"
               >
-                <option value="all">All Views</option>
-                <option value="morning">Morning</option>
-                <option value="quick">Quick</option>
-                <option value="evening">Evening</option>
+                <option value="all">{i18n.t('insights.filters.view.all')}</option>
+                <option value="morning">{i18n.t('common.view.morning')}</option>
+                <option value="quick">{i18n.t('common.view.quick')}</option>
+                <option value="evening">{i18n.t('common.view.evening')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tracking Item</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{i18n.t('insights.filters.trackingItem')}</label>
               <select
                 value={selectedItem}
                 onChange={(e) => setSelectedItem(e.target.value)}
@@ -770,19 +738,19 @@ const Insights = () => {
             <div className="text-3xl font-bold text-primary-600 mb-2">
               {filteredData.length}
             </div>
-            <div className="text-sm text-gray-600">Total Entries</div>
+            <div className="text-sm text-gray-600">{i18n.t('insights.cards.totalEntries')}</div>
           </div>
           <div className="meadow-card p-6 text-center">
             <div className="text-3xl font-bold text-secondary-600 mb-2">
               {trends?.totalEntries || 0}
             </div>
-            <div className="text-sm text-gray-600">{selectedItemData?.name} Entries</div>
+            <div className="text-sm text-gray-600">{i18n.t('insights.cards.itemEntries', { item: selectedItemData?.name })}</div>
           </div>
           <div className="meadow-card p-6 text-center">
                       <div className="text-3xl font-bold text-accent-600 mb-2">
             {trends?.averageValue ? `${trends.averageValue.toFixed(1)} out of ${getItemEffectiveScale(selectedItemData) || 5}` : 'N/A'}
           </div>
-            <div className="text-sm text-gray-600">Average {selectedItemData?.name}</div>
+            <div className="text-sm text-gray-600">{i18n.t('insights.cards.averageItem', { item: selectedItemData?.name })}</div>
           </div>
         </div>
 
@@ -825,23 +793,21 @@ const Insights = () => {
         {/* Trend Analysis */}
         {trends && (
           <div className="meadow-card p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              {selectedItemData?.name} Trend Analysis
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('insights.trend.title', { item: selectedItemData?.name })}</h3>
             
             <div className="space-y-6">
               {/* Trend Chart */}
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Weekly Trend</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">{i18n.t('insights.trend.weekly')}</h4>
                 {renderTrendChart(trends)}
               </div>
 
               {/* Trend Summary */}
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Trend Summary</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-3"><br /><br />{i18n.t('insights.trend.summary')}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-600">Direction:</span>
+                    <span className="text-sm text-gray-600">{i18n.t('insights.trend.direction')}:</span>
                     <span className={clsx(
                       'text-sm font-medium',
                       trends.direction === 'improving' && 'text-success-600',
@@ -852,7 +818,7 @@ const Insights = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-600">Change:</span>
+                    <span className="text-sm text-gray-600">{i18n.t('insights.trend.change')}:</span>
                     <span className={clsx(
                       'text-sm font-medium',
                       trends.direction === 'improving' && 'text-success-600',
@@ -863,7 +829,7 @@ const Insights = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-600">Data Points:</span>
+                    <span className="text-sm text-gray-600">{i18n.t('insights.trend.datapoints')}:</span>
                     <span className="text-sm font-medium text-gray-800">{trends.totalEntries}</span>
                   </div>
                 </div>
@@ -875,9 +841,7 @@ const Insights = () => {
         {/* Insights and Recommendations */}
         {insights.length > 0 && (
           <div className="meadow-card p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              Insights & Recommendations
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('insights.section.insights')}</h3>
             <div className="space-y-3">
               {insights.map((insight, index) => (
                 <div key={index} className={clsx(
@@ -899,9 +863,7 @@ const Insights = () => {
           const textInsights = analyzeTextPatterns(selectedItem)
           return textInsights && textInsights.length > 0 ? (
             <div className="meadow-card p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Evening Reports
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('insights.section.evening')}</h3>
               <div className="space-y-3">
                 {textInsights.map((insight, index) => (
                   <div key={index} className={clsx(
@@ -925,16 +887,16 @@ const Insights = () => {
             <div className="text-center">
               <div className="text-4xl mb-4">📊</div>
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                No Data Available
+                {i18n.t('insights.empty.title')}
               </h2>
               <p className="text-gray-600 mb-4">
-                Start tracking your {selectedItemData?.name.toLowerCase()} to see insights and trends.
+                {i18n.t('insights.empty.subtitle', { item: selectedItemData?.name?.toLowerCase() })}
               </p>
               <Link
                 to="/"
                 className="btn-primary px-6 py-3"
               >
-                Start Tracking
+                {i18n.t('insights.empty.cta')}
               </Link>
             </div>
           </div>

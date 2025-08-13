@@ -1,7 +1,8 @@
 // Google Drive Service for perimenopause tracking app
 // Updated to use Google Identity Services (GIS) instead of deprecated gapi
-import { DEFAULT_VIEW_TIMES } from '../constants/trackingItems.js'
+import { DEFAULT_VIEW_TIMES } from '../constants/tracking-items.js'
 import { compressData, decompressData, shouldCompress } from '../utils/compression.js'
+import { performanceMonitor } from '../utils/performance.js'
 
 class GoogleDriveService {
   constructor() {
@@ -24,13 +25,20 @@ class GoogleDriveService {
     this.isProcessingQueue = false
     this.rateLimitDelay = 1000 // Start with 1 second delay
     this.maxRetries = 3
+    this.backoffSchedule = [1000, 2000, 4000, 8000]
     this.refreshTimer = null
+    this.proactiveReauthTimer = null
+    this.notificationHandler = null
+    this.lastTokenError = null
     
     // Try to restore token from localStorage on initialization
     this.restoreTokenFromStorage()
     
     // Set up automatic token refresh
     this.setupAutoRefresh()
+
+    // Set up proactive re-auth prompt (day 6)
+    this.setupProactiveReauth()
   }
 
   // Load Google Identity Services (GIS) dynamically
@@ -127,9 +135,19 @@ class GoogleDriveService {
         scope: this.scope,
         callback: (tokenResponse) => {
           if (tokenResponse.error) {
+            this.lastTokenError = tokenResponse.error
             console.error('Token response error:', tokenResponse.error)
+            if (tokenResponse.error === 'interaction_required') {
+              // Surface a clear banner so user can re-auth
+              this.notify({
+                type: 'reauth-banner',
+                title: 'Sign in required',
+                message: 'Please sign in again to continue syncing with Google Drive.'
+              })
+            }
             return
           }
+          this.lastTokenError = null
           this.accessToken = tokenResponse.access_token
           
           // Calculate token expiry (Google tokens can last up to 1 hour, but let's be conservative)
@@ -140,6 +158,15 @@ class GoogleDriveService {
           
           // Save token to localStorage for persistence
           this.saveTokenToStorage(tokenResponse.access_token, expiryTime.getTime())
+
+          // Record first auth time if absent for proactive re-auth prompt (day 6)
+          try {
+            const existing = localStorage.getItem('google_auth_first_ts')
+            if (!existing) {
+              localStorage.setItem('google_auth_first_ts', Date.now().toString())
+            }
+          } catch {}
+          this.setupProactiveReauth()
           
           console.log('Access token obtained and saved successfully')
           console.log('Token expires at:', expiryTime.toISOString())
@@ -334,9 +361,13 @@ class GoogleDriveService {
       clearTimeout(this.refreshTimer)
     }
 
-    // Only set up auto-refresh if we have a valid token
+    // Only set up auto-refresh if we have a token and expiry; try to initialize client if missing
     if (!this.accessToken || !this.tokenExpiry) {
       return
+    }
+    if (!this.tokenClient && !this.isMockMode) {
+      // Lazily initialize GIS client to enable refresh flow after restore
+      this.initialize().catch(() => {})
     }
 
     const now = new Date()
@@ -361,6 +392,39 @@ class GoogleDriveService {
     }, refreshTime)
   }
 
+  // Proactive re-auth prompt at day 6 for unverified apps
+  setupProactiveReauth() {
+    // Clear any existing timer
+    if (this.proactiveReauthTimer) {
+      clearTimeout(this.proactiveReauthTimer)
+    }
+    try {
+      const firstTsRaw = localStorage.getItem('google_auth_first_ts')
+      if (!firstTsRaw) return
+      const firstTs = parseInt(firstTsRaw, 10)
+      if (Number.isNaN(firstTs)) return
+      const sixDaysMs = 6 * 24 * 60 * 60 * 1000
+      const now = Date.now()
+      const delay = Math.max(firstTs + sixDaysMs - now, 0)
+      if (delay === 0) {
+        // Immediate banner prompt
+        this.notify({
+          type: 'reauth-banner',
+          title: 'Heads up: sign in again soon',
+          message: 'For unverified apps, access may expire every 7 days. Re-authenticate to keep syncing without interruption.'
+        })
+        return
+      }
+      this.proactiveReauthTimer = setTimeout(() => {
+        this.notify({
+          type: 'reauth-banner',
+          title: 'Please sign in again',
+          message: 'To keep your Google Drive connection active, sign in again. Your data is safe and will sync after re-auth.'
+        })
+      }, delay)
+    } catch {}
+  }
+
   // Check if user is signed in
   isSignedIn() {
     return this.isMockMode || (this.isInitialized && this.accessToken !== null && this.isTokenValid())
@@ -382,7 +446,13 @@ class GoogleDriveService {
   // Refresh the access token
   async refreshToken() {
     if (!this.tokenClient) {
-      throw new Error('Token client not initialized')
+      // Attempt to lazily initialize GIS and the token client when a token
+      // was restored from storage but the service wasn't initialized yet.
+      try {
+        await this.initialize()
+      } catch (e) {
+        throw new Error('Token client not initialized')
+      }
     }
 
     console.log('Attempting to refresh access token...')
@@ -404,6 +474,11 @@ class GoogleDriveService {
 
         // Poll for new token
         const checkToken = () => {
+          if (this.lastTokenError === 'interaction_required') {
+            clearTimeout(timeoutId)
+            reject(new Error('interaction_required'))
+            return
+          }
           // Check if we got a new token (different from current)
           if (this.accessToken && this.accessToken !== currentToken && this.isTokenValid()) {
             clearTimeout(timeoutId)
@@ -518,7 +593,7 @@ class GoogleDriveService {
 
     // Add to queue and process
     return new Promise((resolve, reject) => {
-      this.requestQueue.push({ requestFn, resolve, reject })
+      this.requestQueue.push({ requestFn, resolve, reject, retryCount: 0, backoffIndex: 0 })
       this.processQueue()
     })
   }
@@ -532,7 +607,8 @@ class GoogleDriveService {
     this.isProcessingQueue = true
 
     while (this.requestQueue.length > 0) {
-      const { requestFn, resolve, reject } = this.requestQueue.shift()
+      const req = this.requestQueue.shift()
+      const { requestFn, resolve, reject } = req
 
       try {
         // Add delay between requests to respect rate limits
@@ -540,7 +616,7 @@ class GoogleDriveService {
           await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay))
         }
 
-        const result = await requestFn()
+        const result = await performanceMonitor.measureFunction('DriveRequest', requestFn)
         resolve(result)
       } catch (error) {
         console.error('Request failed:', error)
@@ -551,38 +627,91 @@ class GoogleDriveService {
           try {
             await this.refreshToken()
             // Put the request back in the queue to retry with new token
-            this.requestQueue.unshift({ requestFn, resolve, reject })
+            this.requestQueue.unshift({ ...req })
             break
           } catch (refreshError) {
             console.error('Token refresh failed, attempting force re-authentication...')
             try {
               await this.forceReAuthentication()
               // Put the request back in the queue to retry with new token
-              this.requestQueue.unshift({ requestFn, resolve, reject })
+              this.requestQueue.unshift({ ...req })
               break
             } catch (reauthError) {
               console.error('Force re-authentication failed:', reauthError)
               reject(error) // Return original error
+              this.notify({
+                type: 'error',
+                title: 'Authentication expired',
+                message: 'Please sign in again to continue syncing.'
+              })
             }
           }
         }
         // Check if it's a rate limit error
-        else if (error.status === 429 || (error.message && error.message.includes('quota'))) {
-          // Increase delay and retry
-          this.rateLimitDelay = Math.min(this.rateLimitDelay * 2, 10000)
-          console.log(`Rate limited, increasing delay to ${this.rateLimitDelay}ms`)
-          
-          // Put the request back in the queue
-          this.requestQueue.unshift({ requestFn, resolve, reject })
+        else if (this.isRateLimitError(error)) {
+          const delay = this.backoffSchedule[Math.min(req.backoffIndex, this.backoffSchedule.length - 1)]
+          console.log(`Rate limited, backing off for ${delay}ms (attempt ${req.backoffIndex + 1})`)
+          await this.sleep(delay)
+          req.backoffIndex += 1
+          req.retryCount += 1
+          if (req.retryCount >= this.backoffSchedule.length) {
+            // Throttled user messaging for rate limits
+            this.notify({
+              type: 'rate-limit',
+              title: 'Sync is throttled',
+              message: 'Google Drive is rate limiting requests. We will keep trying in the background.'
+            })
+          }
+          // Put the request back in the queue and continue
+          this.requestQueue.unshift(req)
           break
         }
         else {
+          // Network errors: surface friendly notification and rethrow
+          if (this.isNetworkError(error)) {
+            this.notify({
+              type: 'info',
+              title: 'Offline mode',
+              message: 'You appear to be offline. Your entries are saved and will sync when back online.'
+            })
+          }
           reject(error)
         }
       }
     }
 
     this.isProcessingQueue = false
+  }
+
+  isRateLimitError(error) {
+    if (!error) return false
+    if (error.status === 429) return true
+    if (error.status === 403 && error.code === 'userRateLimitExceeded') return true
+    if (typeof error.message === 'string' && /rate limit|quota/i.test(error.message)) return true
+    return false
+  }
+
+  isNetworkError(error) {
+    return (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      (error && error.message && /Failed to fetch|NetworkError|TypeError/i.test(error.message))
+    )
+  }
+
+  sleep(ms) {
+    return new Promise(res => setTimeout(res, ms))
+  }
+
+  setNotificationHandler(handler) {
+    this.notificationHandler = typeof handler === 'function' ? handler : null
+  }
+
+  notify(notification) {
+    try {
+      if (this.notificationHandler) {
+        this.notificationHandler(notification)
+      }
+    } catch {}
   }
 
   // Create a file in Google Drive
@@ -601,10 +730,7 @@ class GoogleDriveService {
         })
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to create file: ${response.statusText}`)
-      }
-
+      await this.ensureOk(response, 'Failed to create file')
       const file = await response.json()
 
       // Upload the content
@@ -617,10 +743,7 @@ class GoogleDriveService {
         body: typeof content === 'string' ? content : JSON.stringify(content)
       })
 
-      if (!uploadResponse.ok) {
-        throw new Error(`Failed to upload file content: ${uploadResponse.statusText}`)
-      }
-
+      await this.ensureOk(uploadResponse, 'Failed to upload file content')
       return await uploadResponse.json()
     })
   }
@@ -634,11 +757,15 @@ class GoogleDriveService {
         }
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to get file: ${response.statusText}`)
+      await this.ensureOk(response, 'Failed to get file')
+      try {
+        return await response.json()
+      } catch (e) {
+        const err = new Error('Corrupted data: invalid JSON')
+        err.status = response.status
+        err.code = 'corruptedData'
+        throw err
       }
-
-      return await response.json()
     })
   }
 
@@ -654,10 +781,7 @@ class GoogleDriveService {
         body: typeof content === 'string' ? content : JSON.stringify(content)
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to update file: ${response.statusText}`)
-      }
-
+      await this.ensureOk(response, 'Failed to update file')
       return await response.json()
     })
   }
@@ -677,10 +801,7 @@ class GoogleDriveService {
         }
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to list files: ${response.statusText}`)
-      }
-
+      await this.ensureOk(response, 'Failed to list files')
       return await response.json()
     })
   }
@@ -695,12 +816,25 @@ class GoogleDriveService {
         }
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete file: ${response.statusText}`)
-      }
-
+      await this.ensureOk(response, 'Failed to delete file')
       return { success: true }
     })
+  }
+
+  // Ensure a fetch response is OK; otherwise throw structured error
+  async ensureOk(response, message) {
+    if (response.ok) return
+    let details = null
+    try {
+      details = await response.json()
+    } catch {}
+    const err = new Error(`${message}: ${response.status} ${response.statusText}`)
+    err.status = response.status
+    err.details = details
+    if (details && details.error && details.error.errors && details.error.errors[0]) {
+      err.code = details.error.errors[0].reason
+    }
+    throw err
   }
 
   // Get the configuration file
@@ -719,7 +853,30 @@ class GoogleDriveService {
 
       // Get existing config file
       const fileId = files.files[0].id
-      const existingConfig = await this.getFile(fileId)
+      let existingConfig
+      try {
+        existingConfig = await this.getFile(fileId)
+      } catch (e) {
+        // Handle corrupted data recovery
+        if (e && e.code === 'corruptedData') {
+          const ts = new Date().toISOString().replace(/[:.]/g, '-')
+          const backupName = `config_corrupted_backup_${ts}.json`
+          try {
+            // Attempt to fetch raw metadata to preserve corrupted bytes is not available; create a marker backup file
+            await this.createFile(backupName, { note: 'Auto-created due to corrupted config.json', created_at: ts })
+          } catch {}
+          // Create new clean config
+          const email = userEmail || this.getCurrentUser()?.email || 'user@example.com'
+          const newFile = await this.createFile('config.json', this.getDefaultConfig(email))
+          this.notify({
+            type: 'warning',
+            title: 'Recovered configuration',
+            message: 'Your configuration appeared corrupted. A new clean config was created. A backup marker was saved.'
+          })
+          return await this.getFile(newFile.id)
+        }
+        throw e
+      }
       
       // Check if the config has the old structure and needs migration
       if (existingConfig && (
@@ -1032,16 +1189,16 @@ class GoogleDriveService {
       const compressedData = compressData(data)
       const content = JSON.stringify(compressedData, null, 2)
       
-      const files = await this.listFiles(`name='${fileName}'`)
+      const files = await performanceMonitor.measureFunction('Drive:listFiles', () => this.listFiles(`name='${fileName}'`))
       
       if (files.files.length === 0) {
-        const result = await this.createFile(fileName, content)
+        const result = await performanceMonitor.measureFunction('Drive:createFile', () => this.createFile(fileName, content))
         console.log(`Created monthly tracking file: ${fileName}${compressedData.compressed ? ` (compressed: ${compressedData.compressionRatio}% smaller)` : ''}`)
         return result
       }
 
       const fileId = files.files[0].id
-      const result = await this.updateFile(fileId, content)
+      const result = await performanceMonitor.measureFunction('Drive:updateFile', () => this.updateFile(fileId, content))
       console.log(`Updated monthly tracking file: ${fileName}${compressedData.compressed ? ` (compressed: ${compressedData.compressionRatio}% smaller)` : ''}`)
       return result
     } catch (error) {
@@ -1053,7 +1210,7 @@ class GoogleDriveService {
   // List all monthly tracking files
   async listMonthlyFiles() {
     try {
-      const files = await this.listFiles("name contains 'tracking-my-hot-self_' and name contains '.json'")
+      const files = await performanceMonitor.measureFunction('Drive:listMonthlyFiles', () => this.listFiles("name contains 'tracking-my-hot-self_' and name contains '.json'"))
       return files.files.map(file => ({
         id: file.id,
         name: file.name,
@@ -1069,12 +1226,13 @@ class GoogleDriveService {
   // Sync offline entries
   async syncOfflineEntries(offlineEntries) {
     if (!offlineEntries || offlineEntries.length === 0) {
-      return { success: true, synced: 0 }
+      return { success: true, synced: 0, syncedIds: [] }
     }
 
     try {
       let syncedCount = 0
       const errors = []
+      const syncedIds = []
 
       for (const entry of offlineEntries) {
         try {
@@ -1090,12 +1248,14 @@ class GoogleDriveService {
             monthData = { entries: [] }
           }
 
-          // Add the offline entry
-          monthData.entries.push(entry)
+          // Add the offline entry and mark as synced for storage
+          const entryToStore = { ...entry, sync_status: 'synced', updated_at: new Date().toISOString() }
+          monthData.entries.push(entryToStore)
           
           // Save the updated data
           await this.saveMonthlyTrackingFile(month, monthData)
           syncedCount++
+          syncedIds.push(entry.id)
           
         } catch (error) {
           console.error(`Failed to sync entry ${entry.id}:`, error)
@@ -1106,6 +1266,7 @@ class GoogleDriveService {
       return {
         success: errors.length === 0,
         synced: syncedCount,
+        syncedIds,
         errors: errors
       }
     } catch (error) {

@@ -1,4 +1,5 @@
-import { getEffectiveScale, is3PointScale } from '../utils/scaleConversion.js'
+import { getEffectiveScale, is3PointScale } from '../utils/scale-conversion.js'
+import { SCALE_TYPES } from './scale-types.js'
 
 // Tracking items configuration
 export const TRACKING_ITEMS = {
@@ -7,6 +8,7 @@ export const TRACKING_ITEMS = {
     name: 'Allergic Reactions',
     category: 'body',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'low',
     description: 'Experiencing any allergic reactions?',
     morning: false,
@@ -22,6 +24,7 @@ export const TRACKING_ITEMS = {
     name: 'Anxiety',
     category: 'mind',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'low',
     description: 'Yeah, no, I\'m fine. Well, actually...',
     morning: true,
@@ -34,9 +37,10 @@ export const TRACKING_ITEMS = {
   },
   bleeding_spotting: {
     id: 'bleeding_spotting',
-    name: 'Bleeding/Spotting',
+    name: 'Bleeding or Spotting',
     category: 'body',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'low',
     description: 'Oh, hey, Flow... 🤨',
     morning: true,
@@ -52,6 +56,7 @@ export const TRACKING_ITEMS = {
     name: 'Brain Fog',
     category: 'mind',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'low',
     description: 'I was going to do something... I came in this room for a reason...',
     morning: true,
@@ -67,6 +72,7 @@ export const TRACKING_ITEMS = {
     name: 'Depression',
     category: 'mind',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'low',
     description: 'Feeling a little meh...',
     morning: true,
@@ -82,6 +88,7 @@ export const TRACKING_ITEMS = {
     name: 'Diet Triggers',
     category: 'body',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'low',
     description: 'Something I ate made my body throw a tantrum!',
     morning: false,
@@ -97,6 +104,7 @@ export const TRACKING_ITEMS = {
     name: 'Eating Habits',
     category: 'body',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'low',
     description: 'Mmmm, fooooooood 🤤',
     morning: false,
@@ -112,6 +120,7 @@ export const TRACKING_ITEMS = {
     name: 'Energy Level',
     category: 'body',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'high',
     description: 'I\'m ready to take on the world!',
     morning: true,
@@ -127,6 +136,7 @@ export const TRACKING_ITEMS = {
     name: 'Exercise Impact',
     category: 'body',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'high',
     description: 'How did your body feel after that workout (or lack thereof)?',
     morning: false,
@@ -142,6 +152,7 @@ export const TRACKING_ITEMS = {
     name: 'Forehead Shine',
     category: 'body',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'low',
     description: 'How glossy is that forehead of yours?',
     morning: false,
@@ -157,6 +168,7 @@ export const TRACKING_ITEMS = {
     name: 'Headache',
     category: 'body',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'low',
     description: 'Bleh, is that a headache?',
     morning: false,
@@ -172,6 +184,7 @@ export const TRACKING_ITEMS = {
     name: 'Hormone Symptoms',
     category: 'body',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'low',
     description: 'How much are your hormones making themselves known today?',
     morning: false,
@@ -187,6 +200,7 @@ export const TRACKING_ITEMS = {
     name: 'Hot Flashes',
     category: 'body',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'low',
     description: 'Hot flashes? I\'m on fire!',
     morning: true,
@@ -202,6 +216,7 @@ export const TRACKING_ITEMS = {
     name: 'Hydration',
     category: 'body',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'high',
     description: 'How well hydrated are you feeling? (Be honest!)',
     morning: false,
@@ -217,6 +232,7 @@ export const TRACKING_ITEMS = {
     name: 'Irritability',
     category: 'mind',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'low',
     description: 'Argh! Why are they doing that thing again?',
     morning: true,
@@ -232,6 +248,7 @@ export const TRACKING_ITEMS = {
     name: 'Joint Pain',
     category: 'body',
     type: 'multi-select',
+    scale_type: SCALE_TYPES.MULTI_SELECT,
     good: 'low',
     description: 'Ugh, my joints are angry right now.',
     morning: true,
@@ -267,6 +284,7 @@ export const TRACKING_ITEMS = {
     name: 'Mood',
     category: 'mind',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'high',
     description: 'I feel good, I feel great, I feel aaaaahhmazing!',
     morning: true,
@@ -282,6 +300,7 @@ export const TRACKING_ITEMS = {
     name: 'Nausea',
     category: 'body',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'low',
     description: 'I\'m nauseous, I\'m nauseous, I\'m nauseous',
     morning: true,
@@ -297,6 +316,7 @@ export const TRACKING_ITEMS = {
     name: 'Overall Sentiment',
     category: 'mind',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'high',
     description: 'Today was a ____ day',
     morning: false,
@@ -323,6 +343,7 @@ export const TRACKING_ITEMS = {
     name: 'Sleep Quality',
     category: 'body',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'high',
     description: 'Did you sleep like a baby or like a cat on a hot tin roof?',
     morning: true,
@@ -338,6 +359,7 @@ export const TRACKING_ITEMS = {
     name: 'Social Stamina',
     category: 'mind',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'high',
     description: 'How much social interaction can you handle today?',
     morning: true,
@@ -353,6 +375,7 @@ export const TRACKING_ITEMS = {
     name: 'Stress Level',
     category: 'mind',
     scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
     good: 'low',
     description: 'Yikes, I have shoulder earrings right now!',
     morning: true,
@@ -368,6 +391,7 @@ export const TRACKING_ITEMS = {
     name: 'Temperature Sensitivity',
     category: 'body',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'low',
     description: 'Yeesh, is the A/C set to 40° right now?!',
     morning: false,
@@ -383,6 +407,7 @@ export const TRACKING_ITEMS = {
     name: 'Workout Recovery',
     category: 'body',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'high',
     description: 'How are you feeling after that workout?',
     morning: true,
@@ -398,6 +423,7 @@ export const TRACKING_ITEMS = {
     name: 'Wearable\'s Body Battery',
     category: 'body',
     type: 'number',
+    scale_type: SCALE_TYPES.NUMERIC,
     min: 0,
     max: 100,
     good: 'high',
@@ -411,6 +437,7 @@ export const TRACKING_ITEMS = {
     name: 'Wearable\'s Sleep Score',
     category: 'body',
     type: 'number',
+    scale_type: SCALE_TYPES.NUMERIC,
     min: 0,
     max: 100,
     good: 'high',
@@ -424,6 +451,7 @@ export const TRACKING_ITEMS = {
     name: 'Weird Dreams',
     category: 'mind',
     scale: 3,
+    scale_type: SCALE_TYPES.THREE_POINT,
     good: 'low',
     description: 'I had the weirdest dreams last night!',
     morning: true,
@@ -491,19 +519,32 @@ export const getItemsByView = (viewType) => {
 
 export const getDisplayValue = (item, value, displayType) => {
   if (!value) return ''
-  
+
+  const index = (val) => Math.min(Math.max(val, 1), 5) - 1
+  const text = item.textOptions?.[index(value)] ?? String(value)
+  const face = item.faceEmojis?.[index(value)] ?? text
+  const heart = item.heartEmojis?.[index(value)] ?? text
+  const dot = item.dotEmojis?.[index(value)] ?? text
+
   switch (displayType) {
     case 'text':
-      return item.textOptions ? item.textOptions[value - 1] : value
+      return text
     case 'face':
-      return item.faceEmojis ? item.faceEmojis[value - 1] : value
+      return face
     case 'heart':
-      return item.heartEmojis ? item.heartEmojis[value - 1] : value
+      return heart
     case 'dot':
-      return item.dotEmojis ? item.dotEmojis[value - 1] : value
+      return dot
     default:
-      return value
+      return text
   }
+}
+
+// Unified label helper for visuals + accessibility
+export const getValueLabels = (item, value, displayType) => {
+  const displayText = getDisplayValue(item, value, displayType)
+  const ariaLabel = `${item.name}: ${typeof displayText === 'string' ? displayText : String(value)}`
+  return { displayText, ariaLabel }
 }
 
 export const getItemColor = (item, value) => {
@@ -521,10 +562,15 @@ export const getItemColor = (item, value) => {
 
 // Helper function to get effective scale for any item
 export const getItemEffectiveScale = (item) => {
-  return getEffectiveScale(item.scale)
+  const scaleFromType = item.scale_type === '3-point' ? 3 : item.scale_type === '5-point' ? 5 : undefined
+  const scale = scaleFromType || item.scale
+  return getEffectiveScale(scale)
 }
 
 // Helper function to check if item uses 3-point scale
 export const isItem3PointScale = (item) => {
+  if (item.scale_type) {
+    return item.scale_type === '3-point'
+  }
   return is3PointScale(item.scale)
-} 
+}

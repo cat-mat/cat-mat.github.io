@@ -1,21 +1,25 @@
 import React, { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAppStore } from './stores/appStore.js'
+import { useAppStore } from './stores/app-store.js'
 import { format } from 'date-fns'
-import { DEFAULT_VIEW_TIMES } from './constants/trackingItems.js'
+import { DEFAULT_VIEW_TIMES } from './constants/tracking-items.js'
+import { getTimeBasedView } from './utils/time-based-view.js'
 import './styles/inline-styles.css'
 
 // Components
-import AuthScreen from './components/AuthScreen.jsx'
-import Onboarding from './components/Onboarding.jsx'
-import Dashboard from './components/Dashboard.jsx'
-import Settings from './components/Settings.jsx'
-import Insights from './components/Insights.jsx'
-import Logs from './components/Logs.jsx'
-import LoadingSpinner from './components/LoadingSpinner.jsx'
-import OfflineIndicator from './components/OfflineIndicator.jsx'
-import ToastNotifications from './components/ToastNotifications.jsx'
-import PrivacyPolicy from './components/PrivacyPolicy.jsx'
+import AuthScreen from './components/auth-screen.jsx'
+import Onboarding from './views/onboarding.jsx'
+import Dashboard from './views/dashboard.jsx'
+import Settings from './components/settings.jsx'
+import Insights from './components/insights.jsx'
+import Logs from './components/logs.jsx'
+import LoadingSpinner from './components/loading-spinner.jsx'
+import OfflineIndicator from './components/offline-indicator.jsx'
+import ToastNotifications from './components/toast-notifications.jsx'
+import PrivacyPolicy from './components/privacy-policy.jsx'
+import { performanceMonitor } from './utils/performance.js'
+import { startLocalStorageMonitor } from './utils/storage-monitor.js'
+import ServiceWorkerManager from './workers/service-worker-manager.jsx'
 
 // Initialize Google API
 const initializeGoogleAPI = () => {
@@ -61,27 +65,26 @@ function App() {
     }
   }, [setOnlineStatus])
 
+  // Start localStorage usage monitor (dev + prod, safe and passive)
+  useEffect(() => {
+    const stop = startLocalStorageMonitor(addNotification)
+    if (process.env.NODE_ENV === 'development') {
+      try { performanceMonitor.enableDevPanel(true) } catch {}
+    }
+    return () => { try { stop && stop() } catch {} }
+  }, [])
+
   // Auto-switch view based on time of day (only on initial load)
   useEffect(() => {
     if (!config) return
 
     const updateView = () => {
-      const now = new Date()
-      const currentTime = format(now, 'HH:mm')
-      const { morning_end, evening_start } = config.display_options.view_times
-
-      let suggestedView = 'quick'
-      
-      if (currentTime < morning_end) {
-        suggestedView = 'morning'
-      } else if (currentTime >= evening_start) {
-        suggestedView = 'evening'
-      }
+      const suggestedView = getTimeBasedView(config)
 
       // Only auto-switch if the current view doesn't match the suggested view
       // and we haven't manually set a view yet
       if (ui.currentView !== suggestedView) {
-        console.log('Auto-switching view from', ui.currentView, 'to', suggestedView, 'based on time:', currentTime)
+        console.log('Auto-switching view from', ui.currentView, 'to', suggestedView, 'based on time-based logic')
         setCurrentView(suggestedView)
       }
     }
@@ -105,9 +108,32 @@ function App() {
   // Main app layout with conditional routing
   return (
     <div className="min-h-screen wildflower-bg">
-      {/* Temporarily disabled OfflineIndicator to debug hot pink banner issue */}
-      {/* <OfflineIndicator /> */}
+      <ServiceWorkerManager />
+       <OfflineIndicator />
       <ToastNotifications />
+      {(() => {
+        // Configure global slow-op hooks and budget checks once per render
+        performanceMonitor.setSlowOperationHandler(({ name, duration }) => {
+          try {
+            addNotification && addNotification({
+              type: 'warning',
+              title: 'Slow operation detected',
+              message: `${name} took ${Math.round(duration)}ms`
+            })
+          } catch {}
+        }, 5000)
+        const breaches = performanceMonitor.evaluateBudgets()
+        if (Array.isArray(breaches)) {
+          breaches.slice(0, 2).forEach(b => {
+            addNotification && addNotification({
+              type: 'warning',
+              title: 'Performance budget breach',
+              message: `${b.metric} over budget (${b.value} > ${b.budget})`
+            })
+          })
+        }
+        return null
+      })()}
       
       <Routes>
         {/* Public routes - accessible without authentication */}

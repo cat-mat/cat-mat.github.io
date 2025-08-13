@@ -1,5 +1,5 @@
 import React from 'react'
-import { useAppStore } from '../stores/appStore.js'
+import { useAppStore } from '../stores/app-store.js'
 
 const DisplayTypeSelector = () => {
   const { config, updateDisplayType, addNotification } = useAppStore()
