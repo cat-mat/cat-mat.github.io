@@ -14,8 +14,20 @@
     <meta name="msapplication-navbutton-color" content="#e8f5e8" />
     <meta name="msapplication-TileColor" content="#e8f5e8" />
     
-             <!-- Content Security Policy -->
-         <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' blob: data: https://apis.google.com https://www.gstatic.com https://accounts.google.com https://www.googleapis.com https://*.gstatic.com; object-src 'none'; base-uri 'self';">
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      base-uri 'self';
+      object-src 'none';
+      frame-ancestors 'none';
+      img-src 'self' data: blob:;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com data:;
+      script-src 'self' 'unsafe-inline' blob: data: https://apis.google.com https://www.gstatic.com https://accounts.google.com https://www.googleapis.com https://*.gstatic.com;
+      connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com https://apis.google.com https://www.gstatic.com https://*.gstatic.com;
+      worker-src 'self';
+      frame-src 'self' https://accounts.google.com https://*.gstatic.com;
+    ">
 
     
     <!-- Google Fonts -->
@@ -29,11 +41,11 @@
     <title>What Even With My Hot Self?! 🔥</title>
     
     <!-- Google API Client Library will be loaded dynamically when needed -->
-    <script type="module" crossorigin src="/assets/index-df69cc61.js"></script>
+    <script type="module" crossorigin src="/assets/index-0c21fb83.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-f6019026.js">
     <link rel="modulepreload" crossorigin href="/assets/utils-d58ca36d.js">
-    <link rel="stylesheet" href="/assets/index-da136d23.css">
-  <link rel="manifest" href="/manifest.webmanifest"></head>
+    <link rel="stylesheet" href="/assets/index-51b8436e.css">
+  </head>
   <body>
     <div id="root"></div>
     

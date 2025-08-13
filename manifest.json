@@ -1,19 +1,31 @@
 {
   "name": "What Even With My Hot Self?!",
   "short_name": "Hot Self",
-  "description": "Track your perimenopause journey with personalized insights",
-  "theme_color": "#f093fb",
-  "background_color": "#ffffff",
+  "description": "Track your perimenopause journey with personalized insights.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "scope": "/",
-  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#e8f5e8",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%A5%3C/text%3E%3C/svg%3E",
       "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' ry='32' fill='%23e8f5e8'/%3E%3Ctext x='50%25' y='58%25' dominant-baseline='middle' text-anchor='middle' font-size='150'%3E%F0%9F%94%A5%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Ctext x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='420'%3E%F0%9F%94%A5%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
     }
   ]
-} 
+}
