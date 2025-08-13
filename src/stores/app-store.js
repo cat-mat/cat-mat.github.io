@@ -976,10 +976,10 @@ export const useAppStore = create(
           } catch (error) {
             console.error('Error loading current month data:', error)
             if (String(error?.message).includes('interaction_required')) {
-              get().showReauthBanner({
-                title: 'Sign in required',
-                message: 'Please sign in again to save and sync your entries.'
-              })
+                get().showReauthBanner({
+                  title: 'Sign in required',
+                  message: 'Please sign in again to save and sync your entries.'
+                })
             }
             
             // Check if it's an authentication error

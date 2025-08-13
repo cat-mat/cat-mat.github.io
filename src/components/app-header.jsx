@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore } from '../stores/app-store.js';
+import { i18n } from '../utils/i18n.js'
 
 const AppHeader = ({
   bannerHeight = 0,
@@ -27,9 +28,7 @@ const AppHeader = ({
           {/* Logo */}
           <div className="flex items-center">
             <div className="text-2xl mr-3 animate-bloom">🐦‍🔥 ❤️‍🔥</div>
-            <h1 className="text-lg font-bold text-white wildflower-text-shadow">
-              What Even With My Hot Self?!
-            </h1>
+            <h1 className="text-lg font-bold text-white wildflower-text-shadow">{i18n.t('app.title')}</h1>
           </div>
           {/* User menu */}
           <div className="relative">
@@ -46,7 +45,7 @@ const AppHeader = ({
             {isMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-cream-500 rounded-xl shadow-wildflower py-1 z-50 border border-cream-400">
                 <div className="px-4 py-2 text-sm text-gray-700 border-b border-cream-300">
-                  <div className="font-medium">{user?.name || 'User'}</div>
+                  <div className="font-medium">{user?.name || i18n.t('header.user')}</div>
                   <div className="text-gray-500">{user?.email}</div>
                 </div>
                 <Link
@@ -54,21 +53,21 @@ const AppHeader = ({
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-cream-400 transition-colors duration-200"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  🌸 Settings
+                  🌸 {i18n.t('header.settings')}
                 </Link>
                 <Link
                   to="/insights"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-cream-400 transition-colors duration-200"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  📊 Insights
+                  📊 {i18n.t('header.insights')}
                 </Link>
                 <Link
                   to="/logs"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-cream-400 transition-colors duration-200"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  📝 Logs
+                  📝 {i18n.t('header.logs')}
                 </Link>
                 <button
                   onClick={() => {
@@ -76,13 +75,13 @@ const AppHeader = ({
                     signOut();
                     addNotification({
                       type: 'success',
-                      title: 'Signed out',
-                      message: 'You have been successfully signed out.'
+                      title: i18n.t('toast.signOut.success.title'),
+                      message: i18n.t('toast.signOut.success.message')
                     });
                   }}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-cream-400 transition-colors duration-200"
                 >
-                  🚪 Sign out
+                  🚪 {i18n.t('header.signOut')}
                 </button>
               </div>
             )}

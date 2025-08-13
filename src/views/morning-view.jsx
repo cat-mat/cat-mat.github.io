@@ -4,6 +4,7 @@ import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3P
 import { denormalizeScaleValue, normalizeScaleValue } from '../utils/scale-conversion.js'
 import { format } from 'date-fns'
 import { clsx } from 'clsx'
+import { i18n } from '../utils/i18n.js'
 
 const MorningView = () => {
   const { config, trackingData, addEntry, updateEntry, addNotification } = useAppStore()
@@ -218,7 +219,7 @@ const MorningView = () => {
               onClick={() => setFormData(prev => ({ ...prev, [item.id]: [] }))}
               className="text-sm text-blue-600 hover:text-blue-800"
             >
-              Clear all
+              {i18n.t('quick.clearAll')}
             </button>
           </div>
         )}
@@ -256,7 +257,7 @@ const MorningView = () => {
             onClick={() => handleNumberChange(item.id, '')}
             className="text-sm text-blue-600 hover:text-blue-800"
           >
-            Clear
+            {i18n.t('quick.clear')}
           </button>
         )}
       </div>
@@ -363,8 +364,8 @@ const MorningView = () => {
     <div className="morning-view bg-gradient-to-br from-blue-50 to-green-50 min-h-screen">
       <div className="max-w-2xl mx-auto p-6">
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h1 className="text-2xl font-bold text-blue-800 mb-2">Good Morning! 🌅</h1>
-          <p className="text-blue-600 mb-6">How are you feeling this morning? Let's track your sleep quality and energy levels.</p>
+          <h1 className="text-2xl font-bold text-blue-800 mb-2">{i18n.t('morning.title')}</h1>
+          <p className="text-blue-600 mb-6">{i18n.t('morning.subtitle')}</p>
           
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Body Section */}
@@ -383,7 +384,7 @@ const MorningView = () => {
                   isSubmitting && 'opacity-50 cursor-not-allowed'
                 )}
               >
-                {isSubmitting ? 'Saving...' : existingEntry ? 'Update Morning Entry' : 'Save Morning Entry'}
+                {isSubmitting ? i18n.t('common.saving') : existingEntry ? i18n.t('morning.update') : i18n.t('morning.save')}
               </button>
             </div>
           </form>

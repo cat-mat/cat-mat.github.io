@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../stores/app-store.js'
-import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3PointScale, getValueLabels } from '../constants/tracking-items.js'
-import { denormalizeScaleValue, normalizeScaleValue } from '../utils/scale-conversion.js'
-import { format } from 'date-fns'
+import { TRACKING_ITEMS, isItem3PointScale, getValueLabels } from '../constants/tracking-items.js'
+import { normalizeScaleValue } from '../utils/scale-conversion.js'
 import { clsx } from 'clsx'
+import { i18n } from '../utils/i18n.js'
 
 const EveningView = () => {
   const { config, trackingData, addEntry, updateEntry, addNotification } = useAppStore()
@@ -405,8 +405,8 @@ const EveningView = () => {
     <div className="evening-view bg-gradient-to-br from-orange-50 to-purple-50 min-h-screen">
       <div className="max-w-2xl mx-auto p-6">
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h1 className="text-2xl font-bold text-orange-800 mb-2">Good Evening! 🌙</h1>
-          <p className="text-orange-600 mb-6">How was your day? Let's reflect on your experiences and feelings.</p>
+          <h1 className="text-2xl font-bold text-orange-800 mb-2">{i18n.t('evening.title')}</h1>
+          <p className="text-orange-600 mb-6">{i18n.t('evening.subtitle')}</p>
           
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Body Section */}
@@ -419,7 +419,7 @@ const EveningView = () => {
             
             {/* Notes Section */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800">Reflection & Notes</h3>
+              <h3 className="text-lg font-semibold text-gray-800">{i18n.t('evening.notes.title', { default: 'Reflection & Notes' })}</h3>
               {renderNotesSection()}
             </div>
             
@@ -433,7 +433,7 @@ const EveningView = () => {
                   isSubmitting && 'opacity-50 cursor-not-allowed'
                 )}
               >
-                {isSubmitting ? 'Saving...' : existingEntry ? 'Update Evening Entry' : 'Save Evening Entry'}
+                {isSubmitting ? i18n.t('common.saving') : existingEntry ? i18n.t('evening.update') : i18n.t('evening.save')}
               </button>
             </div>
           </form>

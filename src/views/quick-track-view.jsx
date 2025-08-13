@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../stores/app-store.js'
 import { TRACKING_ITEMS, getItemsByView, getDisplayValue, getItemColor, isItem3PointScale, getValueLabels } from '../constants/tracking-items.js'
 import { denormalizeScaleValue, normalizeScaleValue } from '../utils/scale-conversion.js'
+import { i18n } from '../utils/i18n.js'
 import { format } from 'date-fns'
 import { clsx } from 'clsx'
 
@@ -81,8 +82,8 @@ const QuickTrackView = () => {
       await addEntry(entryData)
       addNotification({
         type: 'success',
-        title: 'Quick entry saved',
-        message: `${selectedItem.name} tracked successfully! ⚡`
+        title: i18n.t('quick.saved.toast.title'),
+        message: i18n.t('quick.saved.toast.message', { item: selectedItem.name })
       })
       
       // Reset form
@@ -93,8 +94,8 @@ const QuickTrackView = () => {
       console.error('Error saving quick entry:', error)
       addNotification({
         type: 'error',
-        title: 'Save failed',
-        message: 'Failed to save quick entry. Please try again.'
+        title: i18n.t('quick.save.error.title'),
+        message: i18n.t('quick.save.error.message')
       })
     } finally {
       setIsSubmitting(false)
@@ -160,7 +161,7 @@ const QuickTrackView = () => {
               onClick={() => setSelectedValue([])}
               className="text-sm text-green-700 hover:text-green-900"
             >
-              Clear all
+              {i18n.t('quick.clearAll')}
             </button>
           </div>
         )}
@@ -202,7 +203,7 @@ const QuickTrackView = () => {
             onClick={() => setSelectedValue(null)}
             className="text-sm text-green-700 hover:text-green-900"
           >
-            Clear
+            {i18n.t('quick.clear')}
           </button>
         )}
       </div>
@@ -224,7 +225,7 @@ const QuickTrackView = () => {
             onClick={() => setSelectedValue(null)}
             className="text-sm text-green-700 hover:text-green-900"
           >
-            Clear
+            {i18n.t('quick.clear')}
           </button>
         )}
       </div>
@@ -269,7 +270,7 @@ const QuickTrackView = () => {
               (selectedValue === null || isSubmitting) && 'opacity-50 cursor-not-allowed'
             )}
           >
-            {isSubmitting ? 'Saving...' : 'Save Quick Entry'}
+            {isSubmitting ? i18n.t('common.saving') : i18n.t('quick.save')}
           </button>
         </div>
       </div>
@@ -280,8 +281,8 @@ const QuickTrackView = () => {
     if (availableItems.length === 0) {
       return (
         <div className="text-center py-8">
-          <p className="text-gray-600 mb-4">No quick track items configured.</p>
-          <p className="text-sm text-gray-500">Go to Settings to configure your quick track items.</p>
+          <p className="text-gray-600 mb-4">{i18n.t('quick.empty.title')}</p>
+          <p className="text-sm text-gray-500">{i18n.t('quick.empty.subtitle')}</p>
         </div>
       )
     }
@@ -312,8 +313,8 @@ const QuickTrackView = () => {
     <div className="quick-track-view bg-gradient-to-br from-green-50 to-blue-50 min-h-screen">
       <div className="max-w-2xl mx-auto p-6">
         <div ref={topAnchorRef} className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h1 ref={headingRef} tabIndex="-1" className="text-2xl font-bold text-green-800 mb-2">Quick Track ⚡</h1>
-          <p className="text-green-600 mb-6">Quickly track a single item. What would you like to record?</p>
+          <h1 ref={headingRef} tabIndex="-1" className="text-2xl font-bold text-green-800 mb-2">{i18n.t('quick.title')}</h1>
+          <p className="text-green-600 mb-6">{i18n.t('quick.subtitle')}</p>
           
           <form onSubmit={handleSubmit} className="space-y-8">
             {selectedItem ? (
@@ -326,7 +327,7 @@ const QuickTrackView = () => {
                   }}
                   className="text-blue-600 hover:text-blue-800 mb-4 flex items-center"
                 >
-                  ← Back to items
+                  {i18n.t('quick.back')}
                 </button>
                 {renderValueSelection()}
               </>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, createContext, useContext } from 'react'
 import { useAppStore } from '../stores/app-store.js'
 import { performanceMonitor } from '../utils/performance.js'
+import { i18n } from '../utils/i18n.js'
 
 export const BannerContext = createContext({ bannerHeight: 0, bannerVisible: false })
 
@@ -74,10 +75,10 @@ const ServiceWorkerManager = () => {
               setUpdateAvailable(true)
               addNotification({
                 type: 'info',
-                title: 'App Update Available',
-                message: 'A new version is ready. Click to update.',
+                title: i18n.t('sw.updateAvailable.title'),
+                message: i18n.t('sw.updateAvailable.message'),
                 action: {
-                  label: 'Update Now',
+                  label: i18n.t('sw.updateAvailable.action'),
                   onClick: () => updateApp()
                 }
               })
@@ -103,8 +104,8 @@ const ServiceWorkerManager = () => {
             !error.message.includes('NetworkError')) {
           addNotification({
             type: 'warning',
-            title: 'Offline Features Limited',
-            message: 'Some offline features may not be available.'
+            title: i18n.t('sw.offlineLimited.title'),
+            message: i18n.t('sw.offlineLimited.message')
           })
         }
       }
@@ -172,8 +173,8 @@ const ServiceWorkerManager = () => {
       setOnlineStatus(true)
       addNotification({
         type: 'success',
-        title: 'Back Online',
-        message: 'Connection restored. Syncing your data...'
+        title: i18n.t('toast.backOnline.title'),
+        message: i18n.t('toast.backOnline.message')
       })
       
       // Trigger sync when back online
@@ -188,8 +189,8 @@ const ServiceWorkerManager = () => {
       try {
         addNotification({
           type: 'warning',
-          title: 'You\'re Offline',
-          message: 'Your data will sync when you reconnect.'
+          title: i18n.t('offline.banner.title'),
+          message: i18n.t('offline.banner.message')
         })
       } catch {}
     }
@@ -240,8 +241,8 @@ const ServiceWorkerManager = () => {
       if (before > 0 && after === 0 && typeof addToast === 'function') {
         addToast({
           type: 'success',
-          title: 'All caught up',
-          message: 'Your offline entries were synced.'
+          title: i18n.t('toast.allCaughtUp.title'),
+          message: i18n.t('toast.allCaughtUp.message')
         })
       }
     } catch (e) {
@@ -267,8 +268,8 @@ const ServiceWorkerManager = () => {
       console.warn('Notification permission denied')
       addNotification({
         type: 'warning',
-        title: 'Notifications Disabled',
-        message: 'Please enable notifications in your browser settings.'
+        title: i18n.t('notifications.disabled.title'),
+        message: i18n.t('notifications.disabled.message')
       })
       return false
     }
@@ -278,8 +279,8 @@ const ServiceWorkerManager = () => {
       if (permission === 'granted') {
         addNotification({
           type: 'success',
-          title: 'Notifications Enabled',
-          message: 'You\'ll now receive helpful reminders and insights.'
+          title: i18n.t('notifications.enabled.title'),
+          message: i18n.t('notifications.enabled.message')
         })
         return true
       } else {
@@ -340,7 +341,7 @@ const ServiceWorkerManager = () => {
           style={{ height: BANNER_HEIGHT }}
         >
           <div className="flex items-center justify-between">
-            <span>⚠️ You're offline. Changes will sync when you reconnect.</span>
+            <span>⚠️ {i18n.t('offline.banner.message')}</span>
             <button 
               onClick={() => setBannerVisible(false)}
               className="text-yellow-600 hover:text-yellow-800"

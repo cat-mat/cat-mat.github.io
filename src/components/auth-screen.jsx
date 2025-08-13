@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { i18n } from '../utils/i18n.js'
 import LoadingSpinner from './loading-spinner.jsx'
 
 const AuthScreen = ({ onSignIn, isLoading, error, onReset }) => {
@@ -10,7 +11,7 @@ const AuthScreen = ({ onSignIn, isLoading, error, onReset }) => {
         <div className="text-center mb-8">
           <div className="text-6xl mb-4 animate-bloom">🐦‍🔥 ❤️‍🔥</div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2 wildflower-text-shadow">
-            What Even With My Hot Self?!
+            {i18n.t('app.title')}
           </h1>
           <p className="text-sm text-gray-600">
             Tracking the perimenopausal journey (and beyond) with humor
@@ -20,22 +21,18 @@ const AuthScreen = ({ onSignIn, isLoading, error, onReset }) => {
         {/* Main card */}
         <div className="meadow-card p-8">
           <div className="text-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              Connect to Google Drive
-            </h2>
-            <p className="text-gray-600">
-              Your data is stored securely in your personal Google Drive
-            </p>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">{i18n.t('auth.connect.title')}</h2>
+            <p className="text-gray-600">{i18n.t('auth.connect.subtitle')}</p>
           </div>
 
           {/* Privacy info */}
           <div className="bg-gradient-to-r from-info-50 to-info-100 border border-info-200 rounded-xl p-4 mb-6">
-            <h3 className="font-medium text-info-900 mb-2">🔒 Your Privacy Matters</h3>
+            <h3 className="font-medium text-info-900 mb-2">🔒 {i18n.t('auth.privacy.title')}</h3>
             <ul className="text-sm text-info-800 space-y-1">
-              <li>• Your data stays in your Google Drive</li>
-              <li>• We can't access your personal files</li>
-              <li>• No data is shared with third parties</li>
-              <li>• You can disconnect anytime</li>
+              <li>• {i18n.t('auth.privacy.point1')}</li>
+              <li>• {i18n.t('auth.privacy.point2')}</li>
+              <li>• {i18n.t('auth.privacy.point3')}</li>
+              <li>• {i18n.t('auth.privacy.point4')}</li>
             </ul>
           </div>
 
@@ -70,7 +67,7 @@ const AuthScreen = ({ onSignIn, isLoading, error, onReset }) => {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Connect with Google Drive
+                {i18n.t('auth.connect.button')}
               </div>
             )}
           </button>
@@ -125,7 +122,7 @@ const AuthScreen = ({ onSignIn, isLoading, error, onReset }) => {
             <p className="text-sm text-gray-500">
               By connecting, you agree to our{' '}
               <Link to="/privacy" className="cornflower-link">
-                Privacy Policy
+                {i18n.t('auth.copy.privacyPolicy')}
               </Link>
             </p>
           </div>

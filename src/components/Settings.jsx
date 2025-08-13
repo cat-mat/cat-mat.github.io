@@ -4,6 +4,7 @@ import { TRACKING_ITEMS } from '../constants/tracking-items.js'
 import { useAppStore } from '../stores/app-store.js'
 import DisplayTypeSelector from './display-type-selector.jsx'
 import AppHeader from './app-header.jsx';
+import { i18n } from '../utils/i18n.js'
 
 const Settings = () => {
   const { config, updateConfig, addNotification, auth, signOut } = useAppStore()
@@ -68,7 +69,7 @@ const Settings = () => {
       sections: newSections
     }
     updateConfig(newConfig)
-    addNotification({ type: 'success', title: 'Updated', message: 'Tracking items updated!' })
+    addNotification({ type: 'success', title: i18n.t('settings.trackingItems.updated.title'), message: i18n.t('settings.trackingItems.updated.message') })
   }
 
   // Handler for moving item up/down
@@ -92,7 +93,7 @@ const Settings = () => {
       sections: newSections
     }
     updateConfig(newConfig)
-    addNotification({ type: 'success', title: 'Order Updated', message: 'Tracking item order updated!' })
+    addNotification({ type: 'success', title: i18n.t('settings.trackingItems.orderUpdated.title'), message: i18n.t('settings.trackingItems.orderUpdated.message') })
   }
 
   // Handler for toggling notification preferences
@@ -106,7 +107,13 @@ const Settings = () => {
       }
     }
     updateConfig(newConfig)
-    addNotification({ type: 'success', title: 'Notification Preference Updated', message: `Reminder for ${type} report ${checked ? 'enabled' : 'disabled'}` })
+    addNotification({
+      type: 'success',
+      title: i18n.t('settings.notifications.preferenceUpdated.title'),
+      message: checked
+        ? i18n.t('settings.notifications.enabled', { type: i18n.t(`settings.reportType.${type}`) })
+        : i18n.t('settings.notifications.disabled', { type: i18n.t(`settings.reportType.${type}`) })
+    })
   }
 
   // Handler for changing notification times
@@ -115,7 +122,11 @@ const Settings = () => {
     if (!newConfig.notification_settings) newConfig.notification_settings = {}
     newConfig.notification_settings[`${type}_time`] = value
     updateConfig(newConfig)
-    addNotification({ type: 'success', title: 'Notification Time Updated', message: `Notification time for ${type} report updated!` })
+    addNotification({
+      type: 'success',
+      title: i18n.t('settings.notifications.timeUpdated.title'),
+      message: i18n.t('settings.notifications.timeUpdated.message', { type: i18n.t(`settings.reportType.${type}`) })
+    })
   }
 
   // Handler for changing report times
@@ -125,7 +136,15 @@ const Settings = () => {
     if (!newConfig.display_options.view_times) newConfig.display_options.view_times = { morning_end: '09:00', evening_start: '20:00' }
     newConfig.display_options.view_times[key] = value
     updateConfig(newConfig)
-    addNotification({ type: 'success', title: 'Report Time Updated', message: `Report time for ${key.replace('_', ' ')} updated!` })
+    const timeKeyLabelMap = {
+      morning_end: i18n.t('settings.reportTimes.morningEnd'),
+      evening_start: i18n.t('settings.reportTimes.eveningStart')
+    }
+    addNotification({
+      type: 'success',
+      title: i18n.t('settings.reportTimes.updated.title'),
+      message: i18n.t('settings.reportTimes.updated.message', { timeKey: timeKeyLabelMap[key] || key })
+    })
   }
 
   // Render checkboxes and up/down buttons for each item in a table row
@@ -182,36 +201,36 @@ const Settings = () => {
       await forceUpdateViewConfig()
       addNotification({
         type: 'success',
-        title: 'Configuration Updated',
-        message: 'View configuration has been updated with new items!'
+        title: i18n.t('settings.updateConfig.success.title'),
+        message: i18n.t('settings.updateConfig.success.message')
       })
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Update Failed',
-        message: 'Failed to update view configuration'
+        title: i18n.t('settings.updateConfig.error.title'),
+        message: i18n.t('settings.updateConfig.error.message')
       })
     }
   }
 
   const handleClearCorruptedConfig = async () => {
-    if (window.confirm('This will clear your current configuration and start fresh. Are you sure?')) {
+    if (window.confirm(i18n.t('settings.fixConfig.confirm'))) {
       try {
         await clearCorruptedConfig()
         // Small delay to prevent notification overlap
         setTimeout(() => {
           addNotification({
             type: 'success',
-            title: 'Configuration Cleared',
-            message: 'Configuration has been cleared and recreated successfully!'
+            title: i18n.t('settings.fixConfig.success.title'),
+            message: i18n.t('settings.fixConfig.success.message')
           })
         }, 100)
       } catch (error) {
         setTimeout(() => {
           addNotification({
             type: 'error',
-            title: 'Clear Failed',
-            message: 'Failed to clear configuration'
+            title: i18n.t('settings.fixConfig.error.title'),
+            message: i18n.t('settings.fixConfig.error.message')
           })
         }, 100)
       }
@@ -236,19 +255,19 @@ const Settings = () => {
             className="btn-secondary px-4 py-2 text-sm flex items-center"
           >
             <span className="mr-2">←</span>
-            Back to Dashboard
+            {i18n.t('nav.backToDashboard')}
           </Link>
-          <h1 className="text-2xl font-bold text-gray-800 wildflower-text-shadow ml-4">Settings</h1>
+          <h1 className="text-2xl font-bold text-gray-800 wildflower-text-shadow ml-4">{i18n.t('settings.title')}</h1>
         </div>
 
         <div className="space-y-6">
           {/* Report Times */}
           <div className="meadow-card p-6 border-l-4 border-accent-400">
-            <h3 className="text-lg font-semibold text-accent-800 mb-4">Report Times</h3>
-            <p className="text-sm text-gray-600 mb-4">Set your preferred cutoff times for morning and evening reports.</p>
+            <h3 className="text-lg font-semibold text-accent-800 mb-4">{i18n.t('settings.reportTimes.title')}</h3>
+            <p className="text-sm text-gray-600 mb-4">{i18n.t('settings.reportTimes.subtitle')}</p>
             <div className="flex flex-col gap-4 max-w-xs">
               <label className="flex items-center gap-3">
-                <span className="w-32 text-gray-700 font-medium">Morning End</span>
+                <span className="w-32 text-gray-700 font-medium">{i18n.t('settings.reportTimes.morningEnd')}</span>
                 <input
                   type="time"
                   value={config?.display_options?.view_times?.morning_end || '09:00'}
@@ -257,7 +276,7 @@ const Settings = () => {
                 />
               </label>
               <label className="flex items-center gap-3">
-                <span className="w-32 text-gray-700 font-medium">Evening Start</span>
+                <span className="w-32 text-gray-700 font-medium">{i18n.t('settings.reportTimes.eveningStart')}</span>
                 <input
                   type="time"
                   value={config?.display_options?.view_times?.evening_start || '20:00'}
@@ -266,12 +285,12 @@ const Settings = () => {
                 />
               </label>
             </div>
-            <p className="text-xs text-gray-500 mt-2">These times affect when your morning and evening reports are available and when reminders are sent.</p>
+            <p className="text-xs text-gray-500 mt-2">{i18n.t('settings.reportTimes.note')}</p>
           </div>
           {/* Notification Preferences */}
           <div className="meadow-card p-6 border-l-4 border-info-400">
-            <h3 className="text-lg font-semibold text-info-800 mb-4">Notification Preferences</h3>
-            <p className="text-sm text-gray-600 mb-4">Choose which reminders you want to receive and set the time for each notification.</p>
+            <h3 className="text-lg font-semibold text-info-800 mb-4">{i18n.t('settings.notifications.title')}</h3>
+            <p className="text-sm text-gray-600 mb-4">{i18n.t('settings.notifications.subtitle')}</p>
             <div className="flex flex-col gap-4 max-w-xs">
               <label className="flex items-center gap-3">
                 <input
@@ -280,7 +299,7 @@ const Settings = () => {
                   onChange={e => handleNotificationToggle('morning', e.target.checked)}
                   className="checkbox"
                 />
-                <span className="w-32 text-gray-700 font-medium">Morning Report</span>
+                <span className="w-32 text-gray-700 font-medium">{i18n.t('settings.notifications.morning')}</span>
                 <input
                   type="time"
                   value={config?.notification_settings?.morning_time || '08:00'}
@@ -296,7 +315,7 @@ const Settings = () => {
                   onChange={e => handleNotificationToggle('evening', e.target.checked)}
                   className="checkbox"
                 />
-                <span className="w-32 text-gray-700 font-medium">Evening Report</span>
+                <span className="w-32 text-gray-700 font-medium">{i18n.t('settings.notifications.evening')}</span>
                 <input
                   type="time"
                   value={config?.notification_settings?.evening_time || '20:00'}
@@ -306,12 +325,12 @@ const Settings = () => {
                 />
               </label>
             </div>
-            <p className="text-xs text-gray-500 mt-2">Reminders will be sent at the selected time for each report, regardless of the report cutoff times above.</p>
+            <p className="text-xs text-gray-500 mt-2">{i18n.t('settings.notifications.note')}</p>
           </div>
           {/* Customize Tracking Items */}
           <div className="meadow-card p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Customize Tracking Items</h3>
-            <p className="text-sm text-gray-600 mb-4">Choose which items appear in your Morning, Evening, and Quick reports.</p>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('settings.customize.title')}</h3>
+            <p className="text-sm text-gray-600 mb-4">{i18n.t('settings.customize.subtitle')}</p>
             <div className="flex gap-2 mb-4">
                 {['morning', 'quick', 'evening'].map(type => (
                   <button
@@ -330,7 +349,7 @@ const Settings = () => {
                       <div className="text-3xl mb-2 animate-bloom">
                         {type === 'morning' ? '🌻' : type === 'evening' ? '🌙' : '⚡'}
                       </div>
-                      <div className="text-sm font-medium capitalize">{type}</div>
+                      <div className="text-sm font-medium capitalize">{i18n.t(`settings.reportType.${type}`)}</div>
                     </div>
                   </button>
                 ))}
@@ -343,8 +362,8 @@ const Settings = () => {
                     <table className="min-w-full border-separate border-spacing-0">
                       <thead>
                         <tr className="bg-cream-200">
-                          <th className="px-2 py-2 text-left font-semibold text-gray-700">Item</th>
-                          <th className="px-2 py-2 text-center font-semibold text-gray-700">{selectedReport.charAt(0).toUpperCase() + selectedReport.slice(1)}</th>
+                          <th className="px-2 py-2 text-left font-semibold text-gray-700">{i18n.t('settings.table.item')}</th>
+                          <th className="px-2 py-2 text-center font-semibold text-gray-700">{i18n.t(`settings.table.column.${selectedReport}`)}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -363,7 +382,7 @@ const Settings = () => {
 
           {/* Config Actions */}
           <div className="meadow-card p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Configuration Actions</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('settings.actions.title')}</h3>
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => {
@@ -380,61 +399,61 @@ const Settings = () => {
                   if (isMobile) {
                     addNotification({
                       type: 'success',
-                      title: 'Configuration copied!',
-                      message: 'Your config has been copied to clipboard. Paste it into a text file to save it.'
+                      title: i18n.t('settings.actions.export.mobile.title'),
+                      message: i18n.t('settings.actions.export.mobile.message')
                     });
                   } else {
                     addNotification({
                       type: 'success',
-                      title: 'Configuration exported',
-                      message: 'Your configuration has been exported successfully.'
+                      title: i18n.t('settings.actions.export.desktop.title'),
+                      message: i18n.t('settings.actions.export.desktop.message')
                     });
                   }
                 }}
                 className="btn-primary px-4 py-2 text-sm"
               >
-                📤 Export Config
+                {i18n.t('settings.actions.export')}
               </button>
               <button
                 onClick={() => setShowImportModal(true)}
                 className="btn-secondary px-4 py-2 text-sm"
               >
-                📥 Import Config
+                {i18n.t('settings.actions.import')}
               </button>
               <button
                 onClick={() => setShowResetConfirmModal(true)}
                 className="btn-secondary px-4 py-2 text-sm text-red-600 border-red-400 hover:bg-red-50"
               >
-                🔄 Reset Config
+                {i18n.t('settings.actions.reset')}
               </button>
             </div>
           </div>
 
           {/* Force Update Configuration */}
           <div className="meadow-card p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Update View Configuration</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('settings.updateConfig.title')}</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Force update the view configuration with the latest items and settings.
+              {i18n.t('settings.updateConfig.subtitle')}
             </p>
             <button
               onClick={handleForceUpdateConfig}
               className="sunset-button px-6 py-3 mr-3"
             >
-              🔄 Update Configuration
+              {i18n.t('settings.updateConfig.button')}
             </button>
           </div>
 
           {/* Clear Corrupted Configuration */}
           <div className="meadow-card p-6 border-l-4 border-danger-500">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">⚠️ Fix Configuration Issues</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('settings.fixConfig.title')}</h3>
             <p className="text-sm text-gray-600 mb-4">
-              If you're experiencing configuration errors, this will clear the corrupted configuration and start fresh.
+              {i18n.t('settings.fixConfig.subtitle')}
             </p>
             <button
               onClick={handleClearCorruptedConfig}
               className="btn-danger px-6 py-3"
             >
-              🗑️ Clear & Recreate Configuration
+              {i18n.t('settings.fixConfig.button')}
             </button>
           </div>
 

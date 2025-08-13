@@ -18,6 +18,7 @@ import OfflineIndicator from './components/offline-indicator.jsx'
 import ToastNotifications from './components/toast-notifications.jsx'
 import PrivacyPolicy from './components/privacy-policy.jsx'
 import { performanceMonitor } from './utils/performance.js'
+import { startLocalStorageMonitor } from './utils/storage-monitor.js'
 import ServiceWorkerManager from './workers/service-worker-manager.jsx'
 
 // Initialize Google API
@@ -63,6 +64,15 @@ function App() {
       window.removeEventListener('offline', handleOffline)
     }
   }, [setOnlineStatus])
+
+  // Start localStorage usage monitor (dev + prod, safe and passive)
+  useEffect(() => {
+    const stop = startLocalStorageMonitor(addNotification)
+    if (process.env.NODE_ENV === 'development') {
+      try { performanceMonitor.enableDevPanel(true) } catch {}
+    }
+    return () => { try { stop && stop() } catch {} }
+  }, [])
 
   // Auto-switch view based on time of day (only on initial load)
   useEffect(() => {

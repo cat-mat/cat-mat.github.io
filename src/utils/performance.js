@@ -15,6 +15,7 @@ class PerformanceMonitor {
       fcpMs: 2000,
       bundleKb: 500
     }
+    this.devPanelEnabled = false
   }
 
   /**
@@ -147,6 +148,42 @@ class PerformanceMonitor {
       this.metrics[name] = []
     }
     this.metrics[name].push({ value, timestamp })
+
+    if (this.devPanelEnabled) {
+      try {
+        if (!window.__perfPanel) {
+          const panel = document.createElement('div')
+          panel.id = '__perfPanel'
+          panel.style.position = 'fixed'
+          panel.style.bottom = '8px'
+          panel.style.right = '8px'
+          panel.style.maxHeight = '40vh'
+          panel.style.overflow = 'auto'
+          panel.style.background = 'rgba(0,0,0,0.7)'
+          panel.style.color = '#fff'
+          panel.style.fontSize = '12px'
+          panel.style.padding = '8px'
+          panel.style.borderRadius = '6px'
+          panel.style.zIndex = '9999'
+          const header = document.createElement('div')
+          header.textContent = 'Perf (dev)'
+          header.style.fontWeight = '600'
+          header.style.marginBottom = '4px'
+          const list = document.createElement('div')
+          list.id = '__perfList'
+          panel.appendChild(header)
+          panel.appendChild(list)
+          document.body.appendChild(panel)
+          window.__perfPanel = panel
+        }
+        const list = document.getElementById('__perfList')
+        if (list) {
+          const row = document.createElement('div')
+          row.textContent = `${new Date().toLocaleTimeString()} • ${name}: ${typeof value === 'object' ? JSON.stringify(value) : value}`
+          list.prepend(row)
+        }
+      } catch {}
+    }
   }
 
   /**
@@ -168,6 +205,10 @@ class PerformanceMonitor {
       fcpMs: fcpMs ?? this.performanceBudgets.fcpMs,
       bundleKb: bundleKb ?? this.performanceBudgets.bundleKb
     }
+  }
+
+  enableDevPanel(enable = true) {
+    this.devPanelEnabled = !!enable
   }
 
   /**

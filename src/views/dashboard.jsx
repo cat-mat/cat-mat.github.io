@@ -11,6 +11,7 @@ import { getTimeBasedView } from '../utils/time-based-view.js'
 // Removed ServiceWorkerManager import - PWA functionality disabled
 import AppHeader from '../components/app-header.jsx';
 import ReauthBanner from '../components/reauth-banner.jsx';
+import { i18n } from '../utils/i18n.js'
 
 const Dashboard = () => {
   const { 
@@ -60,14 +61,14 @@ const Dashboard = () => {
       await signOut()
       addNotification({
         type: 'success',
-        title: 'Signed out',
-        message: 'You have been successfully signed out.'
+        title: i18n.t('toast.signOut.success.title'),
+        message: i18n.t('toast.signOut.success.message')
       })
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Sign out failed',
-        message: 'There was an error signing out. Please try again.'
+        title: i18n.t('toast.signOut.error.title'),
+        message: i18n.t('toast.signOut.error.message')
       })
     }
   }
@@ -77,14 +78,14 @@ const Dashboard = () => {
       await clearCorruptedConfig()
       addNotification({
         type: 'success',
-        title: 'Configuration cleared',
-        message: 'Your configuration has been reset to defaults.'
+        title: i18n.t('toast.config.cleared.title'),
+        message: i18n.t('toast.config.cleared.message')
       })
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Clear failed',
-        message: 'Failed to clear configuration. Please try again.'
+        title: i18n.t('toast.config.clearFailed.title'),
+        message: i18n.t('toast.config.clearFailed.message')
       })
     }
   }
@@ -94,14 +95,14 @@ const Dashboard = () => {
       exportConfig()
       addNotification({
         type: 'success',
-        title: 'Configuration exported',
-        message: 'Your configuration has been exported successfully.'
+        title: i18n.t('toast.config.exported.title'),
+        message: i18n.t('toast.config.exported.message')
       })
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'Export failed',
-        message: 'Failed to export configuration. Please try again.'
+        title: i18n.t('toast.config.exportFailed.title'),
+        message: i18n.t('toast.config.exportFailed.message')
       })
     }
   }
@@ -117,11 +118,11 @@ const Dashboard = () => {
       
       const result = await importConfig(importData)
       
-      const successMessage = 'Your configuration has been imported successfully.'
+      const successMessage = i18n.t('toast.config.imported.message')
       
       addNotification({
         type: 'success',
-        title: 'Configuration imported',
+        title: i18n.t('toast.config.imported.title'),
         message: successMessage
       })
       
@@ -147,13 +148,13 @@ const Dashboard = () => {
   const getViewTitle = () => {
     switch (currentView) {
       case 'morning':
-        return 'Morning Report'
+        return i18n.t('dashboard.viewTitle.morning')
       case 'evening':
-        return 'Evening Report'
+        return i18n.t('dashboard.viewTitle.evening')
       case 'quick':
-        return 'Quick Track'
+        return i18n.t('dashboard.viewTitle.quick')
       default:
-        return 'Tracking'
+        return i18n.t('dashboard.viewTitle.tracking')
     }
   }
 
@@ -267,9 +268,9 @@ const Dashboard = () => {
                     {getViewTitle()}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {currentView === 'morning' && 'Start your day by tracking sleep and energy'}
-                    {currentView === 'evening' && 'End your day with reflection and sentiment'}
-                    {currentView === 'quick' && 'Add timestamped entries throughout the day'}
+                    {currentView === 'morning' && i18n.t('dashboard.viewDesc.morning')}
+                    {currentView === 'evening' && i18n.t('dashboard.viewDesc.evening')}
+                    {currentView === 'quick' && i18n.t('dashboard.viewDesc.quick')}
                   </p>
                 </div>
               </div>
@@ -295,7 +296,7 @@ const Dashboard = () => {
         {todaysEntries.length > 0 && (
           <div className="meadow-card">
             <div className="section-header">
-              <h3 className="text-lg font-semibold text-gray-800">Today's Summary</h3>
+              <h3 className="text-lg font-semibold text-gray-800">{i18n.t('dashboard.todaysSummary')}</h3>
             </div>
             <div className="section-content">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -306,11 +307,11 @@ const Dashboard = () => {
                       <div className="text-3xl mb-2 animate-bloom">
                         {view === 'morning' ? '🌻' : view === 'evening' ? '🌙' : '⚡'}
                       </div>
-                      <div className="text-sm font-medium text-gray-800 capitalize">{view}</div>
+                      <div className="text-sm font-medium text-gray-800 capitalize">{i18n.t(`common.view.${view}`)}</div>
                       <div className="text-lg font-semibold text-primary-600">
                         {viewEntries.length}
                       </div>
-                      <div className="text-xs text-gray-500">entries</div>
+                      <div className="text-xs text-gray-500">{i18n.t('common.entries')}</div>
                     </div>
                   )
                 })}
@@ -342,7 +343,7 @@ const Dashboard = () => {
                 )}>
                   {view === 'morning' ? '🌻' : view === 'evening' ? '🌙' : '⚡'}
                 </div>
-                <div className="text-xs">{view.charAt(0).toUpperCase() + view.slice(1)}</div>
+                <div className="text-xs">{i18n.t(`common.view.${view}`)}</div>
               </button>
             )
           })}
@@ -354,7 +355,7 @@ const Dashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="meadow-card max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Import Configuration</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{i18n.t('dashboard.import.title')}</h3>
               <button
                 onClick={() => setShowImportModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -366,7 +367,7 @@ const Dashboard = () => {
             <div className="space-y-4">
               <div>
                 <label htmlFor="configImportFile" className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Configuration File to Import
+                  {i18n.t('dashboard.import.selectFileLabel')}
                 </label>
                 <input
                   type="file"
@@ -376,8 +377,7 @@ const Dashboard = () => {
                   className="input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
                 <p className="mt-2 text-sm text-gray-600">
-                  Select a JSON or LZJSON file containing configuration data to import.
-                  This will replace your current configuration.
+                  {i18n.t('dashboard.import.helpText')}
                 </p>
               </div>
               
@@ -387,10 +387,10 @@ const Dashboard = () => {
                   <div className="flex items-start">
                     <div className="text-red-600 mr-3 mt-0.5">⚠️</div>
                     <div>
-                      <h4 className="text-sm font-medium text-red-800 mb-1">Import Error</h4>
+                      <h4 className="text-sm font-medium text-red-800 mb-1">{i18n.t('dashboard.import.error.title')}</h4>
                       <p className="text-sm text-red-700">{configImportError}</p>
                       <p className="text-xs text-red-600 mt-2">
-                        Please check that your file is a valid configuration export from this application.
+                        {i18n.t('dashboard.import.error.hint')}
                       </p>
                     </div>
                   </div>
@@ -402,7 +402,7 @@ const Dashboard = () => {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center">
                     <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full mr-3"></div>
-                    <p className="text-sm text-blue-800">Importing configuration...</p>
+                    <p className="text-sm text-blue-800">{i18n.t('dashboard.import.loading')}</p>
                   </div>
                 </div>
               )}
@@ -413,7 +413,7 @@ const Dashboard = () => {
                   <div className="flex items-start">
                     <div className="text-green-600 mr-3 mt-0.5">✅</div>
                     <div>
-                      <h4 className="text-sm font-medium text-green-800 mb-1">Import Successful</h4>
+                      <h4 className="text-sm font-medium text-green-800 mb-1">{i18n.t('dashboard.import.success.heading')}</h4>
                       <p className="text-sm text-green-700">{configImportSuccess}</p>
                     </div>
                   </div>
@@ -421,10 +421,10 @@ const Dashboard = () => {
               )}
 
               <div className="text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg">
-                <p className="font-medium mb-2">⚠️ Warning:</p>
-                <p>• <strong>Backup First:</strong> Export your current configuration before importing</p>
-                <p>• <strong>Replacement:</strong> Imported configuration will replace your current settings</p>
-                <p>• <strong>Validation:</strong> Invalid configuration files will be rejected</p>
+                <p className="font-medium mb-2">{i18n.t('dashboard.import.warning.title')}</p>
+                <p>• <strong>{i18n.t('dashboard.import.warning.backup.title')}</strong> {i18n.t('dashboard.import.warning.backup.text')}</p>
+                <p>• <strong>{i18n.t('dashboard.import.warning.replacement.title')}</strong> {i18n.t('dashboard.import.warning.replacement.text')}</p>
+                <p>• <strong>{i18n.t('dashboard.import.warning.validation.title')}</strong> {i18n.t('dashboard.import.warning.validation.text')}</p>
               </div>
             </div>
             
@@ -434,14 +434,14 @@ const Dashboard = () => {
                 className="btn-secondary px-4 py-2"
                 disabled={isConfigImporting}
               >
-                Cancel
+                {i18n.t('common.cancel')}
               </button>
               <button
                 onClick={() => document.getElementById('configImportFile').click()}
                 className="btn-primary px-4 py-2"
                 disabled={isConfigImporting}
               >
-                {isConfigImporting ? 'Importing...' : 'Select File & Import'}
+                {isConfigImporting ? i18n.t('dashboard.import.loading') : i18n.t('dashboard.import.selectAndImport')}
               </button>
             </div>
           </div>
@@ -453,7 +453,7 @@ const Dashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="meadow-card max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Reset Configuration</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{i18n.t('dashboard.reset.title')}</h3>
               <button
                 onClick={() => setShowResetConfirmModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -467,24 +467,24 @@ const Dashboard = () => {
                 <div className="flex items-start">
                   <div className="text-red-600 mr-3 mt-0.5">⚠️</div>
                   <div>
-                    <h4 className="text-sm font-medium text-red-800 mb-2">Are you sure?</h4>
+                    <h4 className="text-sm font-medium text-red-800 mb-2">{i18n.t('dashboard.reset.confirmTitle')}</h4>
                     <p className="text-sm text-red-700 mb-2">
-                      This will reset your configuration to default values. This action cannot be undone.
+                      {i18n.t('dashboard.reset.confirmText')}
                     </p>
                     <p className="text-xs text-red-600">
-                      Consider exporting your current configuration first if you want to save it.
+                      {i18n.t('dashboard.reset.confirmHint')}
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="text-sm text-gray-600">
-                <p><strong>What will be reset:</strong></p>
+                <p><strong>{i18n.t('dashboard.reset.detailsTitle')}</strong></p>
                 <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>All custom tracking fields and categories</li>
-                  <li>Form configurations and layouts</li>
-                  <li>User preferences and settings</li>
-                  <li>Custom validation rules</li>
+                  <li>{i18n.t('dashboard.reset.detail.fields')}</li>
+                  <li>{i18n.t('dashboard.reset.detail.forms')}</li>
+                  <li>{i18n.t('dashboard.reset.detail.preferences')}</li>
+                  <li>{i18n.t('dashboard.reset.detail.validation')}</li>
                 </ul>
               </div>
             </div>
@@ -494,7 +494,7 @@ const Dashboard = () => {
                 onClick={() => setShowResetConfirmModal(false)}
                 className="btn-secondary px-4 py-2"
               >
-                Cancel
+                {i18n.t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -503,7 +503,7 @@ const Dashboard = () => {
                 }}
                 className="btn-danger px-4 py-2"
               >
-                Yes, Reset Configuration
+                {i18n.t('dashboard.reset.confirmButton')}
               </button>
             </div>
           </div>

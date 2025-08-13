@@ -1,5 +1,6 @@
 import React from 'react'
 import { logSecurityEvent } from '../utils/security.js'
+import { i18n } from '../utils/i18n.js'
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -42,11 +43,9 @@ class ErrorBoundary extends React.Component {
           <div className="max-w-md w-full">
             <div className="meadow-card p-8 text-center">
               <div className="text-6xl mb-4">😵‍💫</div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-4">
-                Oops! Something went wrong
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-800 mb-4">{i18n.t('error.title')}</h1>
               <p className="text-gray-600 mb-6">
-                We encountered an unexpected error. Don't worry - your data is safe!
+                {i18n.t('error.subtitle')}
               </p>
               
               <div className="space-y-4">
@@ -54,7 +53,7 @@ class ErrorBoundary extends React.Component {
                   onClick={() => window.location.reload()}
                   className="btn-primary w-full"
                 >
-                  🔄 Reload App
+                  🔄 {i18n.t('error.reload')}
                 </button>
                 
                 <button
@@ -64,15 +63,13 @@ class ErrorBoundary extends React.Component {
                   }}
                   className="btn-secondary w-full"
                 >
-                  🗑️ Clear Data & Reload
+                  🗑️ {i18n.t('error.clearAndReload')}
                 </button>
               </div>
               
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <details className="mt-6 text-left">
-                  <summary className="cursor-pointer text-sm font-medium text-gray-700">
-                    Debug Information (Development Only)
-                  </summary>
+                  <summary className="cursor-pointer text-sm font-medium text-gray-700">{i18n.t('error.debug')}</summary>
                   <div className="mt-2 p-4 bg-gray-100 rounded text-xs font-mono text-gray-800 overflow-auto max-h-40">
                     <div className="mb-2">
                       <strong>Error:</strong> {this.state.error.toString()}
@@ -92,12 +89,12 @@ class ErrorBoundary extends React.Component {
               )}
               
               <div className="mt-6 text-xs text-gray-500">
-                <p>If this problem persists, please:</p>
+                <p>{i18n.t('error.nextSteps.title')}</p>
                 <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Check your internet connection</li>
-                  <li>Try refreshing the page</li>
-                  <li>Clear your browser cache</li>
-                  <li>Contact support if needed</li>
+                  <li>{i18n.t('error.nextSteps.checkConnection')}</li>
+                  <li>{i18n.t('error.nextSteps.refresh')}</li>
+                  <li>{i18n.t('error.nextSteps.clearCache')}</li>
+                  <li>{i18n.t('error.nextSteps.contact')}</li>
                 </ul>
               </div>
             </div>
