@@ -17,6 +17,8 @@ const Settings = () => {
   const [configImportError, setConfigImportError] = useState('')
   const [isConfigImporting, setIsConfigImporting] = useState(false)
   const [configImportSuccess, setConfigImportSuccess] = useState('')
+  // Notifications UI is currently disabled; block is hidden
+  const notificationsUiEnabled = false
 
   // Helper to get items by category
   const getItemsByCategory = (category) => {
@@ -287,46 +289,48 @@ const Settings = () => {
             </div>
             <p className="text-xs text-gray-500 mt-2">{i18n.t('settings.reportTimes.note')}</p>
           </div>
-          {/* Notification Preferences */}
-          <div className="meadow-card p-6 border-l-4 border-info-400">
-            <h3 className="text-lg font-semibold text-info-800 mb-4">{i18n.t('settings.notifications.title')}</h3>
-            <p className="text-sm text-gray-600 mb-4">{i18n.t('settings.notifications.subtitle')}</p>
-            <div className="flex flex-col gap-4 max-w-xs">
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={config?.notification_settings?.morning_enabled ?? true}
-                  onChange={e => handleNotificationToggle('morning', e.target.checked)}
-                  className="checkbox"
-                />
-                <span className="w-32 text-gray-700 font-medium">{i18n.t('settings.notifications.morning')}</span>
-                <input
-                  type="time"
-                  value={config?.notification_settings?.morning_time || '08:00'}
-                  onChange={e => handleNotificationTimeChange('morning', e.target.value)}
-                  className="input w-36 ml-2"
-                  disabled={!(config?.notification_settings?.morning_enabled ?? true)}
-                />
-              </label>
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={config?.notification_settings?.evening_enabled ?? true}
-                  onChange={e => handleNotificationToggle('evening', e.target.checked)}
-                  className="checkbox"
-                />
-                <span className="w-32 text-gray-700 font-medium">{i18n.t('settings.notifications.evening')}</span>
-                <input
-                  type="time"
-                  value={config?.notification_settings?.evening_time || '20:00'}
-                  onChange={e => handleNotificationTimeChange('evening', e.target.value)}
-                  className="input w-36 ml-2"
-                  disabled={!(config?.notification_settings?.evening_enabled ?? true)}
-                />
-              </label>
+          {/* Notification Preferences (hidden) */}
+          {notificationsUiEnabled && (
+            <div className="meadow-card p-6 border-l-4 border-info-400">
+              <h3 className="text-lg font-semibold text-info-800 mb-4">{i18n.t('settings.notifications.title')}</h3>
+              <p className="text-sm text-gray-600 mb-4">{i18n.t('settings.notifications.subtitle')}</p>
+              <div className="flex flex-col gap-4 max-w-xs">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={config?.notification_settings?.morning_enabled ?? true}
+                    onChange={e => handleNotificationToggle('morning', e.target.checked)}
+                    className="checkbox"
+                  />
+                  <span className="w-32 text-gray-700 font-medium">{i18n.t('settings.notifications.morning')}</span>
+                  <input
+                    type="time"
+                    value={config?.notification_settings?.morning_time || '08:00'}
+                    onChange={e => handleNotificationTimeChange('morning', e.target.value)}
+                    className="input w-36 ml-2"
+                    disabled={!(config?.notification_settings?.morning_enabled ?? true)}
+                  />
+                </label>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={config?.notification_settings?.evening_enabled ?? true}
+                    onChange={e => handleNotificationToggle('evening', e.target.checked)}
+                    className="checkbox"
+                  />
+                  <span className="w-32 text-gray-700 font-medium">{i18n.t('settings.notifications.evening')}</span>
+                  <input
+                    type="time"
+                    value={config?.notification_settings?.evening_time || '20:00'}
+                    onChange={e => handleNotificationTimeChange('evening', e.target.value)}
+                    className="input w-36 ml-2"
+                    disabled={!(config?.notification_settings?.evening_enabled ?? true)}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">{i18n.t('settings.notifications.note')}</p>
             </div>
-            <p className="text-xs text-gray-500 mt-2">{i18n.t('settings.notifications.note')}</p>
-          </div>
+          )}
           {/* Customize Tracking Items */}
           <div className="meadow-card p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('settings.customize.title')}</h3>
