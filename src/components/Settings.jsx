@@ -7,22 +7,20 @@ import AppHeader from './app-header.jsx';
 import { i18n } from '../utils/i18n.js'
 
 const Settings = () => {
-  const { config, updateConfig, addNotification, auth, signOut } = useAppStore()
+  const { config, updateConfig, updateConfigLocal, saveConfig, exportConfig, importConfig, clearCorruptedConfig, addNotification, auth, signOut } = useAppStore()
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [selectedReport, setSelectedReport] = useState('morning')
+  const [draggingItem, setDraggingItem] = useState(null) // { id, category }
+  const [dragOverItem, setDragOverItem] = useState(null) // { id, category }
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  // For config modals and notifications
-  const [showConfigModal, setShowConfigModal] = useState(false)
-  const [showImportModal, setShowImportModal] = useState(false)
-  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false)
-  const [configImportError, setConfigImportError] = useState('')
-  const [isConfigImporting, setIsConfigImporting] = useState(false)
-  const [configImportSuccess, setConfigImportSuccess] = useState('')
+  const importInputRef = useRef(null)
   // Notifications UI is currently disabled; block is hidden
   const notificationsUiEnabled = false
 
-  // Helper to get items by category
-  const getItemsByCategory = (category) => {
-    return Object.values(TRACKING_ITEMS).filter(item => item.category === category)
+  // Helpers to get items eligible for a given view and category
+  const getItemsByViewAndCategory = (view, category) => {
+    return Object.values(TRACKING_ITEMS)
+      .filter(item => item.category === category && !!item[view])
   }
 
   // Helper to get sorted items for the current report and category
@@ -34,8 +32,11 @@ const Settings = () => {
       return config?.view_configurations?.[`${type}_report`]?.sections
     }
     const section = sectionByType(reportType)
-    const checkedIds = section?.[category]?.items || []
-    const allItems = getItemsByCategory(category)
+    const checkedIds = (section?.[category]?.items || []).filter(id => {
+      const item = TRACKING_ITEMS[id]
+      return item && item.category === category && !!item[reportType]
+    })
+    const allItems = getItemsByViewAndCategory(reportType, category)
     if (!section || !section[category] || checkedIds.length === 0) {
       // No config: sort all alphabetically
       return [...allItems].sort((a, b) => a.name.localeCompare(b.name))
@@ -51,6 +52,41 @@ const Settings = () => {
     return [...checked, ...unchecked]
   }
 
+  // Ensure required fields exist on a view object per schema
+  const ensureViewRequiredFields = (reportType, prev = {}) => {
+    const view = { ...prev }
+    if (reportType === 'morning') {
+      if (!Array.isArray(view.wearables)) {
+        view.wearables = ['wearables_sleep_score', 'wearables_body_battery']
+      }
+    }
+    return view
+  }
+
+  const ensureAllViewRequiredFields = (vc = {}) => {
+    const next = { ...vc }
+    // Morning wearables must always exist
+    next.morning_report = ensureViewRequiredFields('morning', next.morning_report || {})
+    // Ensure required section scaffolding exists to satisfy schema
+    const ensureSection = (section) => ({
+      items: Array.isArray(section?.items) ? section.items : [],
+      sort_order: Array.isArray(section?.sort_order) ? section.sort_order : [],
+      visible: typeof section?.visible === 'boolean' ? section.visible : true,
+      collapsed: typeof section?.collapsed === 'boolean' ? section.collapsed : false
+    })
+    const ensureViewSections = (view) => {
+      const v = view || {}
+      v.sections = v.sections || {}
+      v.sections.body = ensureSection(v.sections.body)
+      v.sections.mind = ensureSection(v.sections.mind)
+      return v
+    }
+    next.morning_report = ensureViewSections(next.morning_report)
+    next.evening_report = ensureViewSections(next.evening_report)
+    next.quick_track = ensureViewSections(next.quick_track)
+    return next
+  }
+
   // Handler for toggling item inclusion
   const handleToggle = (itemId, reportType, checked) => {
     const sectionKey = reportType === 'quick' ? 'quick_track' : `${reportType}_report`
@@ -58,19 +94,23 @@ const Settings = () => {
     const oldSections = config.view_configurations[sectionKey]?.sections || {}
     const newSections = { ...oldSections }
     const cat = TRACKING_ITEMS[itemId].category
-    const oldArr = oldSections[cat]?.items || []
+    const oldArr = (oldSections[cat]?.items || []).filter(id => !!TRACKING_ITEMS[id]?.[reportType])
     let arr = [...oldArr]
     if (checked) {
       if (!arr.includes(itemId)) arr.push(itemId) // Add to end
     } else {
       arr = arr.filter(id => id !== itemId)
     }
-    newSections[cat] = { ...oldSections[cat], items: arr, sort_order: arr }
+    const baseSection = oldSections[cat] || { items: [], sort_order: [], visible: true, collapsed: false }
+    newSections[cat] = { ...baseSection, items: arr, sort_order: arr }
+    const reportTypeKey = reportType
     newConfig.view_configurations[sectionKey] = {
-      ...config.view_configurations[sectionKey],
+      ...ensureViewRequiredFields(reportTypeKey, config.view_configurations[sectionKey]),
       sections: newSections
     }
-    updateConfig(newConfig)
+    newConfig.view_configurations = ensureAllViewRequiredFields(newConfig.view_configurations)
+    updateConfigLocal(newConfig)
+    setHasUnsavedChanges(true)
     addNotification({ type: 'success', title: i18n.t('settings.trackingItems.updated.title'), message: i18n.t('settings.trackingItems.updated.message') })
   }
 
@@ -81,7 +121,7 @@ const Settings = () => {
     const oldSections = config.view_configurations[sectionKey]?.sections || {}
     const newSections = { ...oldSections }
     const cat = TRACKING_ITEMS[itemId].category
-    const oldArr = oldSections[cat]?.items || []
+    const oldArr = (oldSections[cat]?.items || []).filter(id => !!TRACKING_ITEMS[id]?.[reportType])
     const idx = oldArr.indexOf(itemId)
     if (idx === -1) return
     let newIdx = direction === 'up' ? idx - 1 : idx + 1
@@ -89,13 +129,56 @@ const Settings = () => {
     // Only operate on checked items
     const arr = [...oldArr]
     ;[arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]]
-    newSections[cat] = { ...oldSections[cat], items: arr, sort_order: arr }
+    const baseSection = oldSections[cat] || { items: [], sort_order: [], visible: true, collapsed: false }
+    newSections[cat] = { ...baseSection, items: arr, sort_order: arr }
+    const reportTypeKey = reportType
     newConfig.view_configurations[sectionKey] = {
-      ...config.view_configurations[sectionKey],
+      ...ensureViewRequiredFields(reportTypeKey, config.view_configurations[sectionKey]),
       sections: newSections
     }
-    updateConfig(newConfig)
+    newConfig.view_configurations = ensureAllViewRequiredFields(newConfig.view_configurations)
+    updateConfigLocal(newConfig)
+    setHasUnsavedChanges(true)
     addNotification({ type: 'success', title: i18n.t('settings.trackingItems.orderUpdated.title'), message: i18n.t('settings.trackingItems.orderUpdated.message') })
+  }
+
+  // Reorder helper used by drag-and-drop
+  const applyReorder = (reportType, category, fromId, toId) => {
+    const sectionKey = reportType === 'quick' ? 'quick_track' : `${reportType}_report`
+    const newConfig = { ...config, view_configurations: { ...config.view_configurations } }
+    const oldSections = config.view_configurations[sectionKey]?.sections || {}
+    const oldArr = oldSections[category]?.items || []
+    const fromIdx = oldArr.indexOf(fromId)
+    const toIdx = oldArr.indexOf(toId)
+    if (fromIdx === -1 || toIdx === -1) return
+    const arr = [...oldArr]
+    const [moved] = arr.splice(fromIdx, 1)
+    arr.splice(toIdx, 0, moved)
+    const newSections = { ...oldSections, [category]: { ...oldSections[category], items: arr, sort_order: arr } }
+    newConfig.view_configurations[sectionKey] = { ...ensureViewRequiredFields(reportType, config.view_configurations[sectionKey]), sections: newSections }
+    newConfig.view_configurations = ensureAllViewRequiredFields(newConfig.view_configurations)
+    updateConfigLocal(newConfig)
+    setHasUnsavedChanges(true)
+  }
+
+  // Drag-and-drop handlers (checked items only)
+  const handleDragStart = (itemId, category) => {
+    setDraggingItem({ id: itemId, category })
+  }
+  const handleDragOver = (itemId, category, e) => {
+    try { e.preventDefault() } catch {}
+    setDragOverItem({ id: itemId, category })
+  }
+  const handleDrop = (itemId, category, reportType) => {
+    if (draggingItem && draggingItem.category === category && draggingItem.id !== itemId) {
+      applyReorder(reportType, category, draggingItem.id, itemId)
+    }
+    setDraggingItem(null)
+    setDragOverItem(null)
+  }
+  const handleDragEnd = () => {
+    setDraggingItem(null)
+    setDragOverItem(null)
   }
 
   // Handler for toggling notification preferences
@@ -108,7 +191,8 @@ const Settings = () => {
         [key]: checked
       }
     }
-    updateConfig(newConfig)
+    updateConfigLocal(newConfig)
+    setHasUnsavedChanges(true)
     addNotification({
       type: 'success',
       title: i18n.t('settings.notifications.preferenceUpdated.title'),
@@ -123,7 +207,8 @@ const Settings = () => {
     const newConfig = { ...config }
     if (!newConfig.notification_settings) newConfig.notification_settings = {}
     newConfig.notification_settings[`${type}_time`] = value
-    updateConfig(newConfig)
+    updateConfigLocal(newConfig)
+    setHasUnsavedChanges(true)
     addNotification({
       type: 'success',
       title: i18n.t('settings.notifications.timeUpdated.title'),
@@ -137,7 +222,8 @@ const Settings = () => {
     if (!newConfig.display_options) newConfig.display_options = {}
     if (!newConfig.display_options.view_times) newConfig.display_options.view_times = { morning_end: '09:00', evening_start: '20:00' }
     newConfig.display_options.view_times[key] = value
-    updateConfig(newConfig)
+    updateConfigLocal(newConfig)
+    setHasUnsavedChanges(true)
     const timeKeyLabelMap = {
       morning_end: i18n.t('settings.reportTimes.morningEnd'),
       evening_start: i18n.t('settings.reportTimes.eveningStart')
@@ -157,16 +243,26 @@ const Settings = () => {
       }
       return config?.view_configurations?.[`${type}_report`]?.sections
     }
-    const rowBg = idx % 2 === 0 ? 'bg-cream-100' : 'bg-cream-50'
+    const isDragOver = dragOverItem && dragOverItem.id === item.id
+    const rowBg = isDragOver ? 'bg-blue-50' : (idx % 2 === 0 ? 'bg-cream-100' : 'bg-cream-50')
     const section = sectionByType(reportType)
     const cat = item.category
-    const arr = section?.[cat]?.items || []
+    const arr = (section?.[cat]?.items || []).filter(id => !!TRACKING_ITEMS[id]?.[reportType])
     const checked = arr.includes(item.id)
     // Only checked items are reorderable
     const checkedIds = section?.[cat]?.items || []
     const arrIdx = checkedIds.indexOf(item.id)
     return (
-      <tr key={item.id} className={rowBg}>
+      <tr
+        key={item.id}
+        className={rowBg}
+        draggable={checked}
+        onDragStart={() => checked && handleDragStart(item.id, cat)}
+        onDragOver={(e) => checked && handleDragOver(item.id, cat, e)}
+        onDrop={() => checked && handleDrop(item.id, cat, reportType)}
+        onDragEnd={handleDragEnd}
+        style={{ cursor: checked ? 'move' : 'default' }}
+      >
         <td className="px-2 py-1 w-48 font-medium text-gray-800 align-middle">{item.name}</td>
         <td className="px-2 py-1 text-center align-middle">
           <label className="inline-flex items-center gap-1">
@@ -179,64 +275,12 @@ const Settings = () => {
           </label>
           {checked && (
             <span className="ml-1 inline-flex">
-              <button
-                className="px-1 text-xs text-gray-500 hover:text-primary-600 disabled:opacity-30"
-                onClick={() => handleMove(item.id, reportType, 'up')}
-                disabled={arrIdx <= 0}
-                title="Move up"
-              >▲</button>
-              <button
-                className="px-1 text-xs text-gray-500 hover:text-primary-600 disabled:opacity-30"
-                onClick={() => handleMove(item.id, reportType, 'down')}
-                disabled={arrIdx === (checkedIds.length - 1)}
-                title="Move down"
-              >▼</button>
+              <span className="px-1 text-xs text-gray-400" title="Drag to reorder">↕</span>
             </span>
           )}
         </td>
       </tr>
     )
-  }
-
-  const handleForceUpdateConfig = async () => {
-    try {
-      await forceUpdateViewConfig()
-      addNotification({
-        type: 'success',
-        title: i18n.t('settings.updateConfig.success.title'),
-        message: i18n.t('settings.updateConfig.success.message')
-      })
-    } catch (error) {
-      addNotification({
-        type: 'error',
-        title: i18n.t('settings.updateConfig.error.title'),
-        message: i18n.t('settings.updateConfig.error.message')
-      })
-    }
-  }
-
-  const handleClearCorruptedConfig = async () => {
-    if (window.confirm(i18n.t('settings.fixConfig.confirm'))) {
-      try {
-        await clearCorruptedConfig()
-        // Small delay to prevent notification overlap
-        setTimeout(() => {
-          addNotification({
-            type: 'success',
-            title: i18n.t('settings.fixConfig.success.title'),
-            message: i18n.t('settings.fixConfig.success.message')
-          })
-        }, 100)
-      } catch (error) {
-        setTimeout(() => {
-          addNotification({
-            type: 'error',
-            title: i18n.t('settings.fixConfig.error.title'),
-            message: i18n.t('settings.fixConfig.error.message')
-          })
-        }, 100)
-      }
-    }
   }
 
   // PWA functionality removed - app works as regular web app
@@ -251,6 +295,31 @@ const Settings = () => {
         configImportSuccess={null}
       />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {hasUnsavedChanges && (
+          <div className="sticky top-0 z-10 mb-4">
+            <div className="meadow-card p-4 flex items-center justify-between border-l-4 border-primary-400 bg-primary-50">
+              <div className="text-sm text-gray-700">You have unsaved changes</div>
+              <div className="space-x-2">
+                <button
+                  className="btn-secondary px-3 py-1 text-sm"
+                  onClick={() => { window.location.reload() }}
+                >Discard</button>
+                <button
+                  className="btn-primary px-4 py-1 text-sm"
+                  onClick={async () => {
+                    try {
+                      await saveConfig()
+                      setHasUnsavedChanges(false)
+                      addNotification({ type: 'success', title: 'Settings saved', message: 'Your configuration has been saved.' })
+                    } catch (e) {
+                      addNotification({ type: 'error', title: 'Save failed', message: e?.message || 'Please re-authenticate and try again.' })
+                    }
+                  }}
+                >Save changes</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center mb-8">
           <Link 
             to="/" 
@@ -384,83 +453,63 @@ const Settings = () => {
           <DisplayTypeSelector />
 
 
-          {/* Config Actions */}
+          {/* Configuration Actions */}
           <div className="meadow-card p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('settings.actions.title')}</h3>
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => {
-                  // Export config logic
-                  if (typeof window !== 'undefined' && window.exportConfig) {
-                    window.exportConfig();
-                  }
-                  if (typeof exportConfig === 'function') {
-                    exportConfig();
-                  }
-                  
-                  // Mobile-friendly notification
-                  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                  if (isMobile) {
-                    addNotification({
-                      type: 'success',
-                      title: i18n.t('settings.actions.export.mobile.title'),
-                      message: i18n.t('settings.actions.export.mobile.message')
-                    });
-                  } else {
-                    addNotification({
-                      type: 'success',
-                      title: i18n.t('settings.actions.export.desktop.title'),
-                      message: i18n.t('settings.actions.export.desktop.message')
-                    });
-                  }
+                  try {
+                    exportConfig && exportConfig()
+                  } catch (e) {}
                 }}
                 className="btn-primary px-4 py-2 text-sm"
               >
                 {i18n.t('settings.actions.export')}
               </button>
               <button
-                onClick={() => setShowImportModal(true)}
+                onClick={() => importInputRef.current && importInputRef.current.click()}
                 className="btn-secondary px-4 py-2 text-sm"
               >
                 {i18n.t('settings.actions.import')}
               </button>
+              <input
+                type="file"
+                ref={importInputRef}
+                accept=".json,.lzjson"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  try {
+                    const text = await file.text()
+                    const data = JSON.parse(text)
+                    await (importConfig && importConfig(data))
+                    addNotification({ type: 'success', title: i18n.t('settings.actions.import'), message: 'Configuration imported.' })
+                  } catch (err) {
+                    addNotification({ type: 'error', title: 'Import failed', message: err?.message || 'Invalid file.' })
+                  } finally {
+                    try { e.target.value = '' } catch {}
+                  }
+                }}
+              />
               <button
-                onClick={() => setShowResetConfirmModal(true)}
+                onClick={async () => {
+                  const ok = window.confirm('This will reset your configuration to defaults. Continue?')
+                  if (!ok) return
+                  try {
+                    await (clearCorruptedConfig && clearCorruptedConfig())
+                    addNotification({ type: 'success', title: i18n.t('toast.config.cleared.title'), message: i18n.t('toast.config.cleared.message') })
+                  } catch (e) {
+                    addNotification({ type: 'error', title: i18n.t('toast.config.clearFailed.title'), message: i18n.t('toast.config.clearFailed.message') })
+                  }
+                }}
                 className="btn-secondary px-4 py-2 text-sm text-red-600 border-red-400 hover:bg-red-50"
               >
                 {i18n.t('settings.actions.reset')}
               </button>
             </div>
           </div>
-
-          {/* Force Update Configuration */}
-          <div className="meadow-card p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('settings.updateConfig.title')}</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              {i18n.t('settings.updateConfig.subtitle')}
-            </p>
-            <button
-              onClick={handleForceUpdateConfig}
-              className="sunset-button px-6 py-3 mr-3"
-            >
-              {i18n.t('settings.updateConfig.button')}
-            </button>
-          </div>
-
-          {/* Clear Corrupted Configuration */}
-          <div className="meadow-card p-6 border-l-4 border-danger-500">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">{i18n.t('settings.fixConfig.title')}</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              {i18n.t('settings.fixConfig.subtitle')}
-            </p>
-            <button
-              onClick={handleClearCorruptedConfig}
-              className="btn-danger px-6 py-3"
-            >
-              {i18n.t('settings.fixConfig.button')}
-            </button>
-          </div>
-
 
         </div>
       </div>

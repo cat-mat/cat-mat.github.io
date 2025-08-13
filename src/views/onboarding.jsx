@@ -1,15 +1,21 @@
 import React, { useState } from 'react'
 import { useAppStore } from '../stores/app-store.js'
-import { TRACKING_ITEMS, getDisplayValue, getItemColor } from '../constants/tracking-items.js'
+import { TRACKING_ITEMS, getValueLabels } from '../constants/tracking-items.js'
 
 const Onboarding = () => {
-  const { updateConfig, addNotification } = useAppStore()
+  const { updateConfig, updateConfigLocal, completeOnboardingLocal, saveConfig, addNotification, config } = useAppStore()
   const [currentStep, setCurrentStep] = useState(0)
   const [displayType, setDisplayType] = useState('face')
+  const getDefaultSelectedByView = (view) => {
+    return Object.values(TRACKING_ITEMS)
+      .filter(item => !!item[view])
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(item => item.id)
+  }
   const [selectedItems, setSelectedItems] = useState({
-    morning: ['energy_level', 'sleep_feeling', 'brain_fog', 'mood'],
-    evening: ['energy_level', 'overall_sentiment', 'stress_level', 'anxiety'],
-    quick: ['energy_level', 'headache', 'hot_flashes', 'mood']
+    morning: getDefaultSelectedByView('morning'),
+    evening: getDefaultSelectedByView('evening'),
+    quick: getDefaultSelectedByView('quick')
   })
 
   const steps = [
@@ -25,12 +31,7 @@ const Onboarding = () => {
       description: 'Let\'s explore the three main views of your tracking app.',
       component: 'tour'
     },
-    {
-      id: 'demo',
-      title: 'Sample Data Demo',
-      description: 'See how your data will look with different display options.',
-      component: 'demo'
-    },
+    // Optional demo removed to simplify and avoid heavy UI during onboarding
     {
       id: 'display',
       title: 'Choose Your Display Style',
@@ -65,66 +66,29 @@ const Onboarding = () => {
 
   const handleSkip = async () => {
     try {
-      await updateConfig({
-        onboarding: {
-          completed: true,
-          completed_at: new Date().toISOString(),
-          tour_completed: true,
-          skipped_steps: steps.map(s => s.id)
-        }
-      })
-      
+      // Update locally first so onboarding can complete without Drive access
+      completeOnboardingLocal(displayType)
+      // Best-effort cloud save
+      try { await saveConfig() } catch {}
       addNotification({
         type: 'success',
         title: 'Welcome!',
         message: 'You\'re all set up and ready to start tracking.'
       })
-    } catch (error) {
-      addNotification({
-        type: 'error',
-        title: 'Setup failed',
-        message: 'There was an error completing setup. Please try again.'
-      })
+    } catch {
+      addNotification({ type: 'error', title: 'Setup failed', message: 'There was an error completing setup. Please try again.' })
     }
   }
 
   const handleComplete = async () => {
     try {
-      // Create default configuration with selected items
-      const defaultConfig = {
-        onboarding: {
-          completed: true,
-          completed_at: new Date().toISOString(),
-          tour_completed: true,
-          skipped_steps: []
-        },
-        display_type: displayType,
-        view_configurations: {
-          morning_report: {
-            items: selectedItems.morning
-          },
-          evening_report: {
-            items: selectedItems.evening
-          },
-          quick_track: {
-            items: selectedItems.quick
-          }
-        }
-      }
-      
-      await updateConfig(defaultConfig)
-      
-      addNotification({
-        type: 'success',
-        title: 'Setup Complete!',
-        message: 'Your personalized tracking app is ready to use.'
-      })
-    } catch (error) {
-      addNotification({
-        type: 'error',
-        title: 'Setup failed',
-        message: 'There was an error completing setup. Please try again.'
-      })
+      // Update locally first so setup completes even if Drive auth is required
+      completeOnboardingLocal(displayType)
+      // Best-effort cloud save; ignore failures (user may need to re-auth in preview)
+      try { await saveConfig() } catch {}
+      addNotification({ type: 'success', title: 'Setup Complete!', message: 'Your personalized tracking app is ready to use.' })
+    } catch {
+      addNotification({ type: 'error', title: 'Setup failed', message: 'There was an error completing setup. Please try again.' })
     }
   }
 
@@ -183,27 +147,21 @@ const Onboarding = () => {
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Sample Data Demo</h2>
         <p className="text-gray-600">See how your data will look with different display options.</p>
       </div>
-      
       <div className="bg-white p-6 rounded-xl border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Energy Level</h3>
         <div className="flex flex-wrap gap-2">
           {[1, 2, 3, 4, 5].map((value) => {
-            const { displayText } = getValueLabels({ name: 'Energy Level', ...TRACKING_ITEMS.energy_level }, value, displayType)
-            const color = getItemColor(value, displayType)
+            const { displayText } = getValueLabels(TRACKING_ITEMS.energy_level, value, displayType)
             return (
-              <button
-                key={value}
-                className={`px-4 py-2 rounded-lg border-2 ${color.bg} ${color.border} ${color.text}`}
-              >
+              <div key={value} className="px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-gray-700">
                 <span className="text-lg">{displayText}</span>
-              </button>
+              </div>
             )
           })}
         </div>
       </div>
-      
       <div className="flex justify-center space-x-4">
-        {['text', 'face_emojis', 'heart_emojis', 'dot_emojis'].map((type) => (
+        {['text', 'face', 'heart', 'dot'].map((type) => (
           <button
             key={type}
             onClick={() => setDisplayType(type)}
@@ -228,7 +186,7 @@ const Onboarding = () => {
       </div>
       
       <div className="grid md:grid-cols-2 gap-6">
-        {['text', 'face_emojis', 'heart_emojis', 'dot_emojis'].map((type) => (
+        {['text', 'face', 'heart', 'dot'].map((type) => (
           <button
             key={type}
             onClick={() => setDisplayType(type)}
@@ -244,13 +202,9 @@ const Onboarding = () => {
               </h3>
               <div className="flex justify-center space-x-2">
                 {[1, 2, 3, 4, 5].map((value) => {
-                  const { displayText } = getValueLabels({ name: 'Sample', textOptions: TRACKING_ITEMS.energy_level.textOptions, faceEmojis: TRACKING_ITEMS.energy_level.faceEmojis, heartEmojis: TRACKING_ITEMS.energy_level.heartEmojis, dotEmojis: TRACKING_ITEMS.energy_level.dotEmojis }, value, type)
-                  const color = getItemColor(value, type)
+                  const { displayText } = getValueLabels(TRACKING_ITEMS.energy_level, value, type)
                   return (
-                    <div
-                      key={value}
-                      className={`px-3 py-2 rounded-lg ${color.bg} ${color.text}`}
-                    >
+                    <div key={value} className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700">
                       <span className="text-lg">{displayText}</span>
                     </div>
                   )
@@ -277,7 +231,8 @@ const Onboarding = () => {
           </h3>
           <div className="grid md:grid-cols-2 gap-4">
             {Object.entries(TRACKING_ITEMS)
-              .filter(([_, item]) => item.section === view || item.section === 'body' || item.section === 'mind')
+              .filter(([_, item]) => item[view])
+              .sort(([, a], [, b]) => a.name.localeCompare(b.name))
               .map(([id, item]) => (
                 <label key={id} className="flex items-center space-x-3 cursor-pointer">
                   <input
@@ -298,7 +253,7 @@ const Onboarding = () => {
                     }}
                     className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
-                  <span className="text-gray-700">{item.label}</span>
+                  <span className="text-gray-700">{item.name}</span>
                 </label>
               ))}
           </div>

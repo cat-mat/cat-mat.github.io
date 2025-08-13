@@ -410,6 +410,29 @@ export const useAppStore = create(
             let config = await googleDriveService.getConfigFile(auth.user.email)
             console.log('Retrieved config successfully')
             
+            // Safety: ensure required view_configurations fields exist (wearables + sections scaffolding)
+            const ensureSection = (section) => ({
+              items: Array.isArray(section?.items) ? section.items : [],
+              sort_order: Array.isArray(section?.sort_order) ? section.sort_order : [],
+              visible: typeof section?.visible === 'boolean' ? section.visible : true,
+              collapsed: typeof section?.collapsed === 'boolean' ? section.collapsed : false
+            })
+            const ensureView = (view, addWearables = false) => {
+              const v = view || {}
+              if (addWearables && !Array.isArray(v.wearables)) {
+                v.wearables = ['wearables_sleep_score', 'wearables_body_battery']
+              }
+              v.sections = v.sections || {}
+              v.sections.body = ensureSection(v.sections.body)
+              v.sections.mind = ensureSection(v.sections.mind)
+              return v
+            }
+            if (config && config.view_configurations) {
+              config.view_configurations.morning_report = ensureView(config.view_configurations.morning_report, true)
+              config.view_configurations.evening_report = ensureView(config.view_configurations.evening_report, false)
+              config.view_configurations.quick_track = ensureView(config.view_configurations.quick_track, false)
+            }
+
             // Let the Google Drive service handle all config creation and migration
             // The getConfigFile method will create a proper config if none exists
             // and migrate any old configs automatically
@@ -478,6 +501,65 @@ export const useAppStore = create(
             console.error('Failed to save config:', error)
             // Revert changes on save failure
             set({ config })
+            throw error
+          }
+        },
+
+        // Local-only config update (no Google Drive save). Useful for staged UI edits.
+        updateConfigLocal: (updates) => {
+          const { config } = get()
+          if (!config) return
+
+          const updatedConfig = {
+            ...config,
+            ...updates,
+            updated_at: new Date().toISOString()
+          }
+
+          const validation = validateConfig(updatedConfig)
+          if (!validation.isValid) {
+            throw new Error(`Invalid configuration: ${validation.errors.map(e => e.message).join(', ')}`)
+          }
+
+          set({ config: validation.data })
+        },
+
+        // Minimal, non-throwing onboarding completion that only updates
+        // onboarding flags and display options locally without full schema validation.
+        completeOnboardingLocal: (itemDisplayType = 'face') => {
+          const { config } = get()
+          if (!config) return
+          const viewTimes = (config.display_options && config.display_options.view_times) || { morning_end: '09:00', evening_start: '20:00' }
+          const newConfig = {
+            ...config,
+            onboarding: {
+              completed: true,
+              completed_at: new Date().toISOString(),
+              tour_completed: true,
+              skipped_steps: []
+            },
+            display_options: {
+              item_display_type: itemDisplayType,
+              view_times: viewTimes
+            },
+            updated_at: new Date().toISOString()
+          }
+          set({ config: newConfig })
+        },
+
+        // Persist current config to Google Drive (explicit save action)
+        saveConfig: async () => {
+          const { config } = get()
+          if (!config) return
+
+          const validation = validateConfig(config)
+          if (!validation.isValid) {
+            throw new Error(`Invalid configuration: ${validation.errors.map(e => e.message).join(', ')}`)
+          }
+
+          try {
+            await googleDriveService.saveConfigFile(validation.data)
+          } catch (error) {
             throw error
           }
         },
