@@ -467,98 +467,71 @@ const Insights = () => {
     return (
       <div className="space-y-4">
         {/* Scatter Plot */}
-        <div className="relative bg-gray-50 rounded-lg p-4 chart-container">
+        {/* Legend above the chart */}
+        <div className="flex items-center justify-center space-x-4 text-xs text-gray-600 mb-3">
+          <div className="flex items-center space-x-1">
+            <div className="w-3 h-3 bg-red-600 rounded-full"></div>
+            <span>Data Points</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <div className="w-4 h-0.5 bg-red-600 border-dashed"></div>
+            <span>7-Day Average Curve</span>
+          </div>
+        </div>
+
+        <div className="relative bg-gray-50 rounded-lg p-4 pb-8 chart-container">
           <svg 
             width={chartWidth + padding * 2 + 80} 
-            height={chartHeight + padding * 2 + 30}
+            height={chartHeight + padding * 2 + 100}
             className="absolute inset-0 chart-svg"
           >
-                         {/* Y-axis labels */}
+             {/* Y-axis labels (numeric ticks) */}
              {(() => {
-               const item = TRACKING_ITEMS[selectedItem]
-               const effectiveScale = getItemEffectiveScale(item) || 5
-               const textOptions = item?.textOptions || []
-               
-               // Check if this is a wearable item (no text options)
-               const isWearable = !textOptions || textOptions.length === 0
-               
-               if (isWearable) {
-                 // For wearable items, show numeric values (0-100 for sleep score, body battery)
-                 const startValue = item?.id === 'wearables_sleep_score' || item?.id === 'wearables_body_battery' ? 0 : 1
-                 const endValue = item?.id === 'wearables_sleep_score' || item?.id === 'wearables_body_battery' ? 100 : effectiveScale
-                 const step = (endValue - startValue) / 4 // Show 5 values total
-                 
-                 return Array.from({ length: 5 }, (_, i) => {
-                   const value = startValue + (i * step)
-                   // Use fixed scale for wearables (0-100) instead of data-based scale
-                   const wearableScale = 100
-                   const wearableMinValue = 0
-                   const yPos = padding + (chartHeight - ((value - wearableMinValue) / wearableScale) * chartHeight)
-                   
-                   return (
-                     <text 
-                       key={value}
-                       x={padding - 15} 
-                       y={yPos + 4} 
-                       textAnchor="end" 
-                       className="text-xs fill-gray-500 chart-text-small"
-                     >
-                       {Math.round(value)}
-                     </text>
-                   )
-                 })
-               } else {
-                 // For regular items, show text labels
-                 return Array.from({ length: effectiveScale }, (_, i) => {
-                   const value = i + 1
-                   // Adjust positioning to give more space at top and bottom for labels
-                   const adjustedChartHeight = chartHeight - 40 // Reduce chart area to give more padding
-                   const safeScale = scale || 1 // Prevent division by zero
-                   const yPos = padding + 20 + (adjustedChartHeight - ((value - minValue) / safeScale) * adjustedChartHeight)
-                   const label = textOptions[i] || value.toString()
-                   
-                   return (
-                     <g key={value}>
-                       {label.split(' ').map((word, wordIndex) => (
-                         <text 
-                           key={wordIndex}
-                           x={padding - 15} 
-                           y={yPos + 4 + (wordIndex * (label.split(' ').length > 1 ? 12 : 0))} 
-                           textAnchor="end" 
-                           className="text-xs fill-gray-500 chart-text-small"
-                         >
-                           {word}
-                         </text>
-                       ))}
-                     </g>
-                   )
-                 })
-               }
+               const tickCount = 5
+               const adjustedChartHeight = chartHeight - 40
+               const safeScale = scale || 1
+               const step = safeScale / Math.max(1, tickCount - 1)
+               return Array.from({ length: tickCount }, (_, i) => {
+                 const value = minValue + (i * step)
+                 const yPos = padding + 20 + (adjustedChartHeight - ((value - minValue) / safeScale) * adjustedChartHeight)
+                 return (
+                   <text 
+                     key={i}
+                     x={padding - 15} 
+                     y={yPos + 4} 
+                     textAnchor="end" 
+                     className="text-xs fill-gray-500 chart-text-small"
+                   >
+                     {Number(value.toFixed(1))}
+                   </text>
+                 )
+               })
              })()}
              
-             {/* X-axis date labels */}
+             {/* X-axis date labels (evenly spaced) */}
              {(() => {
-               const labelCount = 6 // Show 6 date labels
-               const step = Math.max(1, Math.floor((itemData.length - 1) / (labelCount - 1))) // Prevent division by zero
-               
-               return itemData.map((point, index) => {
-                 if (index % step === 0 || index === itemData.length - 1) {
-                   const x = padding + (index / Math.max(1, itemData.length - 1)) * chartWidth
-                   return (
-                     <g key={index}>
-                       <text 
-                         x={x} 
-                         y={chartHeight + padding + 35} 
-                         textAnchor="middle" 
-                         className="text-xs fill-gray-500"
-                         transform={`rotate(-45 ${x} ${chartHeight + padding + 35})`}
-                       >
-                         {format(point.date, 'EEE, MMM d')}
-                       </text>
-                     </g>
-                   )
-                 }
-                 return null
+               const labelCount = Math.min(6, itemData.length)
+               if (labelCount === 0) return null
+               const indices = Array.from({ length: labelCount }, (_, i) => {
+                 return Math.round(i * (itemData.length - 1) / Math.max(1, labelCount - 1))
+               })
+               const unique = Array.from(new Set(indices))
+               return unique.map((idx) => {
+                 const point = itemData[idx]
+                 const x = padding + (idx / Math.max(1, itemData.length - 1)) * chartWidth
+                 return (
+                   <g key={idx}>
+                     <text 
+                       x={x} 
+                       y={chartHeight + padding + 30} 
+                       textAnchor="end" 
+                       className="text-xs fill-gray-500"
+                       transform={`rotate(-45 ${x} ${chartHeight + padding + 60})`}
+                     >
+                       {format(point.date, 'EEE, MMM d')}
+                     </text>
+                   </g>
+                 )
                })
              })()}
 
@@ -628,17 +601,7 @@ const Insights = () => {
                      
         </div>
         
-        {/* Legend */}
-        <div className="flex items-center justify-center space-x-4 text-xs text-gray-600">
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-red-600 rounded-full"></div>
-            <span>Data Points</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-4 h-0.5 bg-red-600 border-dashed"></div>
-            <span>7-Day Average Curve</span>
-          </div>
-        </div>
+        {/* Legend moved above chart; none below */}
       </div>
     )
   }
@@ -841,7 +804,7 @@ const Insights = () => {
 
               {/* Trend Summary */}
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">{i18n.t('insights.trend.summary')}</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-3"><br /><br />{i18n.t('insights.trend.summary')}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-600">{i18n.t('insights.trend.direction')}:</span>
