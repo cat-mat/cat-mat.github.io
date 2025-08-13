@@ -64,11 +64,8 @@ const QuickTrackView = () => {
     setIsSubmitting(true)
     
     try {
-      // Get the item to check if it's a 3-point scale
-      const is3Point = isItem3PointScale(selectedItem)
-      
-      // For 3-point scale items, convert to 5-point for storage
-      const storageValue = is3Point ? normalizeScaleValue(selectedValue, 3) : selectedValue
+      // selectedValue is already normalized for 3-point items in renderScaleButtons
+      const storageValue = selectedValue
       
       // Create entry data
       const entryData = {
