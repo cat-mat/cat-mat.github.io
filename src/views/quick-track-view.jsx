@@ -123,7 +123,7 @@ const QuickTrackView = () => {
               type="button"
               onClick={() => handleValueSelect(compareValue)}
               className={clsx(
-                'p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-medium flex flex-col items-center justify-center min-h-[80px] w-full',
+                'px-1 py-2 rounded-lg border-2 transition-all duration-200 hover:shadow-medium flex flex-col items-center justify-center min-h-[80px] w-full',
                 isSelected ? `${selectedClasses} shadow-medium` : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
               )}
             >
@@ -285,20 +285,20 @@ const QuickTrackView = () => {
     }
 
     return (
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         {availableItems.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => handleItemSelect(item)}
             className={clsx(
-              'p-6 rounded-lg border-2 transition-all duration-200 hover:shadow-medium text-center',
+              'p-2 rounded-lg border-2 transition-all duration-200 hover:shadow-medium text-center',
               selectedItem?.id === item.id
                 ? 'bg-green-100 border-green-300 text-green-800 shadow-medium'
                 : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
             )}
           >
-            <div className="text-lg font-medium mb-2">{item.name}</div>
+            <div className="font-medium mb-2">{item.name}</div>
             <div className="text-sm text-gray-500 capitalize">{item.category}</div>
           </button>
         ))}
@@ -308,8 +308,8 @@ const QuickTrackView = () => {
 
   return (
     <div className="quick-track-view bg-gradient-to-br from-green-50 to-blue-50 min-h-screen">
-      <div className="max-w-2xl mx-auto p-6">
-        <div ref={topAnchorRef} className="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <div className="max-w-2xl mx-auto">
+        <div ref={topAnchorRef} className="bg-white rounded-lg shadow-lg p-2 mb-2">
           <h1 ref={headingRef} tabIndex="-1" className="text-2xl font-bold text-green-800 mb-2">{i18n.t('quick.title')}</h1>
           <p className="text-green-600 mb-6">{i18n.t('quick.subtitle')}</p>
           
