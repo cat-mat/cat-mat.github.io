@@ -190,7 +190,7 @@ const MorningView = () => {
               type="button"
               onClick={() => handleScaleChange(item.id, value)}
               className={clsx(
-                'px-4 py-2 rounded-lg border-2 transition-all duration-200 hover:shadow-medium w-full',
+                'py-2 rounded-lg border-2 transition-all duration-200 hover:shadow-medium w-full',
                 isSelected
                   ? `${selectedClasses} shadow-medium`
                   : 'bg-white border-gray-300 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
@@ -210,6 +210,14 @@ const MorningView = () => {
   const renderMultiSelect = (item) => {
     const selectedValues = formData[item.id] || []
     
+    const handleOptionToggle = (option) => {
+      if (selectedValues.includes(option)) {
+        handleMultiSelectChange(item.id, option, false)
+      } else {
+        handleMultiSelectChange(item.id, option, true)
+      }
+    }
+    
     return (
       <div className="grid grid-cols-2 gap-2 w-full">
         {selectedValues.length > 0 && (
@@ -217,22 +225,26 @@ const MorningView = () => {
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, [item.id]: [] }))}
-              className="text-sm text-blue-600 hover:text-blue-800"
+              className="text-sm text-green-700 hover:text-green-900"
             >
               {i18n.t('quick.clearAll')}
             </button>
           </div>
         )}
         {item.options.map((option) => (
-          <label key={option} className="flex items-center space-x-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={selectedValues.includes(option)}
-              onChange={(e) => handleMultiSelectChange(item.id, option, e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <span className="text-gray-700">{item.optionLabels?.[option] || option}</span>
-          </label>
+          <button
+            key={option}
+            type="button"
+            onClick={() => handleOptionToggle(option)}
+            className={clsx(
+              'p-3 rounded-lg border-2 transition-all duration-200 text-sm text-left',
+              selectedValues.includes(option)
+                ? 'bg-blue-100 border-blue-300 text-blue-800'
+                : 'bg-white border-gray-300 text-sm text-gray-700 hover:border-gray-400'
+            )}
+          >
+            {item.optionLabels?.[option] || option}
+          </button>
         ))}
       </div>
     )
@@ -352,7 +364,7 @@ const MorningView = () => {
         </button>
         
         {!isCollapsed && (
-          <div className="space-y-6 pl-4">
+          <div className="space-y-6">
             {categoryItems.map(renderItem)}
           </div>
         )}
@@ -362,12 +374,12 @@ const MorningView = () => {
 
   return (
     <div className="morning-view bg-gradient-to-br from-blue-50 to-green-50 min-h-screen">
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg p-2 mb-2">
           <h1 className="text-2xl font-bold text-blue-800 mb-2">{i18n.t('morning.title')}</h1>
           <p className="text-blue-600 mb-6">{i18n.t('morning.subtitle')}</p>
           
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-2">
             {/* Body Section */}
             {renderSection('body')}
             

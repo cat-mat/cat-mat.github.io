@@ -81,15 +81,15 @@
   }
   
   .section-header {
-    @apply flex items-center justify-between p-4 border-b border-cream-400 bg-gradient-to-r from-meadow-100 to-meadow-200 rounded-t-xl;
+    @apply flex items-center justify-between p-2 border-b border-cream-400 bg-gradient-to-r from-meadow-100 to-meadow-200 rounded-t-xl;
   }
   
   .section-content {
-    @apply p-2 space-y-4;
+    @apply space-y-2;
   }
   
   .item-row {
-    @apply flex items-center justify-between py-3 border-b border-cream-300 last:border-b-0 hover:bg-cream-400/50 transition-colors duration-200 rounded-lg px-2;
+    @apply flex items-center justify-between py-3 border-b border-cream-300 last:border-b-0 hover:bg-cream-400/50 transition-colors duration-200 rounded-lg;
   }
   
   .sync-status {
@@ -142,7 +142,7 @@
   }
   
   .meadow-card {
-    @apply bg-gradient-to-br from-cream-500 to-meadow-100 rounded-2xl shadow-wildflower border border-cream-400 p-6 hover:shadow-large transition-all duration-300;
+    @apply bg-gradient-to-br from-cream-500 to-meadow-100 rounded-2xl shadow-wildflower border border-cream-400 p-2 hover:shadow-large transition-all duration-300;
   }
   
   .sunset-button {

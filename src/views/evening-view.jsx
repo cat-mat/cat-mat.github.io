@@ -197,7 +197,7 @@ const EveningView = () => {
               type="button"
               onClick={() => handleScaleChange(item.id, value)}
               className={clsx(
-                'px-4 py-2 rounded-lg border-2 transition-all duration-200 hover:shadow-medium w-full',
+                'py-2 rounded-lg border-2 transition-all duration-200 hover:shadow-medium w-full',
                 isSelected ? `${selectedClasses} shadow-medium` : 'bg-white border-gray-300 text-gray-700 hover:border-orange-300 hover:bg-orange-50'
               )}
             >
@@ -215,6 +215,14 @@ const EveningView = () => {
   const renderMultiSelect = (item) => {
     const selectedValues = formData[item.id] || []
     
+    const handleOptionToggle = (option) => {
+      if (selectedValues.includes(option)) {
+        handleMultiSelectChange(item.id, option, false)
+      } else {
+        handleMultiSelectChange(item.id, option, true)
+      }
+    }
+    
     return (
       <div className="grid grid-cols-2 gap-2 w-full">
         {selectedValues.length > 0 && (
@@ -222,22 +230,26 @@ const EveningView = () => {
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, [item.id]: [] }))}
-              className="text-sm text-orange-600 hover:text-orange-800"
+              className="text-sm text-green-700 hover:text-green-900"
             >
-              Clear all
+              {i18n.t('quick.clearAll')}
             </button>
           </div>
         )}
         {item.options.map((option) => (
-          <label key={option} className="flex items-center space-x-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={selectedValues.includes(option)}
-              onChange={(e) => handleMultiSelectChange(item.id, option, e.target.checked)}
-              className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-            />
-            <span className="text-gray-700">{item.optionLabels?.[option] || option}</span>
-          </label>
+          <button
+            key={option}
+            type="button"
+            onClick={() => handleOptionToggle(option)}
+            className={clsx(
+              'p-3 rounded-lg border-2 transition-all duration-200 text-sm text-left',
+              selectedValues.includes(option)
+                ? 'bg-blue-100 border-blue-300 text-blue-800'
+                : 'bg-white border-gray-300 text-sm text-gray-700 hover:border-gray-400'
+            )}
+          >
+            {item.optionLabels?.[option] || option}
+          </button>
         ))}
       </div>
     )
@@ -271,7 +283,7 @@ const EveningView = () => {
 
   const renderNotesSection = () => {
     return (
-      <div className="space-y-4">
+      <div className="pt-4 space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Observations
@@ -378,7 +390,7 @@ const EveningView = () => {
     const isCollapsed = collapsedSections[category]
     
     return (
-      <div key={category} className="space-y-4">
+      <div key={category} className="pt-4 space-y-4">
         <button
           type="button"
           onClick={() => toggleSection(category)}
@@ -393,7 +405,7 @@ const EveningView = () => {
         </button>
         
         {!isCollapsed && (
-          <div className="space-y-6 pl-4">
+          <div className="space-y-6">
             {categoryItems.map(renderItem)}
           </div>
         )}
@@ -403,12 +415,12 @@ const EveningView = () => {
 
   return (
     <div className="evening-view bg-gradient-to-br from-orange-50 to-purple-50 min-h-screen">
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg p-2 mb-2">
           <h1 className="text-2xl font-bold text-orange-800 mb-2">{i18n.t('evening.title')}</h1>
-          <p className="text-orange-600 mb-6">{i18n.t('evening.subtitle')}</p>
+          <p className="text-orange-600 mb-2">{i18n.t('evening.subtitle')}</p>
           
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-2">
             {/* Body Section */}
             {renderSection('body')}
             
@@ -418,8 +430,8 @@ const EveningView = () => {
             {/* No separate 'evening' category; items are in body/mind */}
             
             {/* Notes Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800">{i18n.t('evening.notes.title', { default: 'Reflection & Notes' })}</h3>
+            <div className="pt-4 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800">{i18n.t('evening.notes.title')}</h3>
               {renderNotesSection()}
             </div>
             

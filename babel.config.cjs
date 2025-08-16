@@ -5,5 +5,12 @@ module.exports = {
   ],
   plugins: [
     '@babel/plugin-transform-runtime'
-  ]
+  ],
+  env: {
+    test: {
+      plugins: [
+        ['@babel/plugin-transform-modules-commonjs', { allowTopLevelThis: true }]
+      ]
+    }
+  }
 } 

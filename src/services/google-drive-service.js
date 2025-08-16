@@ -1,5 +1,6 @@
 // Google Drive Service for perimenopause tracking app
 // Updated to use Google Identity Services (GIS) instead of deprecated gapi
+// Enhanced with session health checks and proactive token management
 import { DEFAULT_VIEW_TIMES } from '../constants/tracking-items.js'
 import { compressData, decompressData, shouldCompress } from '../utils/compression.js'
 import { performanceMonitor } from '../utils/performance.js'
@@ -28,6 +29,7 @@ class GoogleDriveService {
     this.backoffSchedule = [1000, 2000, 4000, 8000]
     this.refreshTimer = null
     this.proactiveReauthTimer = null
+    this.healthCheckTimer = null
     this.notificationHandler = null
     this.lastTokenError = null
     
@@ -39,6 +41,9 @@ class GoogleDriveService {
 
     // Set up proactive re-auth prompt (day 6)
     this.setupProactiveReauth()
+    
+    // Set up periodic health checks
+    this.startPeriodicHealthCheck()
   }
 
   // Load Google Identity Services (GIS) dynamically
@@ -277,10 +282,8 @@ class GoogleDriveService {
         })
       }
 
-      this.accessToken = null
-      this.tokenExpiry = null
-      this.tokenClient = null
-      this.isInitialized = false
+      // Use the centralized cleanup method
+      this.handleSignOut()
       
       // Clear stored token
       this.clearTokenFromStorage()
@@ -298,6 +301,7 @@ class GoogleDriveService {
     try {
       localStorage.setItem('google_access_token', token)
       localStorage.setItem('google_token_expiry', expiry.toString())
+      localStorage.setItem('google_token_timestamp', Date.now().toString())
       console.log('Token saved to localStorage')
       
       // Set up automatic refresh for the new token
@@ -342,6 +346,7 @@ class GoogleDriveService {
     try {
       localStorage.removeItem('google_access_token')
       localStorage.removeItem('google_token_expiry')
+      localStorage.removeItem('google_token_timestamp')
       console.log('Token cleared from localStorage')
       
       // Clear any pending refresh timer
@@ -351,6 +356,54 @@ class GoogleDriveService {
       }
     } catch (error) {
       console.error('Failed to clear token from localStorage:', error)
+    }
+  }
+
+  // Check session health and proactively refresh if needed
+  checkSessionHealth() {
+    try {
+      const tokenTimestamp = localStorage.getItem('google_token_timestamp')
+      if (!tokenTimestamp) return false
+      
+      const tokenAge = Date.now() - parseInt(tokenTimestamp)
+      const daysOld = tokenAge / (1000 * 60 * 60 * 24)
+      
+      // Proactively refresh if token is older than 5 days
+      if (daysOld > 5) {
+        console.log('Token is getting old, proactively refreshing...')
+        this.refreshToken().catch(error => {
+          console.error('Proactive refresh failed:', error)
+        })
+        return false
+      }
+      
+      return true
+    } catch (error) {
+      console.error('Error checking session health:', error)
+      return false
+    }
+  }
+
+  // Start periodic health checks
+  startPeriodicHealthCheck() {
+    // Clear any existing timer
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer)
+    }
+
+    // Check every 4 hours when page is active
+    this.healthCheckTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && this.isSignedIn()) {
+        this.checkSessionHealth()
+      }
+    }, 4 * 60 * 60 * 1000) // 4 hours
+  }
+
+  // Stop periodic health checks
+  stopPeriodicHealthCheck() {
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer)
+      this.healthCheckTimer = null
     }
   }
 
@@ -562,28 +615,117 @@ class GoogleDriveService {
     return null // We don't store user info in memory for security
   }
 
+  // Get a valid token with session health checks and automatic refresh
+  async getValidToken() {
+    if (this.isMockMode) {
+      return 'mock-token'
+    }
+
+    // First check if we should proactively refresh based on session health
+    const sessionHealthy = this.checkSessionHealth()
+    
+    const existingToken = localStorage.getItem('google_access_token')
+    
+    if (!existingToken || !sessionHealthy) {
+      // No token or old token, need to authenticate
+      if (!this.isInitialized) {
+        await this.initialize()
+      }
+      
+      return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Token request timeout'))
+        }, 120000) // 2 minutes timeout
+
+        try {
+          this.tokenClient.requestAccessToken({
+            prompt: 'consent'
+          })
+
+          // Poll for token
+          const checkToken = () => {
+            if (this.accessToken && this.isTokenValid()) {
+              clearTimeout(timeoutId)
+              resolve(this.accessToken)
+            } else {
+              setTimeout(checkToken, 100)
+            }
+          }
+          checkToken()
+
+        } catch (error) {
+          clearTimeout(timeoutId)
+          reject(error)
+        }
+      })
+    }
+    
+    // Test if existing token still works
+    try {
+      const testResponse = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+        headers: { 'Authorization': `Bearer ${existingToken}` }
+      })
+      
+      if (testResponse.ok) {
+        this.accessToken = existingToken
+        return existingToken
+      }
+    } catch (error) {
+      console.log('Token test failed, getting new token...')
+    }
+    
+    // Token expired, get a new one
+    if (!this.isInitialized) {
+      await this.initialize()
+    }
+    
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Token refresh timeout'))
+      }, 60000) // 1 minute timeout
+
+      try {
+        this.tokenClient.requestAccessToken({
+          prompt: 'none' // Don't show consent screen if user is already signed in
+        })
+
+        // Poll for new token
+        const checkToken = () => {
+          if (this.accessToken && this.isTokenValid()) {
+            clearTimeout(timeoutId)
+            resolve(this.accessToken)
+          } else {
+            setTimeout(checkToken, 100)
+          }
+        }
+        checkToken()
+
+      } catch (error) {
+        clearTimeout(timeoutId)
+        reject(error)
+      }
+    })
+  }
+
   // Execute a request with rate limiting and retries
   async executeRequest(requestFn) {
     if (this.isMockMode) {
       return this.mockRequest(requestFn)
     }
 
-    // Check if we need to refresh authentication
-    if (!this.isTokenValid()) {
-      console.log('Token is invalid or expired, attempting to refresh...')
+    // Get a valid token with session health checks
+    try {
+      await this.getValidToken()
+    } catch (error) {
+      console.log('Failed to get valid token, attempting force re-authentication...')
       try {
-        await this.refreshToken()
-      } catch (error) {
-        console.log('Token refresh failed, attempting force re-authentication...')
-        try {
-          await this.forceReAuthentication()
-        } catch (reauthError) {
-          console.log('Force re-authentication failed, clearing authentication')
-          this.accessToken = null
-          this.tokenExpiry = null
-          this.clearTokenFromStorage()
-          throw new Error('Authentication expired. Please sign in again.')
-        }
+        await this.forceReAuthentication()
+      } catch (reauthError) {
+        console.log('Force re-authentication failed, clearing authentication')
+        this.accessToken = null
+        this.tokenExpiry = null
+        this.clearTokenFromStorage()
+        throw new Error('Authentication expired. Please sign in again.')
       }
     }
 
@@ -1288,6 +1430,9 @@ class GoogleDriveService {
       clearTimeout(this.refreshTimer)
       this.refreshTimer = null
     }
+    
+    // Stop health checks
+    this.stopPeriodicHealthCheck()
   }
 
   // Mock request for development
