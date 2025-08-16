@@ -10,6 +10,9 @@ export default {
   transform: {
     '^.+\\.(js|jsx)$': ['babel-jest', { presets: ['@babel/preset-env', '@babel/preset-react'] }]
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(googleapis|google-auth-library|gaxios|googleapis-common|gcp-metadata|gtoken|jws|jwa|agent-base|https-proxy-agent|buffer-equal-constant-time|safe-buffer|google-logging-utils)/)'
+  ],
 
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.{js,jsx}',
