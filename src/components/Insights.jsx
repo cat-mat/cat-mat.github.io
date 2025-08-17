@@ -7,6 +7,30 @@ import { clsx } from 'clsx'
 import AppHeader from './app-header.jsx';
 import ReauthBanner from './reauth-banner.jsx';
 import { i18n } from '../utils/i18n.js'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js'
+import { Line } from 'react-chartjs-2'
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+)
 
 const Insights = () => {
   const { trackingData, loadAllHistoricalData } = useAppStore()
@@ -383,8 +407,8 @@ const Insights = () => {
     const isHighGood = item.good === 'high'
     if (trends.direction === 'improving') {
               const message = isHighGood
-          ? `Your ${item.name.toLowerCase()} has improved by ${Math.abs(trends.change).toFixed(1)}% over the last 6 weeks. Keep up the great progress!`
-          : `Your ${item.name.toLowerCase()} has decreased by ${Math.abs(trends.change).toFixed(1)}% over the last 6 weeks. This is good progress!`
+          ? `Your ${item.name.toLowerCase()} has improved by ${Math.abs(trends.change).toFixed(1)}% over the last 6 weeks.`
+          : `Your ${item.name.toLowerCase()} has decreased by ${Math.abs(trends.change).toFixed(1)}% over the last 6 weeks.`
       
       insights.push({
         type: 'positive',
@@ -392,8 +416,8 @@ const Insights = () => {
       })
     } else if (trends.direction === 'declining') {
       const message = isHighGood
-        ? `Your ${item.name.toLowerCase()} has declined by ${Math.abs(trends.change).toFixed(1)}% over the last 6 weeks. Consider tracking this more closely.`
-        : `Your ${item.name.toLowerCase()} has increased by ${Math.abs(trends.change).toFixed(1)}% over the last 6 weeks. Consider tracking this more closely.`
+        ? `Your ${item.name.toLowerCase()} has declined by ${Math.abs(trends.change).toFixed(1)}% over the last 6 weeks.`
+        : `Your ${item.name.toLowerCase()} has increased by ${Math.abs(trends.change).toFixed(1)}% over the last 6 weeks.`
       
       insights.push({
         type: 'warning',
@@ -454,154 +478,145 @@ const Insights = () => {
     const item = TRACKING_ITEMS[selectedItem]
     const isWearable = !item?.textOptions || item.textOptions.length === 0
     
-    // Use fixed scale for wearables (0-100), data-based scale for others
-    const maxValue = isWearable ? 100 : Math.max(...itemData.map(d => d.value))
-    const minValue = isWearable ? 0 : Math.min(...itemData.map(d => d.value))
-    const scale = maxValue - minValue || 1 // Prevent division by zero
+    // Calculate 7-day running average
+    const calculateRunningAverage = (data, windowSize = 7) => {
+      const runningAverages = []
+      
+      for (let i = 0; i < data.length; i++) {
+        const start = Math.max(0, i - windowSize + 1)
+        const end = i + 1
+        const window = data.slice(start, end)
+        const average = window.reduce((sum, d) => sum + d.value, 0) / window.length
+        runningAverages.push(average)
+      }
+      
+      return runningAverages
+    }
 
-    // Calculate chart dimensions
-    const chartHeight = 240 // Increased further to accommodate longer labels
-    const chartWidth = 400
-    const padding = 60 // Reduced left padding for better label positioning
+    // Prepare chart data
+    const labels = itemData.map(d => format(d.date, 'EEE, M/d'))
+    const dataPoints = itemData.map(d => d.value)
+    const runningAverages = calculateRunningAverage(itemData)
+
+    const chartData = {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Data Points',
+          data: dataPoints,
+          borderColor: '#C41E3A',
+          backgroundColor: '#C41E3A',
+          pointBackgroundColor: '#C41E3A',
+          pointBorderColor: '#C41E3A',
+          pointRadius: 4,
+          pointStyle: 'circle',
+          pointHoverRadius: 6,
+          borderWidth: 0,
+          fill: false,
+          tension: 0,
+          showLine: false, // Only show points, not connecting lines
+        },
+        {
+          label: '7-Day Average',
+          data: runningAverages,
+          borderColor: 'orange',
+          backgroundColor: 'rgba(196, 30, 58, 0.1)',
+          pointBackgroundColor: 'orange',
+          pointBorderColor: 'orange',
+          pointRadius: 1,
+          pointStyle: 'line',
+          borderWidth: 1,
+          borderDash: [5, 5],
+          fill: false,
+          tension: 0.1,
+          showLine: true,
+        }
+      ]
+    }
+
+    const chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            padding: 20,
+            font: {
+              size: 12
+            }
+          }
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            title: function(context) {
+              const dataIndex = context[0].dataIndex
+              return format(itemData[dataIndex].date, 'EEE, MMM d, yyyy')
+            },
+            label: function(context) {
+              const label = context.dataset.label || ''
+              const value = context.parsed.y
+              return `${label}: ${value.toFixed(1)}`
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          title: {
+            display: false
+          },
+          ticks: {
+            maxRotation: 45,
+            minRotation: 45,
+            font: {
+              size: 10
+            }
+          },
+          grid: {
+            display: false
+          }
+        },
+        y: {
+          display: true,
+          title: {
+            display: false
+          },
+          beginAtZero: isWearable,
+          min: isWearable ? 0 : 0.5,
+          max: isWearable ? 100 : 5.5,
+          ticks: {
+            font: {
+              size: 10
+            }
+          },
+          grid: {
+            color: 'rgba(0, 0, 0, 0.1)'
+          }
+        }
+      },
+      interaction: {
+        mode: 'nearest',
+        axis: 'x',
+        intersect: false
+      },
+      elements: {
+        point: {
+          hoverRadius: 6
+        }
+      }
+    }
 
     return (
       <div className="space-y-4">
-        {/* Scatter Plot */}
-        {/* Legend above the chart */}
-        <div className="flex items-center justify-center space-x-4 text-xs text-gray-600 mb-3">
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-red-600 rounded-full"></div>
-            <span>Data Points</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-4 h-0.5 bg-red-600 border-dashed"></div>
-            <span>7-Day Average Curve</span>
-          </div>
+        <div className="bg-gray-50 rounded-lg p-4" style={{ height: '300px' }}>
+          <Line data={chartData} options={chartOptions} />
         </div>
-
-        <div className="relative bg-gray-50 rounded-lg p-4 pb-8 chart-container">
-          <svg 
-            width={chartWidth + padding * 2 + 80} 
-            height={chartHeight + padding * 2 + 100}
-            className="absolute inset-0 chart-svg"
-          >
-             {/* Y-axis labels (numeric ticks) */}
-             {(() => {
-               const tickCount = 5
-               const adjustedChartHeight = chartHeight - 40
-               const safeScale = scale || 1
-               const step = safeScale / Math.max(1, tickCount - 1)
-               return Array.from({ length: tickCount }, (_, i) => {
-                 const value = minValue + (i * step)
-                 const yPos = padding + 20 + (adjustedChartHeight - ((value - minValue) / safeScale) * adjustedChartHeight)
-                 return (
-                   <text 
-                     key={i}
-                     x={padding - 15} 
-                     y={yPos + 4} 
-                     textAnchor="end" 
-                     className="text-xs fill-gray-500 chart-text-small"
-                   >
-                     {Number(value.toFixed(1))}
-                   </text>
-                 )
-               })
-             })()}
-             
-             {/* X-axis date labels (evenly spaced) */}
-             {(() => {
-               const labelCount = Math.min(6, itemData.length)
-               if (labelCount === 0) return null
-               const indices = Array.from({ length: labelCount }, (_, i) => {
-                 return Math.round(i * (itemData.length - 1) / Math.max(1, labelCount - 1))
-               })
-               const unique = Array.from(new Set(indices))
-               return unique.map((idx) => {
-                 const point = itemData[idx]
-                 const x = padding + (idx / Math.max(1, itemData.length - 1)) * chartWidth
-                 return (
-                   <g key={idx}>
-                     <text 
-                       x={x} 
-                       y={chartHeight + padding + 30} 
-                       textAnchor="end" 
-                       className="text-xs fill-gray-500"
-                       transform={`rotate(-45 ${x} ${chartHeight + padding + 60})`}
-                     >
-                       {format(point.date, 'EEE, MMM d')}
-                     </text>
-                   </g>
-                 )
-               })
-             })()}
-
-            {/* Data points */}
-            {itemData.map((point, index) => {
-              const x = padding + (index / Math.max(1, itemData.length - 1)) * chartWidth
-              const adjustedChartHeight = chartHeight - 40 // Match the adjustment used for labels
-              const safeScale = scale || 1 // Prevent division by zero
-              const y = padding + 20 + (adjustedChartHeight - ((point.value - minValue) / safeScale) * adjustedChartHeight)
-              
-              return (
-                <g key={index}>
-                  <circle 
-                    cx={x} 
-                    cy={y} 
-                    r="4" 
-                    fill="#C41E3A" 
-                    opacity="0.8"
-                  />
-                  <title>
-                    {format(point.date, 'MMM d')}: {point.value}
-                  </title>
-                </g>
-              )
-            })}
-
-            {/* 7-Day Running Average Curve */}
-            {itemData.length > 1 && (() => {
-              // Calculate 7-day running average
-              const windowSize = 7
-              const runningAverages = []
-              
-              for (let i = 0; i < itemData.length; i++) {
-                const start = Math.max(0, i - windowSize + 1)
-                const end = i + 1
-                const window = itemData.slice(start, end)
-                const average = window.reduce((sum, d) => sum + d.value, 0) / window.length
-                runningAverages.push({
-                  index: i,
-                  average: average,
-                  date: itemData[i].date
-                })
-              }
-              
-              // Create smooth curve through running averages
-              const adjustedChartHeight = chartHeight - 40 // Match the adjustment used for labels
-              const safeScale = scale || 1 // Prevent division by zero
-              const points = runningAverages.map((point, index) => {
-                const x = padding + (index / Math.max(1, itemData.length - 1)) * chartWidth
-                const y = padding + 20 + (adjustedChartHeight - ((point.average - minValue) / safeScale) * adjustedChartHeight)
-                return `${x},${y}`
-              }).join(' ')
-              
-              return (
-                <polyline 
-                  points={points}
-                  fill="none"
-                  stroke="#C41E3A" 
-                  strokeWidth="2" 
-                  strokeDasharray="5,5"
-                  opacity="0.6"
-                />
-              )
-            })()}
-          </svg>
-
-                     
-        </div>
-        
-        {/* Legend moved above chart; none below */}
       </div>
     )
   }
@@ -808,29 +823,11 @@ const Insights = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-600">{i18n.t('insights.trend.direction')}:</span>
-                    <span className={clsx(
-                      'text-sm font-medium',
-                      trends.direction === 'improving' && 'text-success-600',
-                      trends.direction === 'declining' && 'text-danger-600',
-                      trends.direction === 'stable' && 'text-gray-600'
-                    )}>
-                      {trends.direction.charAt(0).toUpperCase() + trends.direction.slice(1)}
-                    </span>
+                    <span className="text-sm font-medium text-gray-600">{trends.direction.charAt(0).toUpperCase() + trends.direction.slice(1)}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm text-gray-600">{i18n.t('insights.trend.change')}:</span>
-                    <span className={clsx(
-                      'text-sm font-medium',
-                      trends.direction === 'improving' && 'text-success-600',
-                      trends.direction === 'declining' && 'text-danger-600',
-                      trends.direction === 'stable' && 'text-gray-600'
-                    )}>
-                      {trends.change > 0 ? '+' : ''}{trends.change.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-600">{i18n.t('insights.trend.datapoints')}:</span>
-                    <span className="text-sm font-medium text-gray-800">{trends.totalEntries}</span>
+                    <span className="text-sm font-medium text-gray-600">{trends.change > 0 ? '+' : ''}{trends.change.toFixed(1)}%</span>
                   </div>
                 </div>
               </div>
