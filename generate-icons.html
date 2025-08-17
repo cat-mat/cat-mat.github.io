@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .icon-preview { margin: 20px 0; }
+        canvas { border: 1px solid #ccc; margin: 10px; }
+        button { margin: 5px; padding: 10px; }
+        .fire-emoji { font-size: 100px; text-align: center; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Fire Icon Generator</h1>
+    <p>This page helps generate PNG icons from the fire emoji for consistent cross-platform display.</p>
+    
+    <div class="icon-preview">
+        <h3>Fire Emoji Preview:</h3>
+        <div class="fire-emoji">🔥</div>
+        <p>This is the fire emoji that will be used as the base for all icon sizes.</p>
+    </div>
+    
+    <div class="icon-preview">
+        <h3>Generated Icons:</h3>
+        <div id="icons"></div>
+    </div>
+    
+    <div>
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Right-click on each canvas below</li>
+            <li>Select "Save image as..."</li>
+            <li>Save with the filename shown (e.g., icon-192x192.png)</li>
+            <li>Place the saved files in the public/icons/ directory</li>
+        </ol>
+    </div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        const container = document.getElementById('icons');
+        
+        // Create a temporary canvas to draw the fire emoji
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = 100;
+        tempCanvas.height = 100;
+        
+        // Set up the canvas for emoji rendering
+        tempCtx.font = '80px Arial, sans-serif';
+        tempCtx.textAlign = 'center';
+        tempCtx.textBaseline = 'middle';
+        
+        // Draw the fire emoji to get its image data
+        tempCtx.fillText('🔥', 50, 50);
+        
+        sizes.forEach(size => {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            canvas.style.width = '100px';
+            canvas.style.height = '100px';
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Create background circle with app theme color
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = size * 0.45;
+            
+            // Background circle with gradient
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+            gradient.addColorStop(0, '#e8f5e8');
+            gradient.addColorStop(1, '#d4f1d4');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Add subtle border
+            ctx.strokeStyle = '#c8e6c8';
+            ctx.lineWidth = size * 0.02;
+            ctx.stroke();
+            
+            // Scale and draw the fire emoji
+            const emojiSize = size * 0.6;
+            ctx.font = `${emojiSize}px Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🔥', centerX, centerY);
+            
+            const label = document.createElement('div');
+            label.textContent = `icon-${size}x${size}.png`;
+            label.style.textAlign = 'center';
+            label.style.marginTop = '5px';
+            label.style.fontSize = '12px';
+            
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'inline-block';
+            wrapper.style.margin = '10px';
+            wrapper.style.textAlign = 'center';
+            wrapper.appendChild(canvas);
+            wrapper.appendChild(label);
+            
+            container.appendChild(wrapper);
+        });
+    </script>
+</body>
+</html>
