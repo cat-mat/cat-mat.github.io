@@ -62,7 +62,7 @@ const Insights = () => {
     return { startDate, endDate }
   }
 
-  // Load historical data on mount and when trackingData changes
+  // Load historical data on mount
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
@@ -76,14 +76,6 @@ const Insights = () => {
     }
     loadData()
   }, [loadAllHistoricalData])
-
-  // Also refresh data when trackingData.entries changes (in case new entries were added)
-  useEffect(() => {
-    if (trackingData.entries && trackingData.entries.length > 0) {
-      // Data is already loaded, no need to reload
-      setIsLoading(false)
-    }
-  }, [trackingData.entries])
 
   // Save selected item to localStorage whenever it changes
   useEffect(() => {
@@ -827,11 +819,14 @@ const Insights = () => {
             <h3 className="text-lg font-semibold text-gray-800">Filters</h3>
             <button
               onClick={async () => {
+                if (isLoading) return // Prevent multiple clicks
+                
                 setIsLoading(true)
                 try {
                   await loadAllHistoricalData()
                 } catch (error) {
                   console.error('Failed to refresh data:', error)
+                  addNotification('Failed to refresh data. Please try again.', 'error')
                 } finally {
                   setIsLoading(false)
                 }
