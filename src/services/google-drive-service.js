@@ -155,6 +155,8 @@ class GoogleDriveService {
       this.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: this.clientId,
         scope: this.scope,
+        access_type: 'offline', // Request refresh tokens for long-term access
+        prompt: 'consent', // Force consent screen to ensure refresh token generation
         callback: (tokenResponse) => {
           if (tokenResponse.error) {
             this.lastTokenError = tokenResponse.error
@@ -172,14 +174,20 @@ class GoogleDriveService {
           this.lastTokenError = null
           this.accessToken = tokenResponse.access_token
           
+          // Store refresh token if provided (for long-term access)
+          if (tokenResponse.refresh_token) {
+            this.refreshToken = tokenResponse.refresh_token
+            console.log('Refresh token received for long-term access')
+          }
+          
           // Calculate token expiry (Google tokens can last up to 1 hour, but let's be conservative)
           // If we have an expires_in, use it, otherwise default to 50 minutes
           const expiresIn = tokenResponse.expires_in || 3000 // 50 minutes in seconds
           const expiryTime = new Date(Date.now() + (expiresIn * 1000))
           this.tokenExpiry = expiryTime
           
-          // Save token to localStorage for persistence
-          this.saveTokenToStorage(tokenResponse.access_token, expiryTime.getTime())
+          // Save tokens to localStorage for persistence
+          this.saveTokenToStorage(tokenResponse.access_token, expiryTime.getTime(), tokenResponse.refresh_token)
 
           // Record first auth time if absent for proactive re-auth prompt (day 6)
           try {
@@ -320,17 +328,24 @@ class GoogleDriveService {
   }
 
   // Save token to localStorage
-  saveTokenToStorage(token, expiry) {
+  saveTokenToStorage(token, expiry, refreshToken = null) {
     try {
       localStorage.setItem('google_access_token', token)
       localStorage.setItem('google_token_expiry', expiry.toString())
       localStorage.setItem('google_token_timestamp', Date.now().toString())
-      console.log('Token saved to localStorage')
+      
+      // Store refresh token if provided (for long-term access)
+      if (refreshToken) {
+        localStorage.setItem('google_refresh_token', refreshToken)
+        console.log('Refresh token saved to localStorage')
+      }
+      
+      console.log('Tokens saved to localStorage')
       
       // Set up automatic refresh for the new token
       this.setupAutoRefresh()
     } catch (error) {
-      console.error('Failed to save token to localStorage:', error)
+      console.error('Failed to save tokens to localStorage:', error)
     }
   }
 
@@ -339,6 +354,7 @@ class GoogleDriveService {
     try {
       const token = localStorage.getItem('google_access_token')
       const expiry = localStorage.getItem('google_token_expiry')
+      const refreshToken = localStorage.getItem('google_refresh_token')
       
       if (token && expiry) {
         const expiryTime = new Date(parseInt(expiry))
@@ -348,7 +364,14 @@ class GoogleDriveService {
         if (expiryTime > new Date(now.getTime() + 5 * 60 * 1000)) {
           this.accessToken = token
           this.tokenExpiry = expiryTime
-          console.log('Token restored from localStorage')
+          
+          // Restore refresh token if available
+          if (refreshToken) {
+            this.refreshToken = refreshToken
+            console.log('Refresh token restored from localStorage')
+          }
+          
+          console.log('Tokens restored from localStorage')
           
           // Set up auto-refresh for restored token
           this.setupAutoRefresh()
@@ -359,7 +382,7 @@ class GoogleDriveService {
         }
       }
     } catch (error) {
-      console.error('Failed to restore token from localStorage:', error)
+      console.error('Failed to restore tokens from localStorage:', error)
     }
     return false
   }
@@ -370,7 +393,8 @@ class GoogleDriveService {
       localStorage.removeItem('google_access_token')
       localStorage.removeItem('google_token_expiry')
       localStorage.removeItem('google_token_timestamp')
-      console.log('Token cleared from localStorage')
+      localStorage.removeItem('google_refresh_token')
+      console.log('Tokens cleared from localStorage')
       
       // Clear any pending refresh timer
       if (this.refreshTimer) {
@@ -378,7 +402,7 @@ class GoogleDriveService {
         this.refreshTimer = null
       }
     } catch (error) {
-      console.error('Failed to clear token from localStorage:', error)
+      console.error('Failed to clear tokens from localStorage:', error)
     }
   }
 
@@ -622,6 +646,9 @@ class GoogleDriveService {
 
     console.log('Attempting to refresh access token...')
     
+    // Check if we have a stored refresh token
+    const storedRefreshToken = localStorage.getItem('google_refresh_token')
+    
     return new Promise((resolve, reject) => {
       // Add timeout to prevent hanging
       const timeoutId = setTimeout(() => {
@@ -632,10 +659,17 @@ class GoogleDriveService {
       const currentToken = this.accessToken
 
       try {
-        // Request a new access token
-        this.tokenClient.requestAccessToken({
+        // Request a new access token using refresh token if available
+        const requestOptions = {
           prompt: 'none' // Don't show consent screen if user is already signed in
-        })
+        }
+        
+        // If we have a refresh token, use it for silent refresh
+        if (storedRefreshToken) {
+          console.log('Using stored refresh token for silent refresh')
+        }
+        
+        this.tokenClient.requestAccessToken(requestOptions)
 
         // Poll for new token
         let checkCount = 0
