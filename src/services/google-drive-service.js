@@ -44,6 +44,9 @@ class GoogleDriveService {
     
     // Set up periodic health checks
     this.startPeriodicHealthCheck()
+    
+    // Set up visibility change listener for immediate token refresh on app resume
+    this.setupVisibilityChangeHandler()
   }
 
   // Load Google Identity Services (GIS) dynamically
@@ -57,11 +60,18 @@ class GoogleDriveService {
       // Check if script is already loading
       if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
         // Wait for existing script to load
+        let checkCount = 0
+        const maxChecks = 100 // 10 seconds max (100 * 100ms)
         const checkGIS = () => {
+          checkCount++
           if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
             console.log('Google Identity Services already loaded')
             clearTimeout(timeoutId)
             resolve()
+          } else if (checkCount >= maxChecks) {
+            console.error('Google Identity Services loading timeout')
+            clearTimeout(timeoutId)
+            reject(new Error('Google Identity Services loading timeout'))
           } else {
             setTimeout(checkGIS, 100)
           }
@@ -79,11 +89,18 @@ class GoogleDriveService {
       script.onload = () => {
         console.log('Google Identity Services script loaded successfully')
         // Wait for google.accounts to be available
+        let checkCount = 0
+        const maxChecks = 200 // 10 seconds max (200 * 50ms)
         const checkGIS = () => {
+          checkCount++
           if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
             console.log('Google Identity Services object available')
             clearTimeout(timeoutId)
             resolve()
+          } else if (checkCount >= maxChecks) {
+            console.error('Google Identity Services object timeout')
+            clearTimeout(timeoutId)
+            reject(new Error('Google Identity Services object timeout'))
           } else {
             setTimeout(checkGIS, 50)
           }
@@ -218,7 +235,10 @@ class GoogleDriveService {
           })
 
           // Poll for token
+          let checkCount = 0
+          const maxChecks = 600 // 1 minute max (600 * 100ms)
           const checkToken = () => {
+            checkCount++
             if (this.accessToken) {
               clearTimeout(timeoutId)
               // Get user info
@@ -230,6 +250,9 @@ class GoogleDriveService {
                   console.error('Failed to get user info:', error)
                   resolve({ success: true, user: { email: 'user@example.com', name: 'User' } })
                 })
+            } else if (checkCount >= maxChecks) {
+              clearTimeout(timeoutId)
+              reject(new Error('Token polling timeout'))
             } else {
               setTimeout(checkToken, 100)
             }
@@ -407,6 +430,83 @@ class GoogleDriveService {
     }
   }
 
+  // Set up visibility change handler for immediate token refresh on app resume
+  setupVisibilityChangeHandler() {
+    // Only set up once
+    if (this.visibilityHandler) {
+      return
+    }
+
+    this.visibilityHandler = () => {
+      if (document.visibilityState === 'visible' && this.isSignedIn()) {
+        console.log('App became visible, checking token health...')
+        this.handleAppResume()
+      }
+    }
+
+    document.addEventListener('visibilitychange', this.visibilityHandler)
+  }
+
+  // Handle app resume - immediate token refresh with graceful degradation
+  async handleAppResume() {
+    if (this.isMockMode) {
+      return
+    }
+
+    try {
+      // Check if we have a stored token
+      const storedToken = localStorage.getItem('google_access_token')
+      if (!storedToken) {
+        console.log('No stored token found on app resume')
+        return
+      }
+
+      // Test the token immediately
+      const tokenValid = await this.testTokenValidity(storedToken)
+      
+      if (tokenValid) {
+        console.log('Stored token is still valid on app resume')
+        this.accessToken = storedToken
+        return
+      }
+
+      console.log('Stored token is invalid, attempting immediate refresh...')
+      
+      // Try to refresh the token silently
+      await this.refreshToken()
+      console.log('Token refreshed successfully on app resume')
+      
+    } catch (error) {
+      console.log('Token refresh failed on app resume:', error.message)
+      
+      // Don't spam the user - just clear the token and let them continue offline
+      this.accessToken = null
+      this.tokenExpiry = null
+      
+      // Show a single, clear notification
+      this.notify({
+        type: 'info',
+        title: 'Working offline',
+        message: 'Your entries are saved locally and will sync when you sign in again.'
+      })
+    }
+  }
+
+  // Test token validity without throwing errors
+  async testTokenValidity(token) {
+    try {
+      const response = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        // Add a short timeout to prevent hanging
+        signal: AbortSignal.timeout(5000)
+      })
+      return response.ok
+    } catch (error) {
+      console.log('Token test failed:', error.message)
+      return false
+    }
+  }
+
   // Set up automatic token refresh
   setupAutoRefresh() {
     // Clear any existing timer
@@ -435,12 +535,24 @@ class GoogleDriveService {
       try {
         console.log('Auto-refreshing token...')
         await this.refreshToken()
+        // Reset retry count on successful refresh
+        this.autoRefreshRetryCount = 0
         // Set up the next refresh
         this.setupAutoRefresh()
       } catch (error) {
         console.error('Auto-refresh failed:', error)
-        // Try again in 5 minutes
-        this.refreshTimer = setTimeout(() => this.setupAutoRefresh(), 5 * 60 * 1000)
+        // Try again in 5 minutes, but limit retries to prevent infinite recursion
+        if (!this.autoRefreshRetryCount) {
+          this.autoRefreshRetryCount = 0
+        }
+        this.autoRefreshRetryCount++
+        
+        if (this.autoRefreshRetryCount <= 3) {
+          this.refreshTimer = setTimeout(() => this.setupAutoRefresh(), 5 * 60 * 1000)
+        } else {
+          console.error('Auto-refresh retry limit exceeded, stopping auto-refresh')
+          this.autoRefreshRetryCount = 0
+        }
       }
     }, refreshTime)
   }
@@ -526,7 +638,10 @@ class GoogleDriveService {
         })
 
         // Poll for new token
+        let checkCount = 0
+        const maxChecks = 600 // 1 minute max (600 * 100ms)
         const checkToken = () => {
+          checkCount++
           if (this.lastTokenError === 'interaction_required') {
             clearTimeout(timeoutId)
             reject(new Error('interaction_required'))
@@ -538,7 +653,7 @@ class GoogleDriveService {
             console.log('Token refreshed successfully')
             console.log('New token expires at:', this.tokenExpiry.toISOString())
             resolve()
-          } else if (this.accessToken === currentToken) {
+          } else if (this.accessToken === currentToken && checkCount < maxChecks) {
             // Still the same token, keep polling
             setTimeout(checkToken, 100)
           } else {
@@ -588,11 +703,17 @@ class GoogleDriveService {
         })
 
         // Poll for new token
+        let checkCount = 0
+        const maxChecks = 1200 // 2 minutes max (1200 * 100ms)
         const checkToken = () => {
+          checkCount++
           if (this.accessToken && this.isTokenValid()) {
             clearTimeout(timeoutId)
             console.log('Re-authentication successful')
             resolve()
+          } else if (checkCount >= maxChecks) {
+            clearTimeout(timeoutId)
+            reject(new Error('Re-authentication polling timeout'))
           } else {
             setTimeout(checkToken, 100)
           }
@@ -643,10 +764,16 @@ class GoogleDriveService {
           })
 
           // Poll for token
+          let checkCount = 0
+          const maxChecks = 1200 // 2 minutes max (1200 * 100ms)
           const checkToken = () => {
+            checkCount++
             if (this.accessToken && this.isTokenValid()) {
               clearTimeout(timeoutId)
               resolve(this.accessToken)
+            } else if (checkCount >= maxChecks) {
+              clearTimeout(timeoutId)
+              reject(new Error('Token request polling timeout'))
             } else {
               setTimeout(checkToken, 100)
             }
@@ -661,18 +788,14 @@ class GoogleDriveService {
     }
     
     // Test if existing token still works
-    try {
-      const testResponse = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
-        headers: { 'Authorization': `Bearer ${existingToken}` }
-      })
-      
-      if (testResponse.ok) {
-        this.accessToken = existingToken
-        return existingToken
-      }
-    } catch (error) {
-      console.log('Token test failed, getting new token...')
+    const tokenValid = await this.testTokenValidity(existingToken)
+    
+    if (tokenValid) {
+      this.accessToken = existingToken
+      return existingToken
     }
+    
+    console.log('Token test failed, getting new token...')
     
     // Token expired, get a new one
     if (!this.isInitialized) {
@@ -690,10 +813,16 @@ class GoogleDriveService {
         })
 
         // Poll for new token
+        let checkCount = 0
+        const maxChecks = 600 // 1 minute max (600 * 100ms)
         const checkToken = () => {
+          checkCount++
           if (this.accessToken && this.isTokenValid()) {
             clearTimeout(timeoutId)
             resolve(this.accessToken)
+          } else if (checkCount >= maxChecks) {
+            clearTimeout(timeoutId)
+            reject(new Error('Token refresh polling timeout'))
           } else {
             setTimeout(checkToken, 100)
           }
@@ -725,12 +854,30 @@ class GoogleDriveService {
         this.accessToken = null
         this.tokenExpiry = null
         this.clearTokenFromStorage()
-        throw new Error('Authentication expired. Please sign in again.')
+        
+        // Show a single, clear message instead of throwing an error that causes retries
+        this.notify({
+          type: 'error',
+          title: 'Sign in required',
+          message: 'Please sign in again to sync with Google Drive. Your entries are saved locally.'
+        })
+        
+        // Return a mock response to prevent the request from failing completely
+        // This allows the app to continue working offline
+        return { success: false, offline: true, message: 'Working offline - sign in to sync' }
       }
     }
 
     if (!this.accessToken) {
-      throw new Error('Not authenticated. Please sign in first.')
+      // Show a single, clear message instead of throwing an error
+      this.notify({
+        type: 'error',
+        title: 'Sign in required',
+        message: 'Please sign in again to sync with Google Drive. Your entries are saved locally.'
+      })
+      
+      // Return a mock response to prevent the request from failing completely
+      return { success: false, offline: true, message: 'Working offline - sign in to sync' }
     }
 
     // Add to queue and process
@@ -747,6 +894,14 @@ class GoogleDriveService {
     }
 
     this.isProcessingQueue = true
+    
+    // Add a timeout to prevent infinite processing
+    const queueTimeout = setTimeout(() => {
+      console.error('Queue processing timeout - clearing queue')
+      this.isProcessingQueue = false
+      this.requestQueue.forEach(req => req.reject(new Error('Queue processing timeout')))
+      this.requestQueue = []
+    }, 30000) // 30 second timeout
 
     while (this.requestQueue.length > 0) {
       const req = this.requestQueue.shift()
@@ -768,16 +923,38 @@ class GoogleDriveService {
           console.log('Authentication error detected, attempting token refresh...')
           try {
             await this.refreshToken()
-            // Put the request back in the queue to retry with new token
-            this.requestQueue.unshift({ ...req })
-            break
+            // Put the request back in the queue to retry with new token (increment retry count)
+            req.retryCount += 1
+            if (req.retryCount < this.maxRetries) {
+              this.requestQueue.unshift(req)
+              break
+            } else {
+              console.error('Max authentication retries exceeded')
+              reject(error)
+              this.notify({
+                type: 'error',
+                title: 'Authentication failed',
+                message: 'Please sign in again to continue syncing.'
+              })
+            }
           } catch (refreshError) {
             console.error('Token refresh failed, attempting force re-authentication...')
             try {
               await this.forceReAuthentication()
-              // Put the request back in the queue to retry with new token
-              this.requestQueue.unshift({ ...req })
-              break
+              // Put the request back in the queue to retry with new token (increment retry count)
+              req.retryCount += 1
+              if (req.retryCount < this.maxRetries) {
+                this.requestQueue.unshift(req)
+                break
+              } else {
+                console.error('Max authentication retries exceeded')
+                reject(error)
+                this.notify({
+                  type: 'error',
+                  title: 'Authentication failed',
+                  message: 'Please sign in again to continue syncing.'
+                })
+              }
             } catch (reauthError) {
               console.error('Force re-authentication failed:', reauthError)
               reject(error) // Return original error
@@ -822,6 +999,7 @@ class GoogleDriveService {
       }
     }
 
+    clearTimeout(queueTimeout)
     this.isProcessingQueue = false
   }
 
@@ -1433,6 +1611,12 @@ class GoogleDriveService {
     
     // Stop health checks
     this.stopPeriodicHealthCheck()
+    
+    // Remove visibility change handler
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler)
+      this.visibilityHandler = null
+    }
   }
 
   // Mock request for development
