@@ -180,6 +180,7 @@ const getDefaultConfig = (userEmail) => ({
           items: [
             // Alphabetized body items with quick: true
             'allergic_reactions',
+            'bleeding_spotting',
             'energy_level',
             'exercise_impact',
             'forehead_shine',
@@ -193,6 +194,7 @@ const getDefaultConfig = (userEmail) => ({
           ],
           sort_order: [
             'allergic_reactions',
+            'bleeding_spotting',
             'energy_level',
             'exercise_impact',
             'forehead_shine',
@@ -524,10 +526,113 @@ export const useAppStore = create(
 
         // Minimal, non-throwing onboarding completion that only updates
         // onboarding flags and display options locally without full schema validation.
-        completeOnboardingLocal: (itemDisplayType = 'face') => {
+        completeOnboardingLocal: (itemDisplayType = 'face', selectedItems = null) => {
           const { config } = get()
           if (!config) return
           const viewTimes = (config.display_options && config.display_options.view_times) || { morning_end: '09:00', evening_start: '20:00' }
+          
+          // Get default view configurations if not provided
+          const defaultViewConfigs = config.view_configurations || {
+            morning_report: {
+              sections: {
+                body: { items: [], sort_order: [], visible: true, collapsed: false },
+                mind: { items: [], sort_order: [], visible: true, collapsed: false }
+              },
+              wearables: []
+            },
+            evening_report: {
+              sections: {
+                body: { items: [], sort_order: [], visible: true, collapsed: false },
+                mind: { items: [], sort_order: [], visible: true, collapsed: false }
+              }
+            },
+            quick_track: {
+              sections: {
+                body: { items: [], sort_order: [], visible: true, collapsed: false },
+                mind: { items: [], sort_order: [], visible: true, collapsed: false }
+              }
+            }
+          }
+
+          // Update view configurations with selected items if provided
+          let updatedViewConfigs = defaultViewConfigs
+          if (selectedItems) {
+            // Helper function to separate items by category
+            const separateItemsByCategory = (itemIds) => {
+              const bodyItems = []
+              const mindItems = []
+              
+              itemIds.forEach(id => {
+                const item = TRACKING_ITEMS[id]
+                if (item) {
+                  if (item.category === 'body') {
+                    bodyItems.push(id)
+                  } else if (item.category === 'mind') {
+                    mindItems.push(id)
+                  }
+                }
+              })
+              
+              return { bodyItems, mindItems }
+            }
+
+            const morningItems = separateItemsByCategory(selectedItems.morning || [])
+            const eveningItems = separateItemsByCategory(selectedItems.evening || [])
+            const quickItems = separateItemsByCategory(selectedItems.quick || [])
+
+            updatedViewConfigs = {
+              morning_report: {
+                sections: {
+                  body: { 
+                    items: morningItems.bodyItems, 
+                    sort_order: morningItems.bodyItems, 
+                    visible: true, 
+                    collapsed: false 
+                  },
+                  mind: { 
+                    items: morningItems.mindItems, 
+                    sort_order: morningItems.mindItems, 
+                    visible: true, 
+                    collapsed: false 
+                  }
+                },
+                wearables: ['wearables_sleep_score', 'wearables_body_battery']
+              },
+              evening_report: {
+                sections: {
+                  body: { 
+                    items: eveningItems.bodyItems, 
+                    sort_order: eveningItems.bodyItems, 
+                    visible: true, 
+                    collapsed: false 
+                  },
+                  mind: { 
+                    items: eveningItems.mindItems, 
+                    sort_order: eveningItems.mindItems, 
+                    visible: true, 
+                    collapsed: false 
+                  }
+                }
+              },
+              quick_track: {
+                sections: {
+                  body: { 
+                    items: quickItems.bodyItems, 
+                    sort_order: quickItems.bodyItems, 
+                    visible: true, 
+                    collapsed: false 
+                  },
+                  mind: { 
+                    items: quickItems.mindItems, 
+                    sort_order: quickItems.mindItems, 
+                    visible: true, 
+                    collapsed: false 
+                  }
+                }
+              }
+            }
+          }
+
           const newConfig = {
             ...config,
             onboarding: {
@@ -540,6 +645,7 @@ export const useAppStore = create(
               item_display_type: itemDisplayType,
               view_times: viewTimes
             },
+            view_configurations: updatedViewConfigs,
             updated_at: new Date().toISOString()
           }
           set({ config: newConfig })

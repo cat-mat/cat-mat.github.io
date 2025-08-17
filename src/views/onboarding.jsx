@@ -67,7 +67,7 @@ const Onboarding = () => {
   const handleSkip = async () => {
     try {
       // Update locally first so onboarding can complete without Drive access
-      completeOnboardingLocal(displayType)
+      completeOnboardingLocal(displayType, selectedItems)
       // Best-effort cloud save
       try { await saveConfig() } catch {}
       addNotification({
@@ -83,7 +83,7 @@ const Onboarding = () => {
   const handleComplete = async () => {
     try {
       // Update locally first so setup completes even if Drive auth is required
-      completeOnboardingLocal(displayType)
+      completeOnboardingLocal(displayType, selectedItems)
       // Best-effort cloud save; ignore failures (user may need to re-auth in preview)
       try { await saveConfig() } catch {}
       addNotification({ type: 'success', title: 'Setup Complete!', message: 'Your personalized tracking app is ready to use.' })
@@ -190,7 +190,7 @@ const Onboarding = () => {
           <button
             key={type}
             onClick={() => setDisplayType(type)}
-            className={`p-6 rounded-xl border-2 transition-all ${
+            className={`p-2 rounded-xl border-2 transition-all ${
               displayType === type
                 ? 'border-primary-500 bg-primary-50'
                 : 'border-gray-300 bg-white hover:border-primary-300'
@@ -200,16 +200,22 @@ const Onboarding = () => {
               <h3 className="text-lg font-semibold text-gray-800 mb-3">
                 {type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </h3>
-              <div className="flex justify-center space-x-2">
-                {[1, 2, 3, 4, 5].map((value) => {
-                  const { displayText } = getValueLabels(TRACKING_ITEMS.energy_level, value, type)
-                  return (
-                    <div key={value} className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700">
-                      <span className="text-lg">{displayText}</span>
-                    </div>
-                  )
-                })}
-              </div>
+                             <div className="grid grid-cols-5 gap-2 w-full">
+                 {[1, 2, 3, 4, 5].map((value) => {
+                   const { displayText } = getValueLabels(TRACKING_ITEMS.hot_flashes, value, type)
+                   const showCaption = type === 'face'
+                   const labelIndex = value - 1
+                   const captionText = TRACKING_ITEMS.hot_flashes.textOptions?.[labelIndex]
+                   return (
+                     <div key={value} className="px-1 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-center">
+                       <span className="text-sm sm:text-lg">{displayText}</span>
+                       {showCaption && captionText && (
+                         <span className="text-xs opacity-75 block mt-1">{captionText}</span>
+                       )}
+                     </div>
+                   )
+                 })}
+               </div>
             </div>
           </button>
         ))}
@@ -222,6 +228,8 @@ const Onboarding = () => {
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Customize Your Tracking</h2>
         <p className="text-gray-600">Select which items to track in each view.</p>
+        <p className="py-6 text-gray-600">Feel free to skip this section until you start using the app regularly.
+          You can edit what shows up and the sort order in each view anytime from the Settings.</p>
       </div>
       
       {['morning', 'evening', 'quick'].map((view) => (
