@@ -62,7 +62,7 @@ const Insights = () => {
     return { startDate, endDate }
   }
 
-  // Load historical data on mount
+  // Load historical data on mount and when trackingData changes
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
@@ -76,6 +76,14 @@ const Insights = () => {
     }
     loadData()
   }, [loadAllHistoricalData])
+
+  // Also refresh data when trackingData.entries changes (in case new entries were added)
+  useEffect(() => {
+    if (trackingData.entries && trackingData.entries.length > 0) {
+      // Data is already loaded, no need to reload
+      setIsLoading(false)
+    }
+  }, [trackingData.entries])
 
   // Save selected item to localStorage whenever it changes
   useEffect(() => {
@@ -815,6 +823,25 @@ const Insights = () => {
 
         {/* Filters */}
         <div className="meadow-card p-6 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Filters</h3>
+            <button
+              onClick={async () => {
+                setIsLoading(true)
+                try {
+                  await loadAllHistoricalData()
+                } catch (error) {
+                  console.error('Failed to refresh data:', error)
+                } finally {
+                  setIsLoading(false)
+                }
+              }}
+              disabled={isLoading}
+              className="btn-secondary text-sm px-3 py-1"
+            >
+              {isLoading ? 'Refreshing...' : 'Refresh Data'}
+            </button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{i18n.t('insights.filters.timeframe')}</label>
