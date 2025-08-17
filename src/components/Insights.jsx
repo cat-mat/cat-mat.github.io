@@ -36,7 +36,11 @@ const Insights = () => {
   const { trackingData, loadAllHistoricalData } = useAppStore()
   const [selectedTimeframe, setSelectedTimeframe] = useState('6weeks')
   const [selectedView, setSelectedView] = useState('all')
-  const [selectedItem, setSelectedItem] = useState('hot_flashes')
+  const [selectedItem, setSelectedItem] = useState(() => {
+    // Load the last selected item from localStorage, default to 'hot_flashes'
+    const savedItem = localStorage.getItem('insights-selected-item')
+    return savedItem || 'hot_flashes'
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { auth, signOut, addNotification } = useAppStore()
@@ -49,10 +53,11 @@ const Insights = () => {
   const [isConfigImporting, setIsConfigImporting] = useState(false)
   const [configImportSuccess, setConfigImportSuccess] = useState('')
 
-  // Calculate 6-week date range (inclusive of current week)
+  // Calculate 6-week date range (inclusive of current week and today)
   const getDateRange = () => {
     const now = new Date()
-    const endDate = endOfWeek(now, { weekStartsOn: 1 }) // Monday start
+    // Use today as the end date to ensure today's data is included
+    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const startDate = subWeeks(startOfWeek(now, { weekStartsOn: 1 }), 5) // 6 weeks back
     return { startDate, endDate }
   }
@@ -71,6 +76,11 @@ const Insights = () => {
     }
     loadData()
   }, [loadAllHistoricalData])
+
+  // Save selected item to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('insights-selected-item', selectedItem)
+  }, [selectedItem])
 
   // Filter data for selected timeframe
   const filteredData = useMemo(() => {
@@ -493,23 +503,60 @@ const Insights = () => {
       return runningAverages
     }
 
-    // Prepare chart data
-    const labels = itemData.map(d => format(d.date, 'EEE, M/d'))
-    const dataPoints = itemData.map(d => d.value)
-    const runningAverages = calculateRunningAverage(itemData)
+    // Group data by date for proper scatter plot
+    const groupedData = {}
+    itemData.forEach(d => {
+      const dateKey = format(d.date, 'yyyy-MM-dd')
+      if (!groupedData[dateKey]) {
+        groupedData[dateKey] = {
+          date: d.date,
+          values: [],
+          label: format(d.date, 'EEE, M/d')
+        }
+      }
+      groupedData[dateKey].values.push(d.value)
+    })
+
+    // Convert grouped data to arrays for Chart.js
+    const uniqueDates = Object.keys(groupedData).sort()
+    const labels = uniqueDates.map(dateKey => groupedData[dateKey].label)
+    
+    // Create scatter plot data - each value gets its own point at the same x position
+    const scatterData = []
+    uniqueDates.forEach((dateKey, dateIndex) => {
+      const dateData = groupedData[dateKey]
+      dateData.values.forEach(value => {
+        scatterData.push({
+          x: dateIndex, // Use index for x position
+          y: value
+        })
+      })
+    })
+
+    // Calculate running average based on daily averages
+    const dailyAverages = uniqueDates.map(dateKey => {
+      const values = groupedData[dateKey].values
+      return values.reduce((sum, val) => sum + val, 0) / values.length
+    })
+    const runningAverages = calculateRunningAverage(dailyAverages.map((avg, index) => ({ value: avg, date: groupedData[uniqueDates[index]].date })))
+    
+    // Format running averages for Chart.js with proper x coordinates
+    const runningAverageData = runningAverages.map((avg, index) => ({
+      x: index,
+      y: avg
+    }))
 
     const chartData = {
       labels: labels,
       datasets: [
         {
           label: 'Data Points',
-          data: dataPoints,
+          data: scatterData,
           borderColor: '#C41E3A',
           backgroundColor: '#C41E3A',
           pointBackgroundColor: '#C41E3A',
           pointBorderColor: '#C41E3A',
           pointRadius: 4,
-          pointStyle: 'circle',
           pointHoverRadius: 6,
           borderWidth: 0,
           fill: false,
@@ -518,14 +565,13 @@ const Insights = () => {
         },
         {
           label: '7-Day Average',
-          data: runningAverages,
+          data: runningAverageData,
           borderColor: 'orange',
           backgroundColor: 'rgba(196, 30, 58, 0.1)',
-          pointBackgroundColor: 'orange',
-          pointBorderColor: 'orange',
-          pointRadius: 1,
-          pointStyle: 'line',
-          borderWidth: 1,
+          pointBackgroundColor: 'transparent',
+          pointBorderColor: 'transparent',
+          pointRadius: 0,
+          borderWidth: 2,
           borderDash: [5, 5],
           fill: false,
           tension: 0.1,
@@ -542,10 +588,41 @@ const Insights = () => {
           display: true,
           position: 'bottom',
           labels: {
-            usePointStyle: true,
+            usePointStyle: false,
             padding: 20,
             font: {
               size: 12
+            },
+            generateLabels: function(chart) {
+              const datasets = chart.data.datasets
+              return datasets.map((dataset, index) => {
+                const label = dataset.label || `Dataset ${index}`
+                
+                if (dataset.showLine === false) {
+                  // For scatter points, show a circle
+                  return {
+                    text: label,
+                    fillStyle: dataset.pointBackgroundColor,
+                    strokeStyle: dataset.pointBorderColor,
+                    lineWidth: 0,
+                    pointStyle: 'circle',
+                    hidden: !chart.isDatasetVisible(index),
+                    index: index
+                  }
+                } else {
+                  // For line data, show a thin line
+                  return {
+                    text: label,
+                    fillStyle: 'transparent',
+                    strokeStyle: dataset.borderColor,
+                    lineWidth: 1,
+                    lineDash: dataset.borderDash || [],
+                    pointStyle: 'line',
+                    hidden: !chart.isDatasetVisible(index),
+                    index: index
+                  }
+                }
+              })
             }
           }
         },
@@ -554,12 +631,32 @@ const Insights = () => {
           intersect: false,
           callbacks: {
             title: function(context) {
-              const dataIndex = context[0].dataIndex
-              return format(itemData[dataIndex].date, 'EEE, MMM d, yyyy')
+              if (!context || context.length === 0) return ''
+              
+              // For scatter data, get the x coordinate to determine the date index
+              let dataIndex
+              if (context[0].datasetIndex === 0) {
+                // Scatter data - use x coordinate
+                dataIndex = context[0].parsed.x
+              } else {
+                // Line data - use dataIndex
+                dataIndex = context[0].dataIndex
+              }
+              
+              if (dataIndex === undefined || dataIndex < 0 || dataIndex >= uniqueDates.length) return ''
+              
+              const dateKey = uniqueDates[dataIndex]
+              if (!dateKey || !groupedData[dateKey] || !groupedData[dateKey].date) return ''
+              
+              return format(groupedData[dateKey].date, 'EEE, MMM d, yyyy')
             },
             label: function(context) {
+              if (!context) return ''
+              
               const label = context.dataset.label || ''
-              const value = context.parsed.y
+              const value = context.parsed?.y
+              if (value === undefined || value === null) return label
+              
               return `${label}: ${value.toFixed(1)}`
             }
           }
@@ -567,6 +664,7 @@ const Insights = () => {
       },
       scales: {
         x: {
+          type: 'linear',
           display: true,
           title: {
             display: false
@@ -576,13 +674,24 @@ const Insights = () => {
             minRotation: 45,
             font: {
               size: 10
+            },
+            callback: function(value, index) {
+              // Convert the tick value to the nearest integer index
+              const dataIndex = Math.round(value)
+              if (dataIndex >= 0 && dataIndex < labels.length) {
+                return labels[dataIndex]
+              }
+              return ''
             }
           },
           grid: {
             display: false
-          }
+          },
+          min: 0,
+          max: labels.length - 1
         },
         y: {
+          type: 'linear',
           display: true,
           title: {
             display: false

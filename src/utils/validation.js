@@ -68,6 +68,7 @@ export const entryValidationSchema = baseEntrySchema.keys({
   anxiety: scaleValidation[getItemScale('anxiety') || 5].optional(),
   depression: scaleValidation[getItemScale('depression') || 5].optional(),
   irritability: scaleValidation[getItemScale('irritability') || 5].optional(),
+  pet_reactions: scaleValidation[getItemScale('pet_reactions') || 5].optional(),
   stress_level: scaleValidation[getItemScale('stress_level') || 5].optional(),
   overall_sentiment: scaleValidation[getItemScale('overall_sentiment') || 5].optional(),
   
