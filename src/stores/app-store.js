@@ -217,6 +217,7 @@ const getDefaultConfig = (userEmail) => ({
             'depression',
             'irritability',
             'mood',
+            'pet_reactions',
             'social_stamina',
             'stress_level'
           ],
@@ -226,6 +227,7 @@ const getDefaultConfig = (userEmail) => ({
             'depression',
             'irritability',
             'mood',
+            'pet_reactions',
             'social_stamina',
             'stress_level'
           ],
@@ -790,8 +792,8 @@ export const useAppStore = create(
                     collapsed: false
                   },
                   mind: {
-                    items: ['anxiety', 'brain_fog', 'depression', 'irritability', 'mood', 'stress_level'],
-                    sort_order: ['anxiety', 'brain_fog', 'depression', 'irritability', 'mood', 'stress_level'],
+                    items: ['anxiety', 'brain_fog', 'depression', 'irritability', 'mood', 'pet_reactions', 'social_stamina', 'stress_level'],
+                    sort_order: ['anxiety', 'brain_fog', 'depression', 'irritability', 'mood', 'pet_reactions', 'social_stamina', 'stress_level'],
                     visible: true,
                     collapsed: false
                   }

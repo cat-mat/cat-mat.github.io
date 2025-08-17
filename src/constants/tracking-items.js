@@ -327,6 +327,22 @@ export const TRACKING_ITEMS = {
     heartEmojis: ['💙', '❤️', '🧡', '💛', '💚'],
     dotEmojis: ['🔵', '🔴', '🟠', '🟡', '🟢']
   },
+  pet_reactions: {
+    id: 'pet_reactions',
+    name: 'Pet Reactions',
+    category: 'mind',
+    scale: 5,
+    scale_type: SCALE_TYPES.FIVE_POINT,
+    good: 'low',
+    description: '🐾 Is your pet picking up on your moods?',
+    morning: false,
+    evening: false,
+    quick: true,
+    textOptions: ['Furbaby is their normal sweet self', 'Furbaby is too cuddly… am I dying??', ' Furbaby is avoiding me like the plague', 'Furbaby is pushing alllll the buttons', 'LOL, Furbaby is only about Furbaby. And food.'],
+    faceEmojis: ['🥰', '👀', '🫣', '😡', '💩'],
+    heartEmojis: ['💚', '💛', '🧡', '❤️', '💜'],
+    dotEmojis: ['🟢', '🟡', '🟠', '🔴', '🟣']
+  },
   pill_pack_start_date: {
     id: 'pill_pack_start_date',
     name: 'Pill Pack Start Date',
