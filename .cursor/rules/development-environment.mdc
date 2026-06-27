@@ -1,29 +1,35 @@
 ---
 alwaysApply: true
 ---
+
+## App Context
+- Perimenopause symptom tracker
+- Multiple users, each with isolated data stored as JSON on their own Google Drive
+- Prioritize data privacy and security — never mix user data
+- Users log irregularly (not daily); insights and date ranges must account for this
+
+## Google Drive Auth
+- Google OAuth app is published (not in testing mode)
+- Scopes: drive.file, drive.appdata, userinfo.email
+- Current issue: refresh token not being stored; users re-auth when access token expires
+- Fix: request offline access, store refresh token in localStorage, silently refresh access tokens
+- Keep all auth client-side; no backend server
+- Never store tokens in the Drive JSON data file
+
 ## Development Environment
-
-### Operating System
 - **Platform**: Windows
-- **Shell Commands**: Use Windows-compatible commands
-- **Path Separators**: Use backslashes `\` for Windows paths or forward slashes `/` for cross-platform compatibility
-- **Environment Variables**: Use Windows syntax `%VARIABLE%` or cross-platform `process.env.VARIABLE`
+- Use cross-platform commands where possible
+- Path separators: prefer `/` for cross-platform compatibility
+- Env vars: use `process.env.VARIABLE`
+- File ops: prefer `rimraf` over `rmdir /s`
+- Process mgmt: `tasklist` / `taskkill /f /pid`
 
-### Windows-Specific Command Patterns
-```bash
-# Use these Windows-compatible commands:
-npm run build          # ✅ Cross-platform
-yarn install          # ✅ Cross-platform
-npx create-react-app   # ✅ Cross-platform
+## Re-onboarding Context
+- Project paused several months; read existing code carefully before changing anything
+- Check SCALE_CONVERSION_REFACTOR.md and SECURITY_CHECKLIST.md before touching related code
+- Prefer small, targeted changes while re-familiarizing with the codebase
 
-# File operations:
-copy src\file.js dest\  # Windows
-cp src/file.js dest/    # Use cross-platform alternatives when possible
-
-# Directory operations:
-mkdir new-folder       # ✅ Cross-platform
-rmdir /s folder-name   # Windows (use rimraf package for cross-platform)
-
-# Process management:
-tasklist              # Windows (instead of ps)
-taskkill /f /pid 1234 # Windows (instead of kill)
+## Code Standards
+- No new dependencies without approval
+- Only modify files relevant to the task
+- Ask one clarifying question at a time when blocked
