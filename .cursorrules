@@ -1,7 +1,16 @@
+---
+alwaysApply: true
+---
+
 # Cursor Rules for "What Even With My Hot Self" App
 
 ## Project Overview
 This is a mobile-first PWA for tracking body, mind, and emotional changes during perimenopause. The app uses Google Drive for data storage and is designed for 6 initial users (owner + 5 friends).
+
+## Re-onboarding Context
+- Project paused several months; read existing code carefully before making any changes
+- Check SCALE_CONVERSION_REFACTOR.md and SECURITY_CHECKLIST.md before touching related code
+- Prefer small, targeted changes while re-familiarizing with the codebase
 
 ## Core Architecture Principles
 
@@ -19,27 +28,34 @@ This is a mobile-first PWA for tracking body, mind, and emotional changes during
 
 ### Authentication & Security
 - **Google OAuth 2.0** with refresh token support
-- **CRITICAL - Unverified App Limits**: Refresh tokens expire after 7 days for unverified apps
-- **Access token lifetime**: 1 hour with automatic refresh
-- **Refresh token strategy**: Request offline access with prompt=consent for maximum token lifetime
-- **Re-authentication flow**: Graceful 7-day re-auth prompt with data preservation
+- **App is published** (not in testing/unverified mode) — 7-day refresh token expiry does NOT apply
+- **Remove** all references to 7-day re-auth prompts, proactiveReauthDay logic, and 7-day token lifetime assumptions
+- **Access token lifetime**: 1 hour with automatic silent refresh
+- **Current bug**: Refresh token is not being stored or used correctly — users are re-authing every few days
+- **Fix**: Confirm `access_type=offline` and `prompt=consent` are set in OAuth request, store refresh token in localStorage (encrypted), and use it to silently obtain new access tokens without user interaction
 - **Rate limiting**: 100 requests per 100 seconds per user with exponential backoff
 - **NO SECRETS** in frontend code - use environment variables
 - **CSP headers** for XSS prevention
 
+## Development Environment
+- **Platform**: Windows
+- Use cross-platform commands where possible
+- Path separators: prefer `/` for cross-platform compatibility
+- Env vars: use `process.env.VARIABLE`
+- File ops: prefer `rimraf` over `rmdir /s`
+- Process mgmt: `tasklist` / `taskkill /f /pid`
+
 ## Development Standards
 
 ### Code Organization
-```
 src/
-├── components/           # Reusable UI components
+├── components/          # Reusable UI components
 ├── views/               # Main app views (Morning, Evening, Quick)
 ├── services/            # Google Drive API, data handling
 ├── utils/               # Helper functions, validation
 ├── stores/              # State management
 ├── workers/             # Service worker for offline functionality
 └── types/               # TypeScript definitions
-```
 
 ### Naming Conventions
 - **Files**: kebab-case (`user-config.js`, `morning-view.js`)
@@ -81,6 +97,19 @@ const wearableRanges = {
 - **Soft Deletes**: Use `is_deleted: true` flag, never hard delete
 - **Notes Max Length**: 2000 characters per note field
 
+## Insights & Reporting
+
+### Date Range Windows
+- Replace 2/4/6 week windows with: **30 days, 90 days, 180 days, 365 days, All Time, custom range picker**
+- Do not assume consistent entry frequency — users log irregularly
+
+### Insight Logic Rules
+- **Minimum density**: Require at least 3 entries within the selected date range before generating any insight
+- **Time-aware language**: Replace "stable" with descriptions that include entry count and time span (e.g. "rated similarly across 4 entries over 3 months")
+- **Flag irregular intervals**: Long gaps between entries should be surfaced as "limited data" periods, not smoothed over
+- **Symptom co-occurrence**: Flag symptoms that appear together frequently
+- **No false confidence**: Never imply a trend is reliable if logging was sparse or irregular
+
 ## UI/UX Guidelines
 
 ### View-Specific Rules
@@ -116,7 +145,6 @@ const wearableRanges = {
 
 ### Google Drive API Errors
 ```javascript
-// Always implement these error patterns
 const errorHandling = {
   rateLimitError: () => {
     // Exponential backoff: 1s, 2s, 4s, 8s delays
@@ -124,16 +152,13 @@ const errorHandling = {
     // Show user notification if severely limited
   },
   authenticationError: () => {
-    // UNVERIFIED APP: May need re-auth every 7 days
     // Clear expired tokens, redirect to re-auth
     // Preserve offline data during re-auth
     // User-friendly "Sign in again" prompt with explanation
   },
   refreshTokenExpired: () => {
-    // Expected every 7 days for unverified apps
-    // Show proactive re-auth prompt at day 6
-    // Explain why re-authentication is needed
-    // Maintain app functionality during re-auth
+    // Should not expire for published apps unless user revokes access
+    // If it does occur, show re-auth prompt and preserve data
   },
   networkError: () => {
     // Store in offline queue
@@ -171,28 +196,29 @@ const errorHandling = {
 
 ### Google Drive API Usage
 ```javascript
-// Always use these patterns for UNVERIFIED APP
 const apiPatterns = {
   authentication: {
-    scopes: ['https://www.googleapis.com/auth/drive.appdata'],
-    accessType: 'offline', // CRITICAL: Required for refresh tokens
-    prompt: 'consent', // CRITICAL: Forces refresh token generation
+    scopes: [
+      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/drive.appdata',
+      'https://www.googleapis.com/auth/userinfo.email'
+    ],
+    accessType: 'offline',
+    prompt: 'consent',
     accessTokenLifetime: 3600000, // 1 hour
-    refreshTokenLifetime: 604800000, // 7 days for unverified apps
-    proactiveReauthDay: 6, // Prompt re-auth on day 6
-    includeGrantedScopes: false // Security best practice
+    // Refresh tokens do not expire for published apps unless revoked by user
+    includeGrantedScopes: false
   },
   fileOperations: {
     maxRetries: 3,
-    retryDelay: [1000, 2000, 4000], // exponential backoff
-    batchSize: 10, // max requests per batch
-    timeoutMs: 30000 // 30 second timeout
+    retryDelay: [1000, 2000, 4000],
+    batchSize: 10,
+    timeoutMs: 30000
   },
   errorRecovery: {
     rateLimitBackoff: [1000, 2000, 4000, 8000],
     authFailureRedirect: '/connect-google-drive',
-    corruptDataFallback: 'create-new-file',
-    tokenExpiryGracePeriod: 86400000 // 1 day before showing re-auth
+    corruptDataFallback: 'create-new-file'
   }
 };
 ```
@@ -235,12 +261,11 @@ const apiPatterns = {
 
 ### Mock Data Patterns
 ```javascript
-// Always provide realistic test data
 const mockDataRules = {
   entries: {
-    includeEdgeCases: true, // missing fields, extreme values
-    realisticPatterns: true, // correlation between mood/energy
-    timeVariations: true, // different timezones, DST transitions
+    includeEdgeCases: true,
+    realisticPatterns: true,
+    timeVariations: true,
     userPersonas: ['new-user', 'power-user', 'sporadic-user']
   }
 };
@@ -304,15 +329,10 @@ const mockDataRules = {
 
 ## Environment Variables Template
 ```bash
-# Google Drive Integration
 VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
 VITE_ENVIRONMENT=development
-
-# Development Flags
 VITE_MOCK_GOOGLE_DRIVE=true
 VITE_DEBUG_MODE=true
-
-# Optional Features
 VITE_ENABLE_ANALYTICS=false
 ```
 
@@ -320,7 +340,6 @@ VITE_ENABLE_ANALYTICS=false
 
 ### Component Structure
 ```javascript
-// Always follow this component pattern
 const ComponentName = () => {
   // 1. State declarations
   // 2. Effect hooks
@@ -337,7 +356,6 @@ const ComponentName = () => {
 
 ### Data Fetching Pattern
 ```javascript
-// Consistent async data handling
 const fetchData = async () => {
   try {
     setLoading(true);
@@ -351,25 +369,16 @@ const fetchData = async () => {
 };
 ```
 
-### Error Boundary Pattern
-```javascript
-// Wrap critical components
-<ErrorBoundary fallback={<ErrorFallback />}>
-  <CriticalComponent />
-</ErrorBoundary>
-```
-
 ## Specific Implementation Notes
 
-### Time-Based View Logic for the Default View
-- All views are available to the user at all times, but the default view shown to the user is defined by the following:
-  - **Morning**: Check if current time < user's morning_end setting (default 09:00)
-  - **Evening**: Check if current time > user's evening_start setting (default 20:00)
-  - **Quick Track**: Available during middle hours (09:00-20:00 default)
+### Time-Based View Logic
+- **Morning**: current time < user's morning_end setting (default 09:00)
+- **Evening**: current time > user's evening_start setting (default 20:00)
+- **Quick Track**: middle hours (09:00-20:00 default)
 
 ### Tracking Item Configuration
-- **Body Section Items**: allergic_reactions, bleeding_spotting, diet_triggers, eating_habits, energy_level, exercise_impact, forehead_shine, headache, hormone_symptoms, hot_flashes, hydration, joint_pain, nausea, temperature_sensitivity, workout_recovery
-- **Mind Section Items**: anxiety, brain_fog, depression, irritability, mood, social_stamina, stress_level
+- **Body**: allergic_reactions, bleeding_spotting, diet_triggers, eating_habits, energy_level, exercise_impact, forehead_shine, headache, hormone_symptoms, hot_flashes, hydration, joint_pain, nausea, temperature_sensitivity, workout_recovery
+- **Mind**: anxiety, brain_fog, depression, irritability, mood, social_stamina, stress_level
 - **Morning Only**: pill_pack_start_date, sleep_quality, weird_dreams, wearables_sleep_score, wearables_body_battery
 - **Evening Only**: overall_sentiment, notes (observations, reflections, thankful_for)
 
@@ -384,10 +393,10 @@ const scaleTypes = {
 ```
 
 ## File Naming Conventions
-- **Components**: `PascalCase.jsx` (e.g., `MorningReport.jsx`)
-- **Services**: `camelCase.js` (e.g., `googleDriveService.js`)
-- **Utils**: `kebab-case.js` (e.g., `date-utils.js`)
-- **Types**: `PascalCase.ts` (e.g., `TrackingEntry.ts`)
+- **Components**: `PascalCase.jsx`
+- **Services**: `camelCase.js`
+- **Utils**: `kebab-case.js`
+- **Types**: `PascalCase.ts`
 - **Tests**: `ComponentName.test.js`
 
 ## Important Constraints
@@ -424,19 +433,6 @@ const scaleTypes = {
 - **Cache** frequently accessed data
 - **Compress** large payloads before storage
 
-## Accessibility Requirements
-- **Semantic HTML**: Use proper heading hierarchy, form labels
-- **ARIA labels**: For complex interactions and dynamic content
-- **Keyboard navigation**: Tab order, Enter/Space activation
-- **Screen reader testing**: Test with actual screen readers
-- **Color contrast**: Minimum 4.5:1 ratio
-
-## Testing Strategy
-- **Unit tests**: All utility functions and data transformations
-- **Integration tests**: Google Drive API mocking
-- **Accessibility tests**: axe-core automated testing
-- **Manual testing**: Real device testing on iOS/Android
-
 ## Common Anti-Patterns to Avoid
 - ❌ Storing Google API secrets in frontend code
 - ❌ Using localStorage without encryption for sensitive data
@@ -447,13 +443,6 @@ const scaleTypes = {
 - ❌ Assuming timezone never changes
 - ❌ Storing large datasets in localStorage (use IndexedDB)
 
-## Development Environment Setup
-1. **Node.js 18+** with npm/yarn
-2. **Environment file**: Copy `.env.example` to `.env.local`
-3. **Google Cloud Project**: Enable Drive API, create OAuth 2.0 credentials
-4. **Mock mode**: Set `VITE_MOCK_GOOGLE_DRIVE=true` for development
-5. **Test data generator**: Use provided mock data functions
-
 ## Key Libraries & Dependencies
 - **Google APIs**: `googleapis` for Drive API integration
 - **Charts**: `chart.js` or `recharts` for data visualization
@@ -462,4 +451,4 @@ const scaleTypes = {
 - **Encryption**: Native Web Crypto API (no additional deps)
 - **State management**: Zustand or Valtio (lightweight options)
 
-Remember: This app is designed for women tracking perimenopause symptoms. Keep the tone supportive, the interface intuitive, and the data secure. Every decision should prioritize user privacy and a seamless mobile experience.
+Remember: This app is for women tracking perimenopause symptoms. Keep the tone supportive, the interface intuitive, and the data secure. Every decision should prioritize user privacy and a seamless mobile experience.
